@@ -31,4 +31,3 @@ router.use('/uploads', uploadsRouter);
 router.get('/', (_req, res) => {
   res.json(successResponse({ version: '1.0.0' }, 'Amentorz API is running'));
 });
-

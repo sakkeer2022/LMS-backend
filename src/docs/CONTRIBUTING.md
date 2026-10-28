@@ -16,11 +16,11 @@ Follow sections 2 to 4 of the [README](../../README.md): copy `.env.example` to 
 
 ## Branches
 
-| Branch | Purpose | Rules |
-|---|---|---|
-| `main` | Production-ready code | Pull requests only, from `development` or `hotfix/*` |
-| `development` | Integration branch; every work branch starts here | Pull requests only |
-| `<type>/LMS-<ticket>-<description>` | One branch per Jira ticket | Branch from `development`, merge back by pull request |
+| Branch                              | Purpose                                           | Rules                                                 |
+| ----------------------------------- | ------------------------------------------------- | ----------------------------------------------------- |
+| `main`                              | Production-ready code                             | Pull requests only, from `development` or `hotfix/*`  |
+| `development`                       | Integration branch; every work branch starts here | Pull requests only                                    |
+| `<type>/LMS-<ticket>-<description>` | One branch per Jira ticket                        | Branch from `development`, merge back by pull request |
 
 Work branch names use one of Bitbucket's branch types, the Jira key and a short kebab-case description:
 
@@ -88,12 +88,12 @@ Before asking for review, check every item:
 
 Two developers working in parallel will meet in a few files. These rules keep conflicts small and safe.
 
-| File | Rule |
-|---|---|
-| `prisma/schema.prisma` and `prisma/migrations/` | Rebase on `development` before generating a migration. One migration per pull request. If `development` gained a migration before you merge, rebase, delete your migration folder and generate it again. Never edit a migration that is already on `development`. |
-| `docs/openapi.yaml`, `docs/sprint-1-endpoints.md` | Generated files: never merge them by hand. Resolve the conflict in `docs/build-contract-draft.py`, then regenerate (`cd docs && python3 -I build-contract-draft.py`). |
-| `src/routes/index.ts`, `prisma/seed.ts` | Add your lines in their own block; keep pull requests small so these merge cleanly. |
-| `progress.md`, `findings.md` | Add new entries at the end with the date and Jira key. On conflict keep both entries. |
+| File                                              | Rule                                                                                                                                                                                                                                                              |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `prisma/schema.prisma` and `prisma/migrations/`   | Rebase on `development` before generating a migration. One migration per pull request. If `development` gained a migration before you merge, rebase, delete your migration folder and generate it again. Never edit a migration that is already on `development`. |
+| `docs/openapi.yaml`, `docs/sprint-1-endpoints.md` | Generated files: never merge them by hand. Resolve the conflict in `docs/build-contract-draft.py`, then regenerate (`cd docs && python3 -I build-contract-draft.py`).                                                                                             |
+| `src/routes/index.ts`, `prisma/seed.ts`           | Add your lines in their own block; keep pull requests small so these merge cleanly.                                                                                                                                                                               |
+| `progress.md`, `findings.md`                      | Add new entries at the end with the date and Jira key. On conflict keep both entries.                                                                                                                                                                             |
 
 ## Code Standards
 

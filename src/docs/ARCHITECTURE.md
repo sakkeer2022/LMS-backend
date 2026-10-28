@@ -85,14 +85,14 @@ logger.info({ ip: sanitizeLogString(req.ip) }, 'Request received');
 
 A centralized `prom-client` registry (`src/core/metrics/index.ts`) exports all metric instruments. Metrics are exposed on `GET /metrics` in Prometheus text format.
 
-| Metric | Type | Labels |
-|---|---|---|
-| `http_requests_total` | Counter | `method`, `path`, `status` |
-| `http_request_duration_seconds` | Histogram | `method`, `path`, `status` |
-| `db_query_duration_seconds` | Histogram | — |
-| `active_database_connections` | Gauge | — |
-| `background_jobs_processed_total` | Counter | `status`, `jobName` |
-| `circuit_breaker_state` | Gauge | `name` |
+| Metric                            | Type      | Labels                     |
+| --------------------------------- | --------- | -------------------------- |
+| `http_requests_total`             | Counter   | `method`, `path`, `status` |
+| `http_request_duration_seconds`   | Histogram | `method`, `path`, `status` |
+| `db_query_duration_seconds`       | Histogram | —                          |
+| `active_database_connections`     | Gauge     | —                          |
+| `background_jobs_processed_total` | Counter   | `status`, `jobName`        |
+| `circuit_breaker_state`           | Gauge     | `name`                     |
 
 **`/metrics` Endpoint Security:**
 
@@ -114,13 +114,13 @@ The platform is fully instrumented with OpenTelemetry via the Node.js SDK (`@ope
 
 **Auto-Instrumented Libraries:**
 
-| Library | Spans Generated |
-|---|---|
-| Express | Per-route HTTP spans |
-| `pg` / `@prisma/adapter-pg` | Per-query DB spans |
-| `ioredis` | Per-command Redis spans |
-| `http`/`https` | Outbound HTTP request spans |
-| `fs` | Disabled (too noisy) |
+| Library                     | Spans Generated             |
+| --------------------------- | --------------------------- |
+| Express                     | Per-route HTTP spans        |
+| `pg` / `@prisma/adapter-pg` | Per-query DB spans          |
+| `ioredis`                   | Per-command Redis spans     |
+| `http`/`https`              | Outbound HTTP request spans |
+| `fs`                        | Disabled (too noisy)        |
 
 **Trace Export:** Spans are exported via OTLP HTTP to `OTEL_EXPORTER_OTLP_ENDPOINT/v1/traces` (default: `http://localhost:4318`). Compatible with Jaeger, Grafana Tempo, and any OTLP collector. If the collector is unreachable, spans are silently dropped.
 
@@ -142,13 +142,13 @@ The worker (`src/infrastructure/queue/worker.ts`) extracts and restores this con
 
 ### 10. New Environment Variables (Task 5 & 6)
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | No | `http://localhost:4318` | OTLP collector endpoint for trace export |
-| `METRICS_TOKEN` | Production only | — | Bearer token for `/metrics` endpoint in production |
-| `AWS_S3_BUCKET` | Uploads only | `rbac-uploads-quarantine` | Secure quarantine S3 bucket |
-| `UPLOAD_MAX_BYTES` | No | `10485760` | Max file upload size in bytes (10MB) |
-| `CLAMAV_ENABLED` | No | `false` | Enable background ClamAV scanning worker |
+| Variable                      | Required        | Default                   | Description                                        |
+| ----------------------------- | --------------- | ------------------------- | -------------------------------------------------- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | No              | `http://localhost:4318`   | OTLP collector endpoint for trace export           |
+| `METRICS_TOKEN`               | Production only | —                         | Bearer token for `/metrics` endpoint in production |
+| `AWS_S3_BUCKET`               | Uploads only    | `rbac-uploads-quarantine` | Secure quarantine S3 bucket                        |
+| `UPLOAD_MAX_BYTES`            | No              | `10485760`                | Max file upload size in bytes (10MB)               |
+| `CLAMAV_ENABLED`              | No              | `false`                   | Enable background ClamAV scanning worker           |
 
 ---
 
@@ -157,6 +157,7 @@ The worker (`src/infrastructure/queue/worker.ts`) extracts and restores this con
 A velocity-based geolocation threat detection evaluates successful logins against preceding login records (`src/core/security/travel.ts`).
 
 **Algorithm:**
+
 1. Resolves the login IP's ISO country code and geographic coordinates `[latitude, longitude]`.
 2. Computes the geodesic distance in kilometers between the current and last login coordinates using the **Haversine formula**:
    $$d = 2R \arcsin\left(\sqrt{\sin^2\left(\frac{\Delta\phi}{2}\right) + \cos(\phi_1)\cos(\phi_2)\sin^2\left(\frac{\Delta\lambda}{2}\right)}\right)$$
@@ -164,6 +165,7 @@ A velocity-based geolocation threat detection evaluates successful logins agains
 4. If required velocity exceeds **800 km/h** and crosses a country boundary, triggers an active security threat.
 
 **Response Mechanism:**
+
 - Logs a `CRITICAL` severity audit entry (`entity: 'auth'`, `action: 'security.impossible_travel'`).
 - Sets a Redis key `impossible_travel:<userId>` with a 24-hour TTL (falls back to a synchronized in-memory set in stateless test configurations).
 - Token refresh requests matching suspended sessions are rejected with a `401 Unauthorized` exception: `Session suspended: unusual login location detected. Please verify your identity.`
@@ -207,5 +209,3 @@ graph TD
 2. **Signature assertion:** Resolves true binary signature (Magic Bytes) via `fileTypeFromBuffer`. Rejects spoofed extensions (e.g. text shells renamed to `.png`).
 3. **Storage isolation:** Saves files with a `quarantine/` key prefix in S3 (ACL: private). Falls back to isolated `/uploads/quarantine` in local filesystem if AWS credentials are not set.
 4. **Asynchronous scan:** Worker pulls `scan-file` job, executes ClamAV/threat validation, and promotions/deletes objects.
-
-

@@ -32,7 +32,7 @@
 ## Automated Security Checking [Implemented]
 
 To enforce security during development and within CI/CD pipelines, the project executes automated static analysis and dependency vulnerability testing:
+
 - **Command**: `npm run security:check` executes both dependency analysis and SAST checks.
 - **Dependency Audit**: `npm run audit` scans the dependency tree for known CVEs and high/critical issues.
 - **SAST (Static Application Security Testing)**: `eslint-plugin-security` is integrated directly into the ESLint configuration, auditing code pattern issues (e.g., regex DOS vectors, unsafe input parsing, dangerous execution contexts, object injection).
-

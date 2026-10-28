@@ -47,12 +47,12 @@ cp .env.example .env
 
 Open `.env` and fill in:
 
-| Variable | Description | How to Generate |
-|---|---|---|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://youruser@localhost:5432/amentorz_dev` |
-| `JWT_SECRET` | Access token signing secret (32+ chars) | `openssl rand -hex 32` |
-| `JWT_REFRESH_SECRET` | Refresh token secret (32+ chars) | `openssl rand -hex 32` |
-| `COOKIE_SECRET` | Cookie signing secret (32+ chars) | `openssl rand -hex 32` |
+| Variable             | Description                             | How to Generate                                     |
+| -------------------- | --------------------------------------- | --------------------------------------------------- |
+| `DATABASE_URL`       | PostgreSQL connection string            | `postgresql://youruser@localhost:5432/amentorz_dev` |
+| `JWT_SECRET`         | Access token signing secret (32+ chars) | `openssl rand -hex 32`                              |
+| `JWT_REFRESH_SECRET` | Refresh token secret (32+ chars)        | `openssl rand -hex 32`                              |
+| `COOKIE_SECRET`      | Cookie signing secret (32+ chars)       | `openssl rand -hex 32`                              |
 
 All other variables have safe defaults for local development.
 
@@ -96,15 +96,15 @@ All 40+ tests should pass on a fresh clone.
 
 ### Key Files
 
-| File | Purpose |
-|---|---|
-| `prisma/schema.prisma` | Single source of truth for the database schema |
-| `prisma.config.ts` | Prisma CLI configuration (connection URL for migrations/seeding) |
-| `src/config/index.ts` | Zod-validated environment loading — crashes on startup if misconfigured |
-| `src/infrastructure/database/connection.ts` | Prisma client singleton with `pg.Pool` driver adapter |
-| `src/app.ts` | Express app setup (middleware, routes, error handling) |
-| `src/server.ts` | Server bootstrap (DB connect, Redis connect, HTTP listen) |
-| `src/routes/index.ts` | Central router mounting all module routes |
+| File                                        | Purpose                                                                 |
+| ------------------------------------------- | ----------------------------------------------------------------------- |
+| `prisma/schema.prisma`                      | Single source of truth for the database schema                          |
+| `prisma.config.ts`                          | Prisma CLI configuration (connection URL for migrations/seeding)        |
+| `src/config/index.ts`                       | Zod-validated environment loading — crashes on startup if misconfigured |
+| `src/infrastructure/database/connection.ts` | Prisma client singleton with `pg.Pool` driver adapter                   |
+| `src/app.ts`                                | Express app setup (middleware, routes, error handling)                  |
+| `src/server.ts`                             | Server bootstrap (DB connect, Redis connect, HTTP listen)               |
+| `src/routes/index.ts`                       | Central router mounting all module routes                               |
 
 ### Module Pattern
 
@@ -128,12 +128,12 @@ src/modules/[feature]/
 
 ### Important Gotchas
 
-| Gotcha | Detail |
-|---|---|
-| **Prisma 7 — no `url` in schema** | `DATABASE_URL` is set in `prisma.config.ts`, not `schema.prisma`. Never add `url = env("DATABASE_URL")` back. |
-| **Always import `{ prisma }` from `@infrastructure/database/index`** | Never instantiate `new PrismaClient()` directly — the driver adapter won't be configured. |
-| **`tests/env-setup.ts` must load before `tests/setup.ts`** | Do not reorder `setupFiles` in `vitest.config.ts`. |
-| **Transaction context** | If a service function accepts `tx?: Prisma.TransactionClient`, always pass it through to child DB calls, otherwise they run outside the transaction. |
+| Gotcha                                                               | Detail                                                                                                                                               |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Prisma 7 — no `url` in schema**                                    | `DATABASE_URL` is set in `prisma.config.ts`, not `schema.prisma`. Never add `url = env("DATABASE_URL")` back.                                        |
+| **Always import `{ prisma }` from `@infrastructure/database/index`** | Never instantiate `new PrismaClient()` directly — the driver adapter won't be configured.                                                            |
+| **`tests/env-setup.ts` must load before `tests/setup.ts`**           | Do not reorder `setupFiles` in `vitest.config.ts`.                                                                                                   |
+| **Transaction context**                                              | If a service function accepts `tx?: Prisma.TransactionClient`, always pass it through to child DB calls, otherwise they run outside the transaction. |
 
 ---
 

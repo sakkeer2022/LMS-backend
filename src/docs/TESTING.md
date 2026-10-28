@@ -35,13 +35,13 @@ Quality is non-negotiable. The platform requires a minimum of **80% test coverag
 
 ## Test Scripts
 
-| Script | Directory | Uses DB | Parallelism | When to Run |
-|---|---|---|---|---|
-| `npm run test:unit` | `tests/unit/` | No | Yes | pre-push, frequently during dev |
-| `npm run test:integration` | `tests/modules/` | Yes (PostgreSQL) | No | CI, before PR |
-| `npm run test` | all | Yes (PostgreSQL) | No (sequential) | CI default / full local check |
-| `npm run test:coverage` | all | Yes (PostgreSQL) | No | On demand |
-| `npm run test:watch` | all | Yes (PostgreSQL) | No | Interactive dev |
+| Script                     | Directory        | Uses DB          | Parallelism     | When to Run                     |
+| -------------------------- | ---------------- | ---------------- | --------------- | ------------------------------- |
+| `npm run test:unit`        | `tests/unit/`    | No               | Yes             | pre-push, frequently during dev |
+| `npm run test:integration` | `tests/modules/` | Yes (PostgreSQL) | No              | CI, before PR                   |
+| `npm run test`             | all              | Yes (PostgreSQL) | No (sequential) | CI default / full local check   |
+| `npm run test:coverage`    | all              | Yes (PostgreSQL) | No              | On demand                       |
+| `npm run test:watch`       | all              | Yes (PostgreSQL) | No              | Interactive dev                 |
 
 ## Test Environment Bootstrap
 
@@ -58,13 +58,13 @@ Vitest loads `setupFiles` in this exact order before any test module is imported
 
 ### Environment Variables Set for Tests
 
-| Variable | Fake Value |
-|---|---|
-| `NODE_ENV` | `test` |
-| `DATABASE_URL` | `postgresql://<user>@localhost:5432/amentorz_test?schema=public` |
-| `JWT_SECRET` | `test-jwt-secret-deterministic` |
-| `JWT_REFRESH_SECRET` | `test-jwt-refresh-secret-deterministic` |
-| `COOKIE_SECRET` | `test-cookie-secret-deterministic` |
+| Variable             | Fake Value                                                       |
+| -------------------- | ---------------------------------------------------------------- |
+| `NODE_ENV`           | `test`                                                           |
+| `DATABASE_URL`       | `postgresql://<user>@localhost:5432/amentorz_test?schema=public` |
+| `JWT_SECRET`         | `test-jwt-secret-deterministic`                                  |
+| `JWT_REFRESH_SECRET` | `test-jwt-refresh-secret-deterministic`                          |
+| `COOKIE_SECRET`      | `test-cookie-secret-deterministic`                               |
 
 All other config values (e.g., `PORT`, `REDIS_URL`) use safe `??` fallbacks defined in `src/config/index.ts`.
 

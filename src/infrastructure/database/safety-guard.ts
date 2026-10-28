@@ -68,7 +68,8 @@ export function assertTestDatabaseUrl(
   const port = parsed.port ? parseInt(parsed.port, 10) : 5432;
 
   // 4. Host validation (separates local vs CI)
-  const isCi = options.isCi ?? (process.env.CI === 'true' || process.env.CONTINUOUS_INTEGRATION === 'true');
+  const isCi =
+    options.isCi ?? (process.env.CI === 'true' || process.env.CONTINUOUS_INTEGRATION === 'true');
   const envCiHosts = process.env.APPROVED_TEST_DB_HOSTS
     ? process.env.APPROVED_TEST_DB_HOSTS.split(',').map((h) => h.trim().toLowerCase())
     : [];
@@ -80,7 +81,9 @@ export function assertTestDatabaseUrl(
   if (!allowedHosts.includes(hostname)) {
     throw new Error(
       `[DATABASE SAFETY GUARD] Refusing to run tests: Target host '${hostname}:${port}' is not an authorized test database host. Expected an approved ${
-        isCi ? 'CI host (e.g. localhost, postgres)' : 'local loopback interface (localhost, 127.0.0.1)'
+        isCi
+          ? 'CI host (e.g. localhost, postgres)'
+          : 'local loopback interface (localhost, 127.0.0.1)'
       }.`
     );
   }

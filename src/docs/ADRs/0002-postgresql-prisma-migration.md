@@ -19,6 +19,7 @@ The original bootstrap was built with MySQL v8 and Sequelize ORM. While function
 ## Decision
 
 Migrate the entire database layer from:
+
 - **MySQL** → **PostgreSQL (v14+)**
 - **Sequelize ORM** → **Prisma ORM (v7)**
 
@@ -44,12 +45,12 @@ Migrate the entire database layer from:
 
 ## Alternatives Considered
 
-| Alternative | Reason Rejected |
-|---|---|
-| Stay with MySQL + Sequelize | Type safety issues; Sequelize's TS support is difficult to maintain |
-| MySQL + Prisma | PostgreSQL has better JSON support and stricter SQL compliance |
-| PostgreSQL + TypeORM | TypeORM has similar DX issues to Sequelize with decorators; Prisma's schema-first approach is preferred |
-| PostgreSQL + Drizzle | Drizzle is excellent but newer; Prisma has broader adoption and better documentation for this use case |
+| Alternative                 | Reason Rejected                                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Stay with MySQL + Sequelize | Type safety issues; Sequelize's TS support is difficult to maintain                                     |
+| MySQL + Prisma              | PostgreSQL has better JSON support and stricter SQL compliance                                          |
+| PostgreSQL + TypeORM        | TypeORM has similar DX issues to Sequelize with decorators; Prisma's schema-first approach is preferred |
+| PostgreSQL + Drizzle        | Drizzle is excellent but newer; Prisma has broader adoption and better documentation for this use case  |
 
 ---
 

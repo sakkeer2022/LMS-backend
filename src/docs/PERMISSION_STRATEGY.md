@@ -17,7 +17,7 @@ Permissions are structured using a dot-notation format to guarantee uniqueness, 
 
 ## Hierarchical Role-Based Access Control (RBAC) [Implemented]
 
-Roles support a hierarchical structure via a self-referencing `parent_id` (foreign key pointing to another `Role` record). 
+Roles support a hierarchical structure via a self-referencing `parent_id` (foreign key pointing to another `Role` record).
 
 - When permissions are evaluated for a user, the system recursively traverses the role hierarchy tree starting from all of the user's directly assigned roles.
 - The permissions and ABAC policies of parent roles are inherited automatically.
@@ -30,6 +30,7 @@ Roles support a hierarchical structure via a self-referencing `parent_id` (forei
 Permissions can have conditional rules (policies) attached to them. These conditions are defined as JSON structures stored in the `RolePermission` association table under the `conditions` column.
 
 ### Policy Rule Structure
+
 The condition block supports comparing fields from the resource instance against constants or values dynamically resolved from the `userContext` (e.g. `user.sub`, `user.email`, `user.roles`).
 
 ```typescript
@@ -47,6 +48,7 @@ export interface PolicyRule {
 ```
 
 ### Supported Operators
+
 - `$eq`: Checks if the resource field's value matches the resolved context value (e.g. `ownerId` matches `user.sub`).
 - `$in`: Checks if the resource field's value is contained in the resolved context array.
 - `$isSubset`: Checks if all elements of the resource field array are subset of the resolved context array (e.g. `departments` belongs to a subset of user's allowed departments).
@@ -77,7 +79,7 @@ sequenceDiagram
     AuthMW->>AuthMW: verifyAccessToken(token)
     Note over AuthMW: Decodes TokenPayload containing:<br/>- sub (userId)<br/>- permissions (flat string list)<br/>- policies (PolicyRule array)
     AuthMW->>ReqPermMW: Next() with req.user attached
-    
+
     ReqPermMW->>ReqPermMW: Check hasBasePermission (exact or wildcard match)
     alt Base Permission Missing
         ReqPermMW-->>Client: 403 Forbidden Error
@@ -102,13 +104,13 @@ sequenceDiagram
 ```
 
 ### Call Flow Reference Table
+
 For auditing code, these are the core functions executed along the execution path:
 
-| Order | Module/Path | File / Symbol | Description |
-|---|---|---|---|
-| **1** | Authentication | [authenticate.ts:authenticate](file:///Users/imin/Projects/RBAC_standard/backend%20copy/src/middleware/authenticate.ts) | Verifies the access token cookie or header, parses the JWT, and attaches the payload to `req.user`. |
-| **2** | Authorization Guard | [authenticate.ts:requirePermission](file:///Users/imin/Projects/RBAC_standard/backend%20copy/src/middleware/authenticate.ts) | Guard middleware checking if the user holds the required permission name and evaluating ABAC policies dynamically. |
-| **3** | Dynamic Resource Loading | *Route definitions* | Passes an optional `resourceLoader` function (e.g. `(req) => ({ ownerId: req.params.ownerId })`) to `requirePermission` to retrieve runtime parameters. |
-| **4** | Policy Evaluation | [policy.ts:evaluatePolicy](file:///Users/imin/Projects/RBAC_standard/backend%20copy/src/core/security/policy.ts) | Matches permissions, parses target/action, resolves `user.*` prefixes, and evaluates the conditional expression blocks. |
-| **5** | Token Issuance | [auth.service.ts:_issueTokenPair](file:///Users/imin/Projects/RBAC_standard/backend%20copy/src/modules/auth/auth.service.ts) | Uses `resolvePermissionsForRoles` and `resolvePoliciesForRoles` to bundle the inherited permissions and policies of the user's role hierarchy into the issued JWT. |
-
+| Order | Module/Path              | File / Symbol                                                                                                                 | Description                                                                                                                                                        |
+| ----- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **1** | Authentication           | [authenticate.ts:authenticate](file:///Users/imin/Projects/RBAC_standard/backend%20copy/src/middleware/authenticate.ts)       | Verifies the access token cookie or header, parses the JWT, and attaches the payload to `req.user`.                                                                |
+| **2** | Authorization Guard      | [authenticate.ts:requirePermission](file:///Users/imin/Projects/RBAC_standard/backend%20copy/src/middleware/authenticate.ts)  | Guard middleware checking if the user holds the required permission name and evaluating ABAC policies dynamically.                                                 |
+| **3** | Dynamic Resource Loading | _Route definitions_                                                                                                           | Passes an optional `resourceLoader` function (e.g. `(req) => ({ ownerId: req.params.ownerId })`) to `requirePermission` to retrieve runtime parameters.            |
+| **4** | Policy Evaluation        | [policy.ts:evaluatePolicy](file:///Users/imin/Projects/RBAC_standard/backend%20copy/src/core/security/policy.ts)              | Matches permissions, parses target/action, resolves `user.*` prefixes, and evaluates the conditional expression blocks.                                            |
+| **5** | Token Issuance           | [auth.service.ts:\_issueTokenPair](file:///Users/imin/Projects/RBAC_standard/backend%20copy/src/modules/auth/auth.service.ts) | Uses `resolvePermissionsForRoles` and `resolvePoliciesForRoles` to bundle the inherited permissions and policies of the user's role hierarchy into the issued JWT. |
