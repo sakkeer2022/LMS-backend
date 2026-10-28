@@ -127,7 +127,7 @@ A full feature flag management API with rollout percentages, condition targeting
 
 - AI agent identity files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`)
 - Module scaffold generator (`npm run scaffold:module`)
-- AI-gated GitHub Actions (PR review, coverage enforcement)
+- AI-gated CI checks (PR review, coverage enforcement)
 - Machine-readable context file for AI agent consumption
 
 ### Phase 8: Organization Hierarchies (Planned)

@@ -1,70 +1,117 @@
 # Contributing Guidelines
 
+How the team works on this repository: setup, branches, commits, pull requests and the files that need extra care when two developers work in parallel.
+
 ## Engineering Rigor
 
 We value maintainability, predictability, and stability over speed. Do not skip engineering rigor to deliver features faster.
 
-## Pre-Requisites
-
-- Node.js (v20+ LTS)
-- PostgreSQL (v14+)
-- Redis (v7+)
-- TypeScript knowledge
-- Familiarity with Prisma ORM
-
 ## Local Setup
 
-1. Clone the repository.
-2. Run `npm install` in the `backend/` directory. For CI or production deployments, use `npm ci` to respect the exact `package-lock.json` versions.
-3. We strictly track `package-lock.json` in version control to ensure reproducible builds. If you add or update dependencies, commit the updated `package-lock.json`.
-4. Create your local databases:
-   ```bash
-   psql -d template1 -c "CREATE DATABASE amentorz_dev;"
-   psql -d template1 -c "CREATE DATABASE amentorz_test;"
-   ```
-5. Copy `.env.example` to `.env` and configure your local environment:
-   ```bash
-   cp .env.example .env
-   ```
-   - **`.env` is git-ignored** and must never be committed. It is for local runtime only.
-   - **Secrets that must be replaced** before starting the server: `JWT_SECRET`, `JWT_REFRESH_SECRET`, `COOKIE_SECRET`. Use `openssl rand -hex 32` to generate each independently.
-   - **`DATABASE_URL`** must point to your local PostgreSQL instance (e.g., `postgresql://youruser@localhost:5432/amentorz_dev`).
-   - **Safe defaults** — all other variables have sensible defaults that work for local development.
-   - **`npm run test` does not need a `.env` file.** The test runner (`tests/env-setup.ts`) injects fake deterministic values before any app code is imported. Never rely on your private `.env` to make tests pass.
-   - **Production only:** `ALLOWED_ORIGINS` must be set to a comma-separated list of permitted client origins in production. It is ignored in development and test.
+Follow sections 2 to 4 of the [README](../../README.md): install with `npm ci`, copy `.env.example` to `.env`, create `amentorz_dev` and `amentorz_test`, apply migrations with `npx prisma migrate deploy` and seed.
 
-6. Push the Prisma schema and seed:
-   ```bash
-   npx prisma migrate deploy
-   npx prisma db seed
-   ```
+- **`.env` is git-ignored** and must never be committed. Shared values (for example provider keys) are handed over privately, never through git, Jira or chat history.
+- **Each developer owns their local databases.** After pulling `development`, run `npx prisma migrate deploy` against `amentorz_dev`, and again with `DATABASE_URL` pointing at `amentorz_test` before running integration tests.
+- **`npm run test` does not need a `.env` file.** `tests/env-setup.ts` injects fake deterministic values. Never rely on your private `.env` to make tests pass.
+
+## Branches
+
+| Branch | Purpose | Rules |
+|---|---|---|
+| `main` | Production-ready code | Pull requests only, from `development` or `hotfix/*` |
+| `development` | Integration branch; every work branch starts here | Pull requests only |
+| `<type>/LMS-<ticket>-<description>` | One branch per Jira ticket | Branch from `development`, merge back by pull request |
+
+Work branch names use one of Bitbucket's branch types, the Jira key and a short kebab-case description:
+
+```
+feature/LMS-38-student-registration
+bugfix/LMS-61-otp-expiry
+hotfix/LMS-70-login-lockout
+release/LMS-80-sprint-1
+```
+
+- Types: `feature` (new work), `bugfix` (fix found during development), `hotfix` (urgent production fix, branched from `main`), `release` (release preparation).
+- The Jira key links the branch, its commits and its pull request to the ticket. Jira's "Create branch" button produces a valid name.
+- The `pre-push` hook (`scripts/check-branch-name.cjs`) rejects any other name.
+- Keep branches short-lived. Update from `development` at least daily (`git pull --rebase origin development` before you push for review).
+
+## Commit Messages
+
+We use [Conventional Commits](https://www.conventionalcommits.org/) with a mandatory Jira footer:
+
+```
+<type>(<scope>): <summary in the imperative, lower case, no full stop>
+
+<optional body: why the change was made, wrapped at 72 characters>
+
+Refs: LMS-<ticket>
+```
+
+Example:
+
+```
+feat(auth): add registration email OTP
+
+Sends a one-time code before the account exists so the student can
+verify their email from the first onboarding step.
+
+Refs: LMS-38
+```
+
+- **Types:** `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `build`, `ci`, `chore`, `style`, `revert`.
+- **Scope:** the module or area touched, for example `auth`, `catalogue`, `faculty`, `db`, `contract`.
+- **Footer:** `Refs: LMS-<ticket>`; list several as `Refs: LMS-38, LMS-52`. The key must be uppercase.
+- **No AI attribution:** do not add `Co-Authored-By` trailers for AI tools (Claude, Copilot, Gemini and others). Co-author trailers for people are fine.
+- One logical change per commit. Keep generated files (contract, migration) in the same commit as the change that produced them.
+- The `commit-msg` hook runs commitlint (`commitlint.config.js`) and blocks messages that break these rules.
+
+## Pull Requests
+
+1. Push your branch and open a pull request into `development`. The title follows the commit format, for example `feat(auth): student registration (LMS-38)`.
+2. The other developer reviews. At least one approval and a green Bitbucket Pipelines build are required before merging.
+3. Merge with a merge commit or squash, then delete the branch.
+
+Before asking for review, check every item:
+
+- [ ] Matches the final UI and the API contract (`docs/openapi.yaml`); any mismatch with the project documents is raised in Jira, not silently resolved.
+- [ ] Follows the module rules in [.agents/AGENTS.md](../../.agents/AGENTS.md) (controller → service → dto → routes, module `index.ts`, no imports of another module's internals).
+- [ ] Every request input is validated with Zod; new routes have `@openapi` JSDoc.
+- [ ] Unit and integration tests cover success, 401/403, validation errors and CSRF; `npm run test:unit` and `npm run test:integration` pass locally.
+- [ ] Schema changes come with exactly one reviewed migration, and the docs in `docs/database/` are updated.
+- [ ] Contract changes are made in `docs/build-contract-draft.py` and regenerated; `npm run contract:validate` passes.
+- [ ] `npm run lint`, `npm run typecheck` and `npm run build` pass.
+- [ ] `progress.md` is updated, and `findings.md` too if a decision was made.
+- [ ] No secrets, `.env` files, build output or uploaded files are committed.
+
+## Shared Files
+
+Two developers working in parallel will meet in a few files. These rules keep conflicts small and safe.
+
+| File | Rule |
+|---|---|
+| `prisma/schema.prisma` and `prisma/migrations/` | Rebase on `development` before generating a migration. One migration per pull request. If `development` gained a migration before you merge, rebase, delete your migration folder and generate it again. Never edit a migration that is already on `development`. |
+| `docs/openapi.yaml`, `docs/sprint-1-endpoints.md` | Generated files: never merge them by hand. Resolve the conflict in `docs/build-contract-draft.py`, then regenerate (`cd docs && python3 -I build-contract-draft.py`). |
+| `src/routes/index.ts`, `prisma/seed.ts` | Add your lines in their own block; keep pull requests small so these merge cleanly. |
+| `progress.md`, `findings.md` | Add new entries at the end with the date and Jira key. On conflict keep both entries. |
 
 ## Code Standards
 
 - **TypeScript Strict Mode**: Enabled everywhere. Absolutely no `any` types. Use `unknown` with runtime type narrowing if dynamic data is unavoidable.
-- **Formatters & Linters**: `ESLint` and `Prettier` are strictly enforced.
-- **Git Hooks**: `Husky` and `lint-staged` are configured to format and lint code prior to allowing a commit.
+- **Formatters & Linters**: `ESLint` and `Prettier` are strictly enforced. Line endings are LF everywhere (`.gitattributes`).
+- **Git Hooks**: `Husky` runs lint-staged on commit, commitlint on the commit message, and the branch-name check, lint, build and unit tests before push.
 
 ## Architectural Guidelines
 
 1. **No Business Logic in Controllers**: Controllers must be thin, delegating all operations to the Service layer.
 2. **DTOs Everywhere**: Requests must be validated and transformed into Data Transfer Objects using Zod before reaching the Service layer.
-3. **Schema Changes via Prisma**: Database schema changes must be done via `prisma migrate dev` to generate versioned migration files. Manual DB tweaking is strictly forbidden.
+3. **Schema Changes via Prisma**: Generate versioned migrations (`prisma migrate dev --create-only`), review the SQL, then apply. Manual database changes are forbidden.
 4. **Prisma Client**: Always import `{ prisma }` from `@infrastructure/database/index`. Never instantiate `new PrismaClient()` directly outside of `connection.ts`.
 5. **Transactions**: Wrap multi-table mutations in `prisma.$transaction(async (tx) => { ... })` and pass `tx` to sub-operations.
-6. **Seeding**: Default roles, permissions, and system entities belong in `prisma/seed.ts`.
-
-## Pull Request Process
-
-1. Use feature branches (`feature/branch-name`, `bugfix/branch-name`).
-2. Write unit and integration tests for your new code.
-3. Update documentation if necessary.
-4. Ensure CI/CD passes successfully.
-5. Request review from a code owner.
+6. **Seeding**: Default roles, permissions, and system entities belong in `prisma/seed.ts`. Do not seed invented business values.
 
 ## Branch Protection & CI Pipeline
 
-- **No Direct Pushes**: Direct pushes to the `main` branch are restricted. All code changes must go through a Pull Request.
-- **Status Checks**: All GitHub Actions CI checks (linting, TypeScript build, testing, and security audit) must pass before a branch can be merged into `main`.
-- **Commit Standards**: We enforce Conventional Commits. Commits must follow this format (e.g., `feat: added authentication`). Non-compliant commits will be blocked by our `commit-msg` hook.
-- **Pre-Push Checks**: Fast, deterministic checks (lint, build, and unit tests) are configured to run automatically before any push via a `pre-push` Husky hook. Full integration tests are deferred to the CI pipeline. Ensure these local checks pass before pushing.
+- **No Direct Pushes**: `main` and `development` accept changes only through pull requests (Bitbucket branch restrictions).
+- **Status Checks**: Bitbucket Pipelines (`bitbucket-pipelines.yml`) runs lint, typecheck, contract validation, build, migrations and the unit and integration suites on every pull request. It must pass before merging.
+- **Pre-Push Checks**: The branch-name check, lint, build and unit tests run before every push. Integration tests run in CI.

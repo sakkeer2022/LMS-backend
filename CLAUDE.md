@@ -18,6 +18,26 @@ You must strictly implement and maintain these standards on every single task:
 4. **Structured Pino Logging & Tracing**: Use `logger` from `@core/logger/index` to log all key handlers, operations, database errors, and context changes. Ensure trace IDs are attached and logged for requests.
 5. **No Code Removal**: Do not remove, disable, or bypass any existing security protections (CSRF, helmet headers, Redis rate-limiting, body payload size constraints).
 
+## Modular Design Rules (Mandatory for ALL feature work)
+
+Every feature is built as a self-contained module. These rules extend the `controller → service → dto → routes` pattern in `.agents/AGENTS.md`; they do not replace it.
+
+1. **One module per bounded concern**: `src/modules/<name>/` holds `<name>.routes.ts`, `<name>.controller.ts`, `<name>.service.ts` and `<name>.dto.ts`, plus an `index.ts` that is the module's only public surface (its router and the service functions other modules may call). Every new module has an `index.ts`; template modules get one the next time they are changed. Split a module before a service file grows past roughly 400 lines; do not keep adding unrelated flows to `auth.service.ts`.
+2. **No reaching into other modules**: import another module only through its `index.ts`, never its controller, dto or internal helpers. Cross-module work goes through that module's exported service functions. Accept an optional `tx: Prisma.TransactionClient` on any function that must join another module's transaction.
+3. **External concerns live behind interfaces in `src/infrastructure/`**: email, object storage, PDF generation, clock and similar adapters expose a small TypeScript interface with a production implementation and an in-memory test double. Services depend on the interface, never on an SDK (`@aws-sdk/*`, mail or PDF libraries) directly.
+4. **Shared, domain-free helpers only in `src/shared/`**: validation primitives, pagination and types. Domain rules (for example age or eligibility checks) belong to the module that owns them and are exported from its `index.ts`.
+5. **Routing is wired in one place**: a module exports its router from `index.ts` and it is mounted only in `src/routes/index.ts`. Route-specific rate limits, guards and upload middleware are applied in the module's own routes file.
+6. **Tests mirror modules**: integration tests in `tests/modules/<name>.test.ts` and unit tests for the module's pure logic in `tests/unit/`. Test fixtures create data through `tests/helpers/` factories, not through another module's HTTP endpoints, so changing one module's API does not break unrelated suites.
+7. **Contract first**: a module's endpoints must match `docs/openapi.yaml` (generated from `docs/build-contract-draft.py`). Change the generator and regenerate the contract before or with the code, never after.
+
+## Git Workflow (Mandatory)
+
+Branch names, commit messages and pull requests follow `src/docs/CONTRIBUTING.md`:
+- Branch: `<feature|bugfix|hotfix|release>/LMS-<ticket>-<short-kebab-description>`, created from `development`.
+- Commit: Conventional Commits with a `Refs: LMS-<ticket>` footer.
+- **Never add a `Co-Authored-By` trailer or any other AI attribution** to commits or pull requests. commitlint rejects it.
+- Never push to `main` or `development` directly, never force-push a shared branch, and never push without the developer's go-ahead.
+
 ## Preferred Persona
 
 Default to **The Developer** persona for most tasks. Switch to **The Architect** when creating new modules or making schema changes. Switch to **The Reviewer** when asked to audit or review code.

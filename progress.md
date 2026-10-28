@@ -1,5 +1,13 @@
 # Progress Log
 
+## 2026-10-28 — Project setup and team conventions (LMS-52)
+
+- Rebuilt the unpushed local history into ticket-based commits on `feature/LMS-52-project-setup`; the onboarding schema and contract work moved to `feature/LMS-38-student-registration`.
+- Removed unused files: GitHub Actions workflows and duplicate `.github` docs (Bitbucket Pipelines is the only CI), template task notes, `BUSINESS_IMPACT_AND_KPA.md` and `src/scripts/ai-pr-review.ts`.
+- Line endings normalised to LF across the repository (`.gitattributes`).
+- Team conventions in `src/docs/CONTRIBUTING.md`: branch names `<type>/LMS-<n>-<description>`, Conventional Commits with a `Refs: LMS-<n>` footer, no AI co-author trailers, pull request checklist and shared-file rules. Enforced by commitlint and a pre-push branch-name check.
+- Modular design and git workflow rules added to `CLAUDE.md` and `.agents/AGENTS.md`; `GEMINI.md` points to them.
+
 ## 2026-10-23 — Backend foundation readiness (before first business API)
 
 - Committed the previously uncommitted Gate 4 work as a baseline snapshot (`48f0998`, hooks skipped once so it was not reformatted).

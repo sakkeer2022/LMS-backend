@@ -7,9 +7,9 @@
 | Dev DB built by migrations | Both DBs have both migrations applied with matching checksums; no baseline/resolve needed |
 | Migration drift by design | `curricula_category_id_board_id_subject_id_level_id_key` uses `NULLS NOT DISTINCT` (hand-edited, PG15+). Prisma cannot express it, so `migrate dev` output must be reviewed (`--create-only`) and any rebuild of this index removed |
 | Git hooks were inert | CRLF in `.husky/*` and non-executable `.husky/_` wrappers; fixed with LF + `.gitattributes` |
-| Repo uses CRLF, Prettier wants LF | `.prettierrc` sets `endOfLine: lf`; lint-staged converts each touched `src/**/*.ts` file to LF. Repo-wide normalisation (84 files) is pending approval |
+| Repo uses CRLF, Prettier wants LF | `.prettierrc` sets `endOfLine: lf`; lint-staged converts each touched `src/**/*.ts` file to LF. Normalised repo-wide to LF in LMS-52 (`.gitattributes` `* text=auto eol=lf`) |
 | Audit writes are fire-and-forget | `auditLogMiddleware` writes after the response, racing test TRUNCATE (deadlock 40P01). Test setup retries; production concurrency of the hash-chained audit insert is not yet reviewed |
-| CI platform | Bitbucket Pipelines is primary; GitHub Actions only applies to a mirror |
+| CI platform | Bitbucket Pipelines is the only CI; the unused GitHub Actions workflows were removed (LMS-52) |
 | Swagger | Implemented spec (JSDoc) and draft contract are served separately so docs match the running API (LMS-41) |
 | Enum contract mismatches | Not only case differences: `documentType`, `scanStatus`, library `kind` vs `LibraryMaterialKind`, plus DB-only `CHANGES_REQUESTED`/`WITHDRAWN`. `createEnumCodec` requires explicit mappings; these need a contract or schema decision before M02/M03 APIs |
 | Legacy template routes | `/auth/login`, `/users`, `/roles`, `/permissions`, `/feature-flags`, `/admin` left mounted until the first business API is approved |

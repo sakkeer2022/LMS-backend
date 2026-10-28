@@ -49,6 +49,26 @@ Every code addition or modification must strictly implement and enforce:
 - **Structured Pino Logging & Tracing**: All controller handlers, errors, and key database operations must log using `logger` (Pino). The global logging context must preserve request trace IDs (correlation IDs) for execution tracing.
 - **Existing Security Controls**: Never disable, bypass, or delete existing security middleware (Helmet HTTP headers, CSRF token checks, Redis rate-limiting, body payload size constraints).
 
+### 8. Modular Design (Compulsory for ALL feature work)
+
+Every feature is built as a self-contained module. These rules extend the `controller → service → dto → routes` pattern below; they do not replace it.
+
+1. **One module per bounded concern**: `src/modules/<name>/` holds `<name>.routes.ts`, `<name>.controller.ts`, `<name>.service.ts` and `<name>.dto.ts`, plus an `index.ts` that is the module's only public surface (its router and the service functions other modules may call). Every new module has an `index.ts`; template modules get one the next time they are changed. Split a module before a service file grows past roughly 400 lines; do not keep adding unrelated flows to `auth.service.ts`.
+2. **No reaching into other modules**: import another module only through its `index.ts`, never its controller, dto or internal helpers. Cross-module work goes through that module's exported service functions. Accept an optional `tx: Prisma.TransactionClient` on any function that must join another module's transaction.
+3. **External concerns live behind interfaces in `src/infrastructure/`**: email, object storage, PDF generation, clock and similar adapters expose a small TypeScript interface with a production implementation and an in-memory test double. Services depend on the interface, never on an SDK (`@aws-sdk/*`, mail or PDF libraries) directly.
+4. **Shared, domain-free helpers only in `src/shared/`**: validation primitives, pagination and types. Domain rules (for example age or eligibility checks) belong to the module that owns them and are exported from its `index.ts`.
+5. **Routing is wired in one place**: a module exports its router from `index.ts` and it is mounted only in `src/routes/index.ts`. Route-specific rate limits, guards and upload middleware are applied in the module's own routes file.
+6. **Tests mirror modules**: integration tests in `tests/modules/<name>.test.ts` and unit tests for the module's pure logic in `tests/unit/`. Test fixtures create data through `tests/helpers/` factories, not through another module's HTTP endpoints, so changing one module's API does not break unrelated suites.
+7. **Contract first**: a module's endpoints must match `docs/openapi.yaml` (generated from `docs/build-contract-draft.py`). Change the generator and regenerate the contract before or with the code, never after.
+
+### 9. Git Workflow (Compulsory)
+
+Branch names, commit messages and pull requests follow `src/docs/CONTRIBUTING.md`:
+- Branch: `<feature|bugfix|hotfix|release>/LMS-<ticket>-<short-kebab-description>`, created from `development`.
+- Commit: Conventional Commits with a `Refs: LMS-<ticket>` footer.
+- **Never add a `Co-Authored-By` trailer or any other AI attribution** to commits or pull requests. commitlint rejects it.
+- Never push to `main` or `development` directly, never force-push a shared branch, and never push without the developer's go-ahead.
+
 ---
 
 ## Agent Personas
@@ -245,3 +265,5 @@ All API responses follow the same envelope:
 | Use SQLite for tests | Use the real `amentorz_test` PostgreSQL database |
 | Run `prisma db push` or `prisma migrate reset` | Use `prisma migrate dev --create-only`, review the SQL, then apply; tests use `migrate deploy` on `amentorz_test` |
 | Accept a generated migration that recreates `curricula_..._key` | Keep the hand-written `NULLS NOT DISTINCT` index (see `.agents/context.md` gotcha 7) |
+| Import another module's controller, dto or internal helpers | Import only through that module's `index.ts` (section 8) |
+| Add `Co-Authored-By` or other AI attribution to commits | Use the commit format in `src/docs/CONTRIBUTING.md` (section 9) |
