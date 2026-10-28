@@ -1,0 +1,10 @@
+# LF everywhere so two developers on any OS produce no line-ending churn.
+# Git hooks also break with CRLF (the shell passes "\r" into each command).
+* text=auto eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.pdf binary

@@ -1,0 +1,62 @@
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 100
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+
+    ValidationError:
+      type: object
+      properties:
+        field:
+          type: string
+          example: "email"
+        message:
+          type: string
+          example: "Invalid email format"
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "A human-readable error summary"
+        errorCode:
+          type: string
+          example: "VALIDATION_ERROR"
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "A human-readable success message"
+        data:
+          type: object
+          description: "Generic payload"
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
