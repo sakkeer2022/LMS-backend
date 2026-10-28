@@ -19,8 +19,7 @@ describe('Upload API', () => {
       data: {
         email,
         passwordHash: 'hashedpassword',
-        firstName: 'File',
-        lastName: 'Uploader',
+        fullName: 'File Uploader',
       },
     });
 

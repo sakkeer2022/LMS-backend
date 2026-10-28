@@ -31,8 +31,7 @@ function hashToken(token: string): string {
 export interface UserProfile {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  fullName: string;
   isActive: boolean;
   roles: Array<{
     id: string;
@@ -64,8 +63,7 @@ export async function register(
       data: {
         email: dto.email,
         passwordHash,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
+        fullName: dto.fullName,
       },
     });
 
@@ -608,8 +606,7 @@ async function _buildProfile(userId: string, tx?: Prisma.TransactionClient): Pro
   return {
     id: user.id,
     email: user.email,
-    firstName: user.firstName,
-    lastName: user.lastName,
+    fullName: user.fullName,
     isActive: user.isActive,
     roles: mappedRoles,
   };

@@ -13,8 +13,7 @@ describe('Amentorz Domain Schema Integration', () => {
       data: {
         email: `student-${Date.now()}@test.com`,
         passwordHash,
-        firstName: 'Student',
-        lastName: 'One',
+        fullName: 'Student One',
         status: 'ACTIVE',
         emailVerifiedAt: new Date(),
       },
@@ -25,8 +24,7 @@ describe('Amentorz Domain Schema Integration', () => {
       data: {
         email: `faculty-${Date.now()}@test.com`,
         passwordHash,
-        firstName: 'Faculty',
-        lastName: 'Tutor',
+        fullName: 'Faculty Tutor',
         status: 'ACTIVE',
         emailVerifiedAt: new Date(),
       },
@@ -37,8 +35,7 @@ describe('Amentorz Domain Schema Integration', () => {
       data: {
         email: `admin-${Date.now()}@test.com`,
         passwordHash,
-        firstName: 'Admin',
-        lastName: 'Manager',
+        fullName: 'Admin Manager',
         status: 'ACTIVE',
         emailVerifiedAt: new Date(),
       },
@@ -46,33 +43,141 @@ describe('Amentorz Domain Schema Integration', () => {
     adminUserId = adminUser.id;
   });
 
-  describe('Student Profile & Under-18 Digital Consent', () => {
-    it('creates a student profile with under-18 guardian consent audit fields', async () => {
-      const now = new Date();
+  describe('Student Onboarding Profile, Policies & Guardian Consent', () => {
+    async function createLearningCatalogue() {
+      const category = await prisma.category.create({
+        data: { code: 'SCHOOL', name: 'School', requiresBoard: true },
+      });
+      const board = await prisma.board.create({ data: { code: 'CBSE', name: 'CBSE / NCERT' } });
+      const level = await prisma.level.create({ data: { code: 'CLASS_10', name: 'Class 10' } });
+      const subject = await prisma.subject.create({ data: { code: 'MATHS', name: 'Mathematics' } });
+      const curriculum = await prisma.curriculum.create({
+        data: { categoryId: category.id, boardId: board.id, subjectId: subject.id, levelId: level.id },
+      });
+      const language = await prisma.teachingLanguage.create({
+        data: { code: 'en_hi', name: 'English & Hindi', languageCodes: ['en', 'hi'] },
+      });
+      const studentTerms = await prisma.policyDocument.create({
+        data: {
+          type: 'STUDENT_TERMS',
+          version: '1.0',
+          title: 'Student Terms',
+          effectiveAt: new Date('2026-09-01T00:00:00Z'),
+          storageKey: 'policies/student-terms-1.0.pdf',
+          sha256: 'a'.repeat(64),
+          isCurrent: true,
+        },
+      });
+      return { category, board, level, curriculum, language, studentTerms };
+    }
+
+    it('creates a minor student profile with subjects, guardian contact and linked consent', async () => {
+      const { category, board, level, curriculum, language, studentTerms } =
+        await createLearningCatalogue();
+
+      // Consent is signed in the date-of-birth popup before the account exists
+      const consent = await prisma.guardianConsent.create({
+        data: {
+          policyId: studentTerms.id,
+          tokenHash: 'b'.repeat(64),
+          studentFullName: 'Student One',
+          studentDateOfBirth: new Date('2012-05-15'),
+          signatureMode: 'DRAW',
+          signedPdfStorageKey: 'consents/consent-1.pdf',
+          signedPdfSha256: 'c'.repeat(64),
+          ipAddress: '203.0.113.10',
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        },
+      });
+      expect(consent.studentId).toBeNull();
+
       const profile = await prisma.studentProfile.create({
         data: {
           userId: studentUserId,
-          dateOfBirth: new Date('2010-05-15'),
-          isUnder18: true,
+          dateOfBirth: new Date('2012-05-15'),
+          categoryId: category.id,
+          boardId: board.id,
+          levelId: level.id,
+          teachingLanguageId: language.id,
           guardianName: 'Parent Guardian',
+          guardianRelationship: 'FATHER',
+          guardianMobileNumber: '+919876543210',
           guardianEmail: 'guardian@test.com',
-          guardianPhone: '+919876543210',
-          guardianConsentSigned: true,
-          guardianConsentDocument: 'doc_hash_sha256_mock_12345',
-          guardianConsentSignedAt: now,
-          gradeLevel: 'Grade 10',
-          schoolName: 'Delhi Public School',
-          city: 'Mumbai',
-          state: 'Maharashtra',
-          country: 'IN',
+          guardianReceivesReports: true,
+          subjects: { create: [{ curriculumId: curriculum.id }] },
+        },
+        include: { subjects: true },
+      });
+
+      const linked = await prisma.guardianConsent.update({
+        where: { id: consent.id },
+        data: {
+          studentId: profile.id,
+          linkedAt: new Date(),
+          guardianName: profile.guardianName,
+          guardianRelationship: profile.guardianRelationship,
         },
       });
 
-      expect(profile).toBeDefined();
-      expect(profile.isUnder18).toBe(true);
-      expect(profile.guardianConsentSigned).toBe(true);
-      expect(profile.guardianConsentDocument).toBe('doc_hash_sha256_mock_12345');
-      expect(profile.userId).toBe(studentUserId);
+      expect(profile.subjects).toHaveLength(1);
+      expect(profile.dateOfBirth.toISOString()).toBe('2012-05-15T00:00:00.000Z');
+      expect(profile.country).toBe('IN');
+      expect(linked.studentId).toBe(profile.id);
+    });
+
+    it('rejects a second consent for the same student and policy version', async () => {
+      const { category, level, language, studentTerms } = await createLearningCatalogue();
+      const profile = await prisma.studentProfile.create({
+        data: {
+          userId: studentUserId,
+          dateOfBirth: new Date('2012-05-15'),
+          categoryId: category.id,
+          levelId: level.id,
+          teachingLanguageId: language.id,
+        },
+      });
+      const consent = (n: string) => ({
+        studentId: profile.id,
+        policyId: studentTerms.id,
+        tokenHash: n.repeat(64),
+        studentFullName: 'Student One',
+        studentDateOfBirth: new Date('2012-05-15'),
+        signatureMode: 'TYPE' as const,
+        typedName: 'Parent Guardian',
+        signedPdfStorageKey: `consents/${n}.pdf`,
+        signedPdfSha256: 'c'.repeat(64),
+        ipAddress: '203.0.113.10',
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        linkedAt: new Date(),
+      });
+
+      await prisma.guardianConsent.create({ data: consent('d') });
+      await expect(prisma.guardianConsent.create({ data: consent('e') })).rejects.toThrow();
+    });
+
+    it('records one acceptance per user and policy version', async () => {
+      const { studentTerms } = await createLearningCatalogue();
+      const terms = await prisma.policyDocument.create({
+        data: {
+          type: 'TERMS_OF_USE',
+          version: '1.0',
+          title: 'Terms of Use',
+          effectiveAt: new Date('2026-09-01T00:00:00Z'),
+          storageKey: 'policies/terms-of-use-1.0.pdf',
+          sha256: 'f'.repeat(64),
+          isCurrent: true,
+        },
+      });
+
+      await prisma.policyAcceptance.create({ data: { userId: studentUserId, policyId: terms.id } });
+      await expect(
+        prisma.policyAcceptance.create({ data: { userId: studentUserId, policyId: terms.id } })
+      ).rejects.toThrow();
+      await expect(
+        prisma.policyDocument.create({
+          data: { ...studentTerms, id: undefined, storageKey: 'policies/duplicate.pdf' },
+        })
+      ).rejects.toThrow();
     });
   });
 

@@ -12,8 +12,7 @@ const BCRYPT_ROUNDS = 12;
 export interface UserSummary {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  fullName: string;
   isActive: boolean;
   lastLoginAt: Date | null;
   createdAt: Date;
@@ -39,8 +38,7 @@ export async function listUsers(
   if (search) {
     where.OR = [
       { email: { contains: search, mode: 'insensitive' } },
-      { firstName: { contains: search, mode: 'insensitive' } },
-      { lastName: { contains: search, mode: 'insensitive' } },
+      { fullName: { contains: search, mode: 'insensitive' } },
     ];
   }
 
@@ -64,8 +62,7 @@ export async function listUsers(
   const items: UserSummary[] = rows.map((u) => ({
     id: u.id,
     email: u.email,
-    firstName: u.firstName,
-    lastName: u.lastName,
+    fullName: u.fullName,
     isActive: u.isActive,
     lastLoginAt: u.lastLoginAt,
     createdAt: u.createdAt,
@@ -94,8 +91,7 @@ export async function getUserById(id: string): Promise<UserDetail> {
   return {
     id: user.id,
     email: user.email,
-    firstName: user.firstName,
-    lastName: user.lastName,
+    fullName: user.fullName,
     isActive: user.isActive,
     lastLoginAt: user.lastLoginAt,
     roles: user.roles.map((ur) => ur.role),
@@ -117,8 +113,7 @@ export async function createUser(dto: CreateUserInput): Promise<UserDetail> {
     data: {
       email: dto.email,
       passwordHash,
-      firstName: dto.firstName,
-      lastName: dto.lastName,
+      fullName: dto.fullName,
       isActive: dto.isActive !== undefined ? dto.isActive : true,
     },
   });
@@ -136,8 +131,7 @@ export async function updateUser(id: string, dto: UpdateUserInput): Promise<User
   await prisma.user.update({
     where: { id },
     data: {
-      firstName: dto.firstName !== undefined ? dto.firstName : undefined,
-      lastName: dto.lastName !== undefined ? dto.lastName : undefined,
+      fullName: dto.fullName !== undefined ? dto.fullName : undefined,
       isActive: dto.isActive !== undefined ? dto.isActive : undefined,
     },
   });
@@ -204,8 +198,7 @@ export async function assignRoles(userId: string, dto: AssignRolesInput): Promis
     return {
       id: updatedUser.id,
       email: updatedUser.email,
-      firstName: updatedUser.firstName,
-      lastName: updatedUser.lastName,
+      fullName: updatedUser.fullName,
       isActive: updatedUser.isActive,
       lastLoginAt: updatedUser.lastLoginAt,
       roles: updatedUser.roles.map((ur) => ur.role),
@@ -247,8 +240,7 @@ export async function removeRoles(userId: string, dto: AssignRolesInput): Promis
     return {
       id: updatedUser.id,
       email: updatedUser.email,
-      firstName: updatedUser.firstName,
-      lastName: updatedUser.lastName,
+      fullName: updatedUser.fullName,
       isActive: updatedUser.isActive,
       lastLoginAt: updatedUser.lastLoginAt,
       roles: updatedUser.roles.map((ur) => ur.role),
@@ -304,8 +296,7 @@ export async function setRoles(userId: string, dto: AssignRolesInput): Promise<U
     return {
       id: updatedUser.id,
       email: updatedUser.email,
-      firstName: updatedUser.firstName,
-      lastName: updatedUser.lastName,
+      fullName: updatedUser.fullName,
       isActive: updatedUser.isActive,
       lastLoginAt: updatedUser.lastLoginAt,
       roles: updatedUser.roles.map((ur) => ur.role),

@@ -43,8 +43,7 @@ describe('Audit Logs API', () => {
       .send({
         email: 'audit_admin@example.com',
         password: 'Password123!',
-        firstName: 'Audit',
-        lastName: 'Admin',
+        fullName: 'Audit Admin',
       });
 
     const user = await prisma.user.findFirst({ where: { email: 'audit_admin@example.com' } });
@@ -129,8 +128,7 @@ describe('Audit Logs API', () => {
       .send({
         email: 'normal@example.com',
         password: 'Password123!',
-        firstName: 'Normal',
-        lastName: 'User',
+        fullName: 'Normal User',
       });
     const userAccessTokenCookie = (res.headers['set-cookie'] as unknown as string[])?.find(
       (c: string) => c.startsWith('accessToken=')

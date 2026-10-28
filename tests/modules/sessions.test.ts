@@ -9,8 +9,7 @@ describe('Active Sessions & Concurrent Session Controls API', () => {
   const userPayload = {
     email: 'session_test@example.com',
     password: 'Password123!',
-    firstName: 'Session',
-    lastName: 'Tester',
+    fullName: 'Session Tester',
   };
 
   it('should list all active sessions, revoke a specific session, and revoke other sessions', async () => {

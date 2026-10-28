@@ -388,8 +388,7 @@ describe('${pascalName} API', () => {
       .send({
         email: 'super@example.com',
         password: 'Password123!',
-        firstName: 'Super',
-        lastName: 'Admin',
+        fullName: 'Super Admin',
       });
 
     const user = await prisma.user.findFirst({ where: { email: 'super@example.com' } });
