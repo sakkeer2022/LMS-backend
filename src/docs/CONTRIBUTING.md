@@ -8,7 +8,7 @@ We value maintainability, predictability, and stability over speed. Do not skip 
 
 ## Local Setup
 
-Follow sections 2 to 4 of the [README](../../README.md): install with `npm ci`, copy `.env.example` to `.env`, create `amentorz_dev` and `amentorz_test`, apply migrations with `npx prisma migrate deploy` and seed.
+Follow sections 2 to 4 of the [README](../../README.md): copy `.env.example` to `.env` (before installing, because `npm ci` runs `prisma generate`, which needs `DATABASE_URL`), install with `npm ci`, create `amentorz_dev` and `amentorz_test`, apply migrations with `npx prisma migrate deploy` and seed.
 
 - **`.env` is git-ignored** and must never be committed. Shared values (for example provider keys) are handed over privately, never through git, Jira or chat history.
 - **Each developer owns their local databases.** After pulling `development`, run `npx prisma migrate deploy` against `amentorz_dev`, and again with `DATABASE_URL` pointing at `amentorz_test` before running integration tests.

@@ -16,19 +16,15 @@ Ensure the following runtimes and services are installed and running locally:
 
 ## 2. Project Setup
 
-### A. Clone & Install Dependencies
+### A. Clone & Configure Environment Variables
+
+Copy `.env` **before** installing: `npm ci` runs `prisma generate`, which fails with `Cannot resolve environment variable: DATABASE_URL` when there is no `.env`.
 
 ```bash
 # Clone the repository and enter the backend directory
+git clone https://bitbucket.org/evalogical-repo/amentorz-backend.git
 cd amentorz-backend
 
-# Install all npm dependencies and generate the Prisma Client
-npm install
-```
-
-### B. Configure Environment Variables
-
-```bash
 # Copy the environment template
 cp .env.example .env
 ```
@@ -44,6 +40,13 @@ Open `.env` and verify the configuration:
 - `JWT_SECRET`, `JWT_REFRESH_SECRET`, `COOKIE_SECRET` — Replace with 32+ character secrets (generate via `openssl rand -hex 32`)
 - `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` — Approved payment gateway credentials (`rzp_test_*` for local development)
 - `METRICS_TOKEN` — Bearer token for `GET /metrics`; optional locally, **required (32+ characters) in production**
+
+### B. Install Dependencies
+
+```bash
+# Install the exact locked dependencies, generate the Prisma Client and install the git hooks
+npm ci
+```
 
 > **Test Environment Note:** Automated tests run with `NODE_ENV=test` and inject deterministic secrets via `tests/env-setup.ts`.
 
