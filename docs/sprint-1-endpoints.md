@@ -7,6 +7,8 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 | Method | Path | Operation ID | Access | Review status |
 |---|---|---|---|---|
 | GET | `/auth/csrf-token` | `getCsrfToken` | public | ready-for-review |
+| POST | `/auth/registration/email-otp/requests` | `requestRegistrationEmailOtp` | public | decision-required |
+| POST | `/auth/registration/email-otp/verify` | `verifyRegistrationEmailOtp` | public | ready-for-review |
 | POST | `/auth/register` | `registerStudent` | public | decision-required |
 | POST | `/auth/email-verification/requests` | `requestEmailVerification` | public | ready-for-review |
 | POST | `/auth/email-verification/verify` | `verifyEmail` | public | ready-for-review |
@@ -24,6 +26,17 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 | GET | `/auth/sessions` | `listOwnSessions` | student, faculty or admin (self only) | ready-for-review |
 | DELETE | `/auth/sessions` | `revokeOtherSessions` | student, faculty or admin (self only) | ready-for-review |
 | DELETE | `/auth/sessions/{jti}` | `revokeOwnSession` | student, faculty or admin (self only) | ready-for-review |
+
+## Consent
+
+| Method | Path | Operation ID | Access | Review status |
+|---|---|---|---|---|
+| GET | `/policies/current` | `listCurrentPolicies` | public | decision-required |
+| GET | `/policies/{policyId}/file` | `getPolicyFile` | public | ready-for-review |
+| POST | `/consent/guardian-signatures` | `signGuardianConsent` | public | decision-required |
+| GET | `/consent/guardian-signatures/file` | `getPendingGuardianConsentFile` | public | ready-for-review |
+| GET | `/students/me/guardian-consent/file` | `getOwnGuardianConsentFile` | student (self only) | ready-for-review |
+| GET | `/admin/students/{studentId}/guardian-consent/file` | `getStudentGuardianConsentFileAdmin` | admin; students.read | ready-for-review |
 
 ## Faculty
 
@@ -72,6 +85,10 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 | GET | `/admin/catalogue/curricula` | `listCurriculumsAdmin` | admin; catalogue.read | ready-for-review |
 | POST | `/admin/catalogue/curricula` | `createCurriculum` | admin; catalogue.manage | ready-for-review |
 | PUT | `/admin/catalogue/curricula/{id}` | `replaceCurriculum` | admin; catalogue.manage | ready-for-review |
+| GET | `/catalogue/teaching-languages` | `listTeachingLanguages` | public | ready-for-review |
+| GET | `/admin/catalogue/teaching-languages` | `listTeachingLanguagesAdmin` | admin; catalogue.read | ready-for-review |
+| POST | `/admin/catalogue/teaching-languages` | `createTeachingLanguage` | admin; catalogue.manage | ready-for-review |
+| PUT | `/admin/catalogue/teaching-languages/{id}` | `replaceTeachingLanguage` | admin; catalogue.manage | ready-for-review |
 | GET | `/admin/faculty/{facultyId}/assignments` | `listFacultyAssignments` | admin; faculty.read | ready-for-review |
 | POST | `/admin/faculty/{facultyId}/assignments` | `createFacultyAssignment` | admin; faculty.assign | ready-for-review |
 | PUT | `/admin/faculty/{facultyId}/assignments/{assignmentId}` | `replaceFacultyAssignment` | admin; faculty.assign | ready-for-review |

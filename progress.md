@@ -8,6 +8,26 @@
 - Team conventions in `src/docs/CONTRIBUTING.md`: branch names `<type>/LMS-<n>-<description>`, Conventional Commits with a `Refs: LMS-<n>` footer, no AI co-author trailers, pull request checklist and shared-file rules. Enforced by commitlint and a pre-push branch-name check.
 - Modular design and git workflow rules added to `CLAUDE.md` and `.agents/AGENTS.md`; `GEMINI.md` points to them.
 
+## 2026-10-27 — Student onboarding schema and contract (UI is the source of truth)
+
+- Schema: migration `20261027090000_student_onboarding` (generated with `migrate diff` against `amentorz_test`, hand-reviewed; curricula index untouched). `users.full_name` replaces `first_name`/`last_name` (backfilled, not dropped blind); added `mobile_number`, `timezone`, registration-token columns on `email_challenges`; rebuilt `student_profiles`; new `student_subjects`, `teaching_languages`, `policy_documents`, `policy_acceptances`, `guardian_consents`. Migration aborts if any `student_profiles` rows exist.
+- Applied to `amentorz_test` only; no drift afterwards. **Not applied to `amentorz_dev`** (awaiting approval).
+- Template auth/users code and tests switched to `fullName` so the suite stays green; no new endpoints implemented.
+- Contract (via `docs/build-contract-draft.py`): registration email OTP, rewritten `POST /auth/register`, policies, guardian-consent sign/download, teaching languages, curricula board/level filters, `requiresBoard` on categories, `fullName` everywhere.
+- Data dictionary updated to v1.1; revision banners added to the Gate 4 sign-off docs.
+
+### Test Results
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | ✅ Pass |
+| `npm run lint` | ✅ 0 errors, 33 warnings (pre-existing) |
+| `npm run contract:validate` + `check-contract-structure.py` | ✅ 76 paths, 88 operations, 17 decision-required |
+| `npm run test:unit` | ✅ 113 passed (12 files) |
+| `npm run test:integration` (amentorz_test) | ✅ 73 passed (12 files) |
+
+---
+
 ## 2026-10-23 — Backend foundation readiness (before first business API)
 
 - Committed the previously uncommitted Gate 4 work as a baseline snapshot (hooks skipped once so it was not reformatted; history later regrouped into ticket-based commits under LMS-52).
