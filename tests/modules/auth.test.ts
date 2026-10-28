@@ -8,8 +8,7 @@ describe('Auth API', () => {
   const registerPayload = {
     email: 'test@example.com',
     password: 'Password123!',
-    firstName: 'Test',
-    lastName: 'User',
+    fullName: 'Test User',
   };
 
   it('should register a new user successfully', async () => {
@@ -169,8 +168,7 @@ describe('Auth API', () => {
       const payload = {
         email: 'refresh_success@example.com',
         password: 'Password123!',
-        firstName: 'Refresh',
-        lastName: 'Success',
+        fullName: 'Refresh Success',
       };
 
       const registerRes = await request(app)
@@ -218,8 +216,7 @@ describe('Auth API', () => {
       const payload = {
         email: 'logout_test@example.com',
         password: 'Password123!',
-        firstName: 'Logout',
-        lastName: 'Test',
+        fullName: 'Logout Test',
       };
 
       const registerRes = await request(app)
@@ -251,8 +248,7 @@ describe('Auth API', () => {
       const payload = {
         email: 'logout_repeat@example.com',
         password: 'Password123!',
-        firstName: 'Logout',
-        lastName: 'Repeat',
+        fullName: 'Logout Repeat',
       };
 
       const registerRes = await request(app)
@@ -286,8 +282,7 @@ describe('Auth API', () => {
       const payload = {
         email: 'stale_token@example.com',
         password: 'Password123!',
-        firstName: 'Stale',
-        lastName: 'Token',
+        fullName: 'Stale Token',
       };
 
       const registerRes = await request(app)
@@ -374,8 +369,7 @@ describe('Auth API', () => {
       const failurePayload = {
         email: 'failtest@example.com',
         password: 'Password123!',
-        firstName: 'Fail',
-        lastName: 'Test',
+        fullName: 'Fail Test',
       };
 
       const res = await request(app)
@@ -400,8 +394,7 @@ describe('Auth API', () => {
       const userPayload = {
         email: 'refreshtest@example.com',
         password: 'Password123!',
-        firstName: 'Refresh',
-        lastName: 'Test',
+        fullName: 'Refresh Test',
       };
 
       const registerRes = await request(app)
@@ -443,8 +436,7 @@ describe('Auth API', () => {
       const userPayload = {
         email: 'travelblocked@example.com',
         password: 'Password123!',
-        firstName: 'Travel',
-        lastName: 'Blocked',
+        fullName: 'Travel Blocked',
       };
 
       const registerRes = await request(app)

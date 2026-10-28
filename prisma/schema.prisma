@@ -59,25 +59,50 @@ enum LibraryModerationStatus {
   WITHDRAWN
 }
 
+// Onboarding step 3 relationship dropdown. Final option list pending from the UI owner.
+enum GuardianRelationship {
+  FATHER
+  MOTHER
+  LEGAL_GUARDIAN
+  GRANDPARENT
+  SIBLING
+  OTHER
+}
+
+enum PolicyType {
+  TERMS_OF_USE
+  PRIVACY_POLICY
+  CHILD_SAFETY_POLICY
+  STUDENT_TERMS
+}
+
+enum SignatureMode {
+  DRAW
+  TYPE
+}
+
 model User {
-  id                       String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email                    String               @unique @db.VarChar(255)
-  passwordHash             String               @map("password_hash") @db.VarChar(255)
-  firstName                String               @map("first_name") @db.VarChar(100)
-  lastName                 String               @map("last_name") @db.VarChar(100)
-  isActive                 Boolean              @default(true) @map("is_active")
-  status                   UserStatus           @default(ACTIVE)
-  emailVerifiedAt          DateTime?            @map("email_verified_at")
-  securityVersion          Int                  @default(1) @map("security_version")
-  failedLoginAttempts      Int                  @default(0) @map("failed_login_attempts")
-  lockedUntil              DateTime?            @map("locked_until")
-  lastLoginAt              DateTime?            @map("last_login_at")
-  lastLoginIp              String?              @map("last_login_ip") @db.VarChar(45)
-  lastLoginCountry         String?              @map("last_login_country") @db.VarChar(2)
-  createdAt                DateTime             @default(now()) @map("created_at")
-  updatedAt                DateTime             @updatedAt @map("updated_at")
-  deletedAt                DateTime?            @map("deleted_at")
-  
+  id                  String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email               String     @unique @db.VarChar(255)
+  passwordHash        String     @map("password_hash") @db.VarChar(255)
+  fullName            String     @map("full_name") @db.VarChar(150)
+  // E.164, e.g. +919876543210. Not unique: siblings may share a parent's number.
+  mobileNumber        String?    @map("mobile_number") @db.VarChar(16)
+  // IANA zone, e.g. Asia/Kolkata, captured from the browser at registration
+  timezone            String?    @db.VarChar(64)
+  isActive            Boolean    @default(true) @map("is_active")
+  status              UserStatus @default(ACTIVE)
+  emailVerifiedAt     DateTime?  @map("email_verified_at")
+  securityVersion     Int        @default(1) @map("security_version")
+  failedLoginAttempts Int        @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime?  @map("locked_until")
+  lastLoginAt         DateTime?  @map("last_login_at")
+  lastLoginIp         String?    @map("last_login_ip") @db.VarChar(45)
+  lastLoginCountry    String?    @map("last_login_country") @db.VarChar(2)
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+  deletedAt           DateTime?  @map("deleted_at")
+
   refreshTokens            RefreshToken[]
   auditLogs                AuditLog[]
   roles                    UserRole[]
@@ -91,21 +116,22 @@ model User {
   verifiedDocuments        FacultyDocument[]    @relation("DocumentVerifier")
   uploadedLibraryMaterials LibraryMaterial[]    @relation("LibraryUploader")
   libraryReviews           LibraryReview[]      @relation("LibraryReviewer")
+  policyAcceptances        PolicyAcceptance[]
 
   @@map("users")
 }
 
 model Role {
-  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String           @unique @db.VarChar(100)
-  description String?          @db.Text
-  isSystem    Boolean          @default(false) @map("is_system")
-  isActive    Boolean          @default(true) @map("is_active")
-  parentId    String?          @map("parent_id") @db.Uuid
-  createdAt   DateTime         @default(now()) @map("created_at")
-  updatedAt   DateTime         @updatedAt @map("updated_at")
-  deletedAt   DateTime?        @map("deleted_at")
-  
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String    @unique @db.VarChar(100)
+  description String?   @db.Text
+  isSystem    Boolean   @default(false) @map("is_system")
+  isActive    Boolean   @default(true) @map("is_active")
+  parentId    String?   @map("parent_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
   parent      Role?            @relation("RoleInheritance", fields: [parentId], references: [id])
   children    Role[]           @relation("RoleInheritance")
   users       UserRole[]
@@ -115,15 +141,15 @@ model Role {
 }
 
 model Permission {
-  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String           @unique @db.VarChar(150)
-  resource    String           @db.VarChar(100)
-  action      String           @db.VarChar(50) // 'create' | 'read' | 'update' | 'delete' | 'manage'
-  description String?          @db.Text
-  createdAt   DateTime         @default(now()) @map("created_at")
-  updatedAt   DateTime         @updatedAt @map("updated_at")
-  
-  roles       RolePermission[]
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @unique @db.VarChar(150)
+  resource    String   @db.VarChar(100)
+  action      String   @db.VarChar(50) // 'create' | 'read' | 'update' | 'delete' | 'manage'
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  roles RolePermission[]
 
   @@map("permissions")
 }
@@ -134,9 +160,9 @@ model UserRole {
   assignedBy String?  @map("assigned_by") @db.Uuid
   createdAt  DateTime @default(now()) @map("created_at")
 
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  assigner   User?    @relation("AssignedRoles", fields: [assignedBy], references: [id], onDelete: SetNull)
+  user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     Role  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assigner User? @relation("AssignedRoles", fields: [assignedBy], references: [id], onDelete: SetNull)
 
   @@id([userId, roleId], name: "pk_user_roles")
   @@map("user_roles")
@@ -148,8 +174,8 @@ model RolePermission {
   createdAt    DateTime @default(now()) @map("created_at")
   conditions   Json?    @db.Json
 
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId], name: "pk_role_permissions")
   @@map("role_permissions")
@@ -171,7 +197,7 @@ model RefreshToken {
   expiresAt         DateTime  @map("expires_at")
   createdAt         DateTime  @default(now()) @map("created_at")
 
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, used])
   @@index([familyId])
@@ -179,24 +205,24 @@ model RefreshToken {
 }
 
 model AuditLog {
-  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  traceId           String    @map("trace_id") @db.VarChar(100)
-  correlationId     String    @map("correlation_id") @db.VarChar(100)
-  actorId           String?   @map("actor_id") @db.Uuid
-  ipAddress         String    @map("ip_address") @db.VarChar(45)
-  userAgent         String    @map("user_agent") @db.Text
-  deviceFingerprint String?   @map("device_fingerprint") @db.VarChar(64)
-  severity          String    @db.VarChar(20) // 'INFO' | 'WARN' | 'SECURITY' | 'CRITICAL'
-  entity            String    @db.VarChar(100) // e.g., 'user', 'role', 'feature_flag'
-  action            String    @db.VarChar(100)
-  resourceId        String?   @map("resource_id") @db.VarChar(100)
-  previousValue     Json?     @map("previous_value") @db.Json
-  newValue          Json?     @map("new_value") @db.Json
-  hash              String    @db.VarChar(64)
-  previousHash      String    @map("previous_hash") @db.VarChar(64)
-  createdAt         DateTime  @default(now()) @map("created_at")
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  traceId           String   @map("trace_id") @db.VarChar(100)
+  correlationId     String   @map("correlation_id") @db.VarChar(100)
+  actorId           String?  @map("actor_id") @db.Uuid
+  ipAddress         String   @map("ip_address") @db.VarChar(45)
+  userAgent         String   @map("user_agent") @db.Text
+  deviceFingerprint String?  @map("device_fingerprint") @db.VarChar(64)
+  severity          String   @db.VarChar(20) // 'INFO' | 'WARN' | 'SECURITY' | 'CRITICAL'
+  entity            String   @db.VarChar(100) // e.g., 'user', 'role', 'feature_flag'
+  action            String   @db.VarChar(100)
+  resourceId        String?  @map("resource_id") @db.VarChar(100)
+  previousValue     Json?    @map("previous_value") @db.Json
+  newValue          Json?    @map("new_value") @db.Json
+  hash              String   @db.VarChar(64)
+  previousHash      String   @map("previous_hash") @db.VarChar(64)
+  createdAt         DateTime @default(now()) @map("created_at")
 
-  user              User?     @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  user User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
   @@map("audit_logs")
 }
@@ -226,18 +252,23 @@ model Notification {
 }
 
 model EmailChallenge {
-  id                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId              String?          @map("user_id") @db.Uuid
-  email               String           @db.VarChar(255)
-  otpHash             String           @map("otp_hash") @db.VarChar(64)
-  purpose             ChallengePurpose
-  attemptsRemaining   Int              @default(3) @map("attempts_remaining")
-  expiresAt           DateTime         @map("expires_at")
-  consumedAt          DateTime?        @map("consumed_at")
-  resendCooldownUntil DateTime         @map("resend_cooldown_until")
-  createdAt           DateTime         @default(now()) @map("created_at")
+  id                          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                      String?          @map("user_id") @db.Uuid
+  email                       String           @db.VarChar(255)
+  otpHash                     String           @map("otp_hash") @db.VarChar(64)
+  purpose                     ChallengePurpose
+  attemptsRemaining           Int              @default(3) @map("attempts_remaining")
+  expiresAt                   DateTime         @map("expires_at")
+  consumedAt                  DateTime?        @map("consumed_at")
+  resendCooldownUntil         DateTime         @map("resend_cooldown_until")
+  // REGISTRATION challenges run before the account exists (userId null). A verified
+  // OTP issues a single-use registration token; only its SHA-256 hash is stored.
+  registrationTokenHash       String?          @unique @map("registration_token_hash") @db.VarChar(64)
+  registrationTokenExpiresAt  DateTime?        @map("registration_token_expires_at")
+  registrationTokenConsumedAt DateTime?        @map("registration_token_consumed_at")
+  createdAt                   DateTime         @default(now()) @map("created_at")
 
-  user                User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([email, purpose])
   @@index([expiresAt])
@@ -252,7 +283,7 @@ model PasswordResetGrant {
   consumedAt DateTime? @map("consumed_at")
   createdAt  DateTime  @default(now()) @map("created_at")
 
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
@@ -269,56 +300,169 @@ model SystemSetting {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  updater     User?    @relation("SettingUpdater", fields: [updatedBy], references: [id], onDelete: SetNull)
+  updater User? @relation("SettingUpdater", fields: [updatedBy], references: [id], onDelete: SetNull)
 
   @@map("system_settings")
 }
 
+// Student onboarding steps 1-3. Minor status is always computed from dateOfBirth;
+// a stored flag would go stale on the student's 18th birthday.
 model StudentProfile {
-  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId                  String    @unique @map("user_id") @db.Uuid
-  dateOfBirth             DateTime? @map("date_of_birth")
-  isUnder18               Boolean   @default(false) @map("is_under_18")
-  guardianName            String?   @map("guardian_name") @db.VarChar(150)
-  guardianEmail           String?   @map("guardian_email") @db.VarChar(255)
-  guardianPhone           String?   @map("guardian_phone") @db.VarChar(20)
-  guardianConsentSigned   Boolean   @default(false) @map("guardian_consent_signed")
-  guardianConsentDocument String?   @map("guardian_consent_document") @db.Text
-  guardianConsentSignedAt DateTime? @map("guardian_consent_signed_at")
-  gradeLevel              String?   @map("grade_level") @db.VarChar(50)
-  schoolName              String?   @map("school_name") @db.VarChar(200)
-  city                    String?   @db.VarChar(100)
-  state                   String?   @db.VarChar(100)
-  country                 String    @default("IN") @db.VarChar(2)
-  createdAt               DateTime  @default(now()) @map("created_at")
-  updatedAt               DateTime  @updatedAt @map("updated_at")
+  id                      String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                  String                @unique @map("user_id") @db.Uuid
+  dateOfBirth             DateTime              @map("date_of_birth") @db.Date
+  categoryId              String                @map("category_id") @db.Uuid
+  // Required only when the category requires a board (School); enforced by the service
+  boardId                 String?               @map("board_id") @db.Uuid
+  levelId                 String                @map("level_id") @db.Uuid
+  teachingLanguageId      String                @map("teaching_language_id") @db.Uuid
+  // Guardian contact, required while the student is under 18. Contact only, not an account.
+  guardianName            String?               @map("guardian_name") @db.VarChar(150)
+  guardianRelationship    GuardianRelationship? @map("guardian_relationship")
+  guardianMobileNumber    String?               @map("guardian_mobile_number") @db.VarChar(16)
+  guardianEmail           String?               @map("guardian_email") @db.VarChar(255)
+  // "Also send progress reports and payment receipts to the guardian"
+  guardianReceivesReports Boolean               @default(false) @map("guardian_receives_reports")
+  // Revenue reports group by country; derived from the mobile country code until a field exists
+  country                 String                @default("IN") @db.VarChar(2)
+  createdAt               DateTime              @default(now()) @map("created_at")
+  updatedAt               DateTime              @updatedAt @map("updated_at")
 
-  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category         Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  board            Board?            @relation(fields: [boardId], references: [id], onDelete: Restrict)
+  level            Level             @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  teachingLanguage TeachingLanguage  @relation(fields: [teachingLanguageId], references: [id], onDelete: Restrict)
+  subjects         StudentSubject[]
+  guardianConsents GuardianConsent[]
 
+  @@index([categoryId, boardId, levelId])
   @@map("student_profiles")
 }
 
-model FacultyProfile {
-  id               String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId           String                   @unique @map("user_id") @db.Uuid
-  headline         String?                  @db.VarChar(200)
-  bio              String?                  @db.Text
-  experienceYears  Decimal?                 @map("experience_years") @db.Decimal(4, 1)
-  primarySubject   String?                  @map("primary_subject") @db.VarChar(100)
-  approvalStatus   FacultyApprovalStatus    @default(PENDING) @map("approval_status")
-  isPublished      Boolean                  @default(false) @map("is_published")
-  isActive         Boolean                  @default(true) @map("is_active")
-  rejectionReason  String?                  @map("rejection_reason") @db.Text
-  approvedAt       DateTime?                @map("approved_at")
-  approvedBy       String?                  @map("approved_by") @db.Uuid
-  revision         Int                      @default(1)
-  ratingsAverage   Decimal                  @default(0.00) @map("ratings_average") @db.Decimal(3, 2)
-  ratingsCount     Int                      @default(0) @map("ratings_count")
-  createdAt        DateTime                 @default(now()) @map("created_at")
-  updatedAt        DateTime                 @updatedAt @map("updated_at")
+// Step 2 subject multi-select. A curriculum is one subject within the profile's
+// category/board/level, so each selection is valid for that combination.
+model StudentSubject {
+  studentId    String   @map("student_id") @db.Uuid
+  curriculumId String   @map("curriculum_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
 
-  user             User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  approver         User?                    @relation("FacultyApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
+  student    StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  curriculum Curriculum     @relation(fields: [curriculumId], references: [id], onDelete: Restrict)
+
+  @@id([studentId, curriculumId], name: "pk_student_subjects")
+  @@index([curriculumId])
+  @@map("student_subjects")
+}
+
+// Step 2 "preferred teaching language" options, e.g. "English & Hindi" -> [en, hi].
+// languageCodes (ISO 639-1) also back faculty search by language.
+model TeachingLanguage {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code          String   @unique @db.VarChar(50)
+  name          String   @db.VarChar(100)
+  languageCodes String[] @map("language_codes") @db.VarChar(8)
+  isActive      Boolean  @default(true) @map("is_active")
+  displayOrder  Int      @default(0) @map("display_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  students StudentProfile[]
+
+  @@map("teaching_languages")
+}
+
+// Client-supplied legal texts shown in onboarding step 4 and the signing modal.
+// At most one current version per type is enforced by the service.
+model PolicyDocument {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type        PolicyType
+  version     String     @db.VarChar(20)
+  title       String     @db.VarChar(200)
+  effectiveAt DateTime   @map("effective_at")
+  // Blank PDF served for preview and signing
+  storageKey  String     @unique @map("storage_key") @db.VarChar(255)
+  sha256      String     @db.VarChar(64)
+  isCurrent   Boolean    @default(false) @map("is_current")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  acceptances PolicyAcceptance[]
+  consents    GuardianConsent[]
+
+  @@unique([type, version], name: "uk_policy_type_version")
+  @@index([type, isCurrent])
+  @@map("policy_documents")
+}
+
+model PolicyAcceptance {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  policyId   String   @map("policy_id") @db.Uuid
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.Text
+  acceptedAt DateTime @default(now()) @map("accepted_at")
+
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policy PolicyDocument @relation(fields: [policyId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, policyId], name: "uk_user_policy_acceptance")
+  @@map("policy_acceptances")
+}
+
+// Parent/guardian signature on the Student Terms, made in the date-of-birth popup
+// before the account exists. The signing response returns a single-use consent
+// token (only its hash is stored); registration links the row to the profile.
+// Unlinked rows past expiresAt are purged together with their PDFs.
+model GuardianConsent {
+  id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId            String?               @map("student_id") @db.Uuid
+  policyId             String                @map("policy_id") @db.Uuid
+  tokenHash            String                @unique @map("token_hash") @db.VarChar(64)
+  // Step 1 values the signature was given for; registration must match them exactly
+  studentFullName      String                @map("student_full_name") @db.VarChar(150)
+  studentDateOfBirth   DateTime              @map("student_date_of_birth") @db.Date
+  signatureMode        SignatureMode         @map("signature_mode")
+  typedName            String?               @map("typed_name") @db.VarChar(150)
+  signedPdfStorageKey  String                @unique @map("signed_pdf_storage_key") @db.VarChar(255)
+  signedPdfSha256      String                @map("signed_pdf_sha256") @db.VarChar(64)
+  ipAddress            String                @map("ip_address") @db.VarChar(45)
+  userAgent            String?               @map("user_agent") @db.Text
+  signedAt             DateTime              @default(now()) @map("signed_at")
+  expiresAt            DateTime              @map("expires_at")
+  linkedAt             DateTime?             @map("linked_at")
+  // Guardian identity from step 3, copied when the consent is linked
+  guardianName         String?               @map("guardian_name") @db.VarChar(150)
+  guardianRelationship GuardianRelationship? @map("guardian_relationship")
+
+  student StudentProfile? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  policy  PolicyDocument  @relation(fields: [policyId], references: [id], onDelete: Restrict)
+
+  @@unique([studentId, policyId], name: "uk_student_policy_consent")
+  @@index([expiresAt, linkedAt])
+  @@map("guardian_consents")
+}
+
+model FacultyProfile {
+  id              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String                @unique @map("user_id") @db.Uuid
+  headline        String?               @db.VarChar(200)
+  bio             String?               @db.Text
+  experienceYears Decimal?              @map("experience_years") @db.Decimal(4, 1)
+  primarySubject  String?               @map("primary_subject") @db.VarChar(100)
+  approvalStatus  FacultyApprovalStatus @default(PENDING) @map("approval_status")
+  isPublished     Boolean               @default(false) @map("is_published")
+  isActive        Boolean               @default(true) @map("is_active")
+  rejectionReason String?               @map("rejection_reason") @db.Text
+  approvedAt      DateTime?             @map("approved_at")
+  approvedBy      String?               @map("approved_by") @db.Uuid
+  revision        Int                   @default(1)
+  ratingsAverage  Decimal               @default(0.00) @map("ratings_average") @db.Decimal(3, 2)
+  ratingsCount    Int                   @default(0) @map("ratings_count")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+
+  user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approver User? @relation("FacultyApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
 
   qualifications   FacultyQualification[]
   experiences      FacultyExperience[]
@@ -331,35 +475,35 @@ model FacultyProfile {
 }
 
 model FacultyQualification {
-  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  facultyId     String         @map("faculty_id") @db.Uuid
-  degree        String         @db.VarChar(150)
-  fieldOfStudy  String         @map("field_of_study") @db.VarChar(150)
-  institution   String         @db.VarChar(200)
-  yearOfPassing Int            @map("year_of_passing")
-  isVerified    Boolean        @default(false) @map("is_verified")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facultyId     String   @map("faculty_id") @db.Uuid
+  degree        String   @db.VarChar(150)
+  fieldOfStudy  String   @map("field_of_study") @db.VarChar(150)
+  institution   String   @db.VarChar(200)
+  yearOfPassing Int      @map("year_of_passing")
+  isVerified    Boolean  @default(false) @map("is_verified")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
-  faculty       FacultyProfile @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  faculty FacultyProfile @relation(fields: [facultyId], references: [id], onDelete: Cascade)
 
   @@index([facultyId])
   @@map("faculty_qualifications")
 }
 
 model FacultyExperience {
-  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  facultyId    String         @map("faculty_id") @db.Uuid
-  organization String         @db.VarChar(200)
-  designation  String         @db.VarChar(150)
-  startYear    Int            @map("start_year")
-  endYear      Int?           @map("end_year")
-  isCurrent    Boolean        @default(false) @map("is_current")
-  description  String?        @db.Text
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facultyId    String   @map("faculty_id") @db.Uuid
+  organization String   @db.VarChar(200)
+  designation  String   @db.VarChar(150)
+  startYear    Int      @map("start_year")
+  endYear      Int?     @map("end_year")
+  isCurrent    Boolean  @default(false) @map("is_current")
+  description  String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  faculty      FacultyProfile @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  faculty FacultyProfile @relation(fields: [facultyId], references: [id], onDelete: Cascade)
 
   @@index([facultyId])
   @@map("faculty_experiences")
@@ -381,8 +525,8 @@ model FacultyDocument {
   createdAt        DateTime            @default(now()) @map("created_at")
   updatedAt        DateTime            @updatedAt @map("updated_at")
 
-  faculty          FacultyProfile      @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-  verifier         User?               @relation("DocumentVerifier", fields: [verifiedBy], references: [id], onDelete: SetNull)
+  faculty  FacultyProfile @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  verifier User?          @relation("DocumentVerifier", fields: [verifiedBy], references: [id], onDelete: SetNull)
 
   @@index([facultyId])
   @@index([scanStatus])
@@ -390,13 +534,13 @@ model FacultyDocument {
 }
 
 model FacultyTerms {
-  id          String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  version     String                   @unique @db.VarChar(20)
-  title       String                   @db.VarChar(200)
-  content     String                   @db.Text
-  effectiveAt DateTime                 @map("effective_at")
-  isCurrent   Boolean                  @default(false) @map("is_current")
-  createdAt   DateTime                 @default(now()) @map("created_at")
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  version     String   @unique @db.VarChar(20)
+  title       String   @db.VarChar(200)
+  content     String   @db.Text
+  effectiveAt DateTime @map("effective_at")
+  isCurrent   Boolean  @default(false) @map("is_current")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   acceptances FacultyTermsAcceptance[]
 
@@ -404,130 +548,134 @@ model FacultyTerms {
 }
 
 model FacultyTermsAcceptance {
-  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  facultyId    String         @map("faculty_id") @db.Uuid
-  termsId      String         @map("terms_id") @db.Uuid
-  termsVersion String         @map("terms_version") @db.VarChar(20)
-  ipAddress    String?        @map("ip_address") @db.VarChar(45)
-  userAgent    String?        @map("user_agent") @db.Text
-  acceptedAt   DateTime       @default(now()) @map("accepted_at")
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facultyId    String   @map("faculty_id") @db.Uuid
+  termsId      String   @map("terms_id") @db.Uuid
+  termsVersion String   @map("terms_version") @db.VarChar(20)
+  ipAddress    String?  @map("ip_address") @db.VarChar(45)
+  userAgent    String?  @map("user_agent") @db.Text
+  acceptedAt   DateTime @default(now()) @map("accepted_at")
 
-  faculty      FacultyProfile @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-  terms        FacultyTerms   @relation(fields: [termsId], references: [id], onDelete: Restrict)
+  faculty FacultyProfile @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  terms   FacultyTerms   @relation(fields: [termsId], references: [id], onDelete: Restrict)
 
   @@unique([facultyId, termsId], name: "uk_faculty_terms_acceptance")
   @@map("faculty_terms_acceptances")
 }
 
 model Category {
-  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code          String       @unique @db.VarChar(50)
-  name          String       @db.VarChar(100)
-  description   String?      @db.Text
-  requiresBoard Boolean      @default(false) @map("requires_board")
-  isActive      Boolean      @default(true) @map("is_active")
-  displayOrder  Int          @default(0) @map("display_order")
-  createdAt     DateTime     @default(now()) @map("created_at")
-  updatedAt     DateTime     @updatedAt @map("updated_at")
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code          String   @unique @db.VarChar(50)
+  name          String   @db.VarChar(100)
+  description   String?  @db.Text
+  requiresBoard Boolean  @default(false) @map("requires_board")
+  isActive      Boolean  @default(true) @map("is_active")
+  displayOrder  Int      @default(0) @map("display_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
-  curricula     Curriculum[]
+  curricula Curriculum[]
+  students  StudentProfile[]
 
   @@map("categories")
 }
 
 model Board {
-  id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code      String       @unique @db.VarChar(50)
-  name      String       @db.VarChar(100)
-  country   String       @default("IN") @db.VarChar(2)
-  state     String?      @db.VarChar(100)
-  isActive  Boolean      @default(true) @map("is_active")
-  createdAt DateTime     @default(now()) @map("created_at")
-  updatedAt DateTime     @updatedAt @map("updated_at")
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code      String   @unique @db.VarChar(50)
+  name      String   @db.VarChar(100)
+  country   String   @default("IN") @db.VarChar(2)
+  state     String?  @db.VarChar(100)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   curricula Curriculum[]
+  students  StudentProfile[]
 
   @@map("boards")
 }
 
 model Subject {
-  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code        String       @unique @db.VarChar(50)
-  name        String       @db.VarChar(100)
-  description String?      @db.Text
-  isActive    Boolean      @default(true) @map("is_active")
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  curricula   Curriculum[]
+  curricula Curriculum[]
 
   @@map("subjects")
 }
 
 model Level {
-  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code        String       @unique @db.VarChar(50)
-  name        String       @db.VarChar(100)
-  description String?      @db.Text
-  isActive    Boolean      @default(true) @map("is_active")
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  curricula   Curriculum[]
+  curricula Curriculum[]
+  students  StudentProfile[]
 
   @@map("levels")
 }
 
 model Curriculum {
-  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  categoryId  String              @map("category_id") @db.Uuid
-  boardId     String?             @map("board_id") @db.Uuid
-  subjectId   String              @map("subject_id") @db.Uuid
-  levelId     String              @map("level_id") @db.Uuid
-  syllabus    String?             @db.Text
-  isActive    Boolean             @default(true) @map("is_active")
-  createdAt   DateTime            @default(now()) @map("created_at")
-  updatedAt   DateTime            @updatedAt @map("updated_at")
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  categoryId String   @map("category_id") @db.Uuid
+  boardId    String?  @map("board_id") @db.Uuid
+  subjectId  String   @map("subject_id") @db.Uuid
+  levelId    String   @map("level_id") @db.Uuid
+  syllabus   String?  @db.Text
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
-  category    Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  board       Board?              @relation(fields: [boardId], references: [id], onDelete: Restrict)
-  subject     Subject             @relation(fields: [subjectId], references: [id], onDelete: Restrict)
-  level       Level               @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  board    Board?   @relation(fields: [boardId], references: [id], onDelete: Restrict)
+  subject  Subject  @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  level    Level    @relation(fields: [levelId], references: [id], onDelete: Restrict)
 
   assignments FacultyAssignment[]
   materials   LibraryMaterial[]
+  students    StudentSubject[]
 
   @@unique([categoryId, boardId, subjectId, levelId], name: "uk_curriculum_tuple")
   @@map("curricula")
 }
 
 model FacultyAssignment {
-  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  facultyId    String         @map("faculty_id") @db.Uuid
-  curriculumId String         @map("curriculum_id") @db.Uuid
-  isActive     Boolean        @default(true) @map("is_active")
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facultyId    String   @map("faculty_id") @db.Uuid
+  curriculumId String   @map("curriculum_id") @db.Uuid
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  faculty      FacultyProfile @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-  curriculum   Curriculum     @relation(fields: [curriculumId], references: [id], onDelete: Restrict)
-  price        SessionPrice?
+  faculty    FacultyProfile @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  curriculum Curriculum     @relation(fields: [curriculumId], references: [id], onDelete: Restrict)
+  price      SessionPrice?
 
   @@unique([facultyId, curriculumId], name: "uk_faculty_curriculum_assignment")
   @@map("faculty_assignments")
 }
 
 model SessionPrice {
-  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  assignmentId    String            @unique @map("assignment_id") @db.Uuid
-  pricePaise      Int               @map("price_paise")
-  currency        String            @default("INR") @db.VarChar(3)
-  durationMinutes Int               @default(60) @map("duration_minutes")
-  isActive        Boolean           @default(true) @map("is_active")
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assignmentId    String   @unique @map("assignment_id") @db.Uuid
+  pricePaise      Int      @map("price_paise")
+  currency        String   @default("INR") @db.VarChar(3)
+  durationMinutes Int      @default(60) @map("duration_minutes")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  assignment      FacultyAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  assignment FacultyAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
 
   @@map("session_prices")
 }
@@ -550,9 +698,9 @@ model LibraryMaterial {
   createdAt    DateTime                @default(now()) @map("created_at")
   updatedAt    DateTime                @updatedAt @map("updated_at")
 
-  uploader     User                    @relation("LibraryUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
-  curriculum   Curriculum?             @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
-  reviews      LibraryReview[]
+  uploader   User            @relation("LibraryUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+  curriculum Curriculum?     @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
+  reviews    LibraryReview[]
 
   @@index([status, audience])
   @@index([curriculumId])
@@ -567,11 +715,9 @@ model LibraryReview {
   notes      String?                 @db.Text
   createdAt  DateTime                @default(now()) @map("created_at")
 
-  material   LibraryMaterial         @relation(fields: [materialId], references: [id], onDelete: Cascade)
-  reviewer   User                    @relation("LibraryReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  material LibraryMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  reviewer User            @relation("LibraryReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
 
   @@index([materialId])
   @@map("library_reviews")
 }
-
-

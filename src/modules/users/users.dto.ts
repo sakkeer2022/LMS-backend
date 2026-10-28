@@ -9,14 +9,12 @@ export const CreateUserDto = z.object({
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
     .regex(/[0-9]/, 'Password must contain at least one number')
     .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
-  firstName: z.string().min(1).max(100).trim(),
-  lastName: z.string().min(1).max(100).trim(),
+  fullName: z.string().min(1).max(150).trim(),
   isActive: z.boolean().optional(),
 });
 
 export const UpdateUserDto = z.object({
-  firstName: z.string().min(1).max(100).trim().optional(),
-  lastName: z.string().min(1).max(100).trim().optional(),
+  fullName: z.string().min(1).max(150).trim().optional(),
   isActive: z.boolean().optional(),
 });
 

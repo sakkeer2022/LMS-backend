@@ -43,8 +43,7 @@ describe('Users API', () => {
       .send({
         email: 'admin@example.com',
         password: 'Password123!',
-        firstName: 'Super',
-        lastName: 'Admin',
+        fullName: 'Super Admin',
       });
 
     const user = await prisma.user.findFirst({ where: { email: 'admin@example.com' } });
@@ -93,8 +92,7 @@ describe('Users API', () => {
       .send({
         email: 'newuser@example.com',
         password: 'Password123!',
-        firstName: 'New',
-        lastName: 'User',
+        fullName: 'New User',
       });
 
     expect(res.status).toBe(201);
@@ -112,8 +110,7 @@ describe('Users API', () => {
       .send({
         email: 'update_me@example.com',
         password: 'Password123!',
-        firstName: 'Old',
-        lastName: 'Name',
+        fullName: 'Old Name',
       });
 
     const userId = createRes.body.data.id;
@@ -123,10 +120,10 @@ describe('Users API', () => {
       .set('Cookie', typeof csrfCookie !== 'undefined' ? csrfCookie : '')
       .set('x-csrf-token', typeof csrfToken !== 'undefined' ? csrfToken : '')
       .set('Authorization', `Bearer ${superAdminToken}`)
-      .send({ firstName: 'Updated' });
+      .send({ fullName: 'Updated Name' });
 
     expect(res.status).toBe(200);
-    expect(res.body.data.firstName).toBe('Updated');
+    expect(res.body.data.fullName).toBe('Updated Name');
   });
 
   it('should assign a role to a user', async () => {
@@ -139,8 +136,7 @@ describe('Users API', () => {
       .send({
         email: 'role_test@example.com',
         password: 'Password123!',
-        firstName: 'Role',
-        lastName: 'Test',
+        fullName: 'Role Test',
       });
     const userId = userRes.body.data.id;
 
@@ -180,8 +176,7 @@ describe('Users API', () => {
       .send({
         email: 'role_rm_test@example.com',
         password: 'Password123!',
-        firstName: 'Role',
-        lastName: 'Test',
+        fullName: 'Role Test',
       });
     const userId = userRes.body.data.id;
 
@@ -227,8 +222,7 @@ describe('Users API', () => {
       .send({
         email: 'disable_me@example.com',
         password: 'Password123!',
-        firstName: 'Disable',
-        lastName: 'Me',
+        fullName: 'Disable Me',
       });
 
     const userId = createRes.body.data.id;

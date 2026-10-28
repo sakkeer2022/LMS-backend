@@ -1,11 +1,11 @@
 # Amentorz Database — Schema Data Dictionary
 
-**Document Version:** 1.0  
-**Date:** October 23, 2026  
+**Document Version:** 1.1  
+**Date:** October 27, 2026 (1.1: student onboarding UI alignment, migration `20261027090000_student_onboarding`)  
 **Implementation Stage:** Post-Gate 4 Baseline (Sprint 1 Foundation)  
 **Database System:** PostgreSQL 16  
 **ORM:** Prisma v7.8.0  
-**Scope:** Complete technical reference of all 28 deployed database tables, fields, constraints, defaults, and enforcement mechanisms.
+**Scope:** Complete technical reference of all 33 deployed database tables, fields, constraints, defaults, and enforcement mechanisms.
 
 ---
 
@@ -23,6 +23,11 @@
    - [password_reset_grants](#28-password_reset_grants)
 3. [Domain 2: Student Domain](#3-domain-2-student-domain)
    - [student_profiles](#31-student_profiles)
+   - [student_subjects](#32-student_subjects)
+   - [teaching_languages](#33-teaching_languages)
+   - [policy_documents](#34-policy_documents)
+   - [policy_acceptances](#35-policy_acceptances)
+   - [guardian_consents](#36-guardian_consents)
 4. [Domain 3: Faculty Domain](#4-domain-3-faculty-domain)
    - [faculty_profiles](#41-faculty_profiles)
    - [faculty_qualifications](#42-faculty_qualifications)
@@ -61,6 +66,9 @@
 | `LibraryMaterialKind` | `DOCUMENT`, `LINK` | Identifies whether a library resource is a binary uploaded file or external HTTPS link. |
 | `LibraryMaterialAudience` | `STUDENT`, `FACULTY`, `ALL` | Access control target for published study resources. |
 | `LibraryModerationStatus` | `PENDING`, `APPROVED`, `REJECTED`, `WITHDRAWN` | State machine governing administrative review of study resources. |
+| `GuardianRelationship` | `FATHER`, `MOTHER`, `LEGAL_GUARDIAN`, `GRANDPARENT`, `SIBLING`, `OTHER` | Onboarding step 3 relationship dropdown. Final option list pending from the UI owner. |
+| `PolicyType` | `TERMS_OF_USE`, `PRIVACY_POLICY`, `CHILD_SAFETY_POLICY`, `STUDENT_TERMS` | Client-supplied legal texts accepted in onboarding step 4 and signed in the consent modal. |
+| `SignatureMode` | `DRAW`, `TYPE` | How the guardian signed the Student Terms (canvas drawing or typed name). |
 
 ---
 
@@ -75,8 +83,9 @@
 | `id` | `UUID` | No | `gen_random_uuid()` | Primary Key | Database |
 | `email` | `VARCHAR(255)` | No | — | Unique normalized lowercase email address | Database (`users_email_key`) |
 | `password_hash` | `VARCHAR(255)` | No | — | Bcrypt hashed password | Application |
-| `first_name` | `VARCHAR(100)` | No | — | First name | Application |
-| `last_name` | `VARCHAR(100)` | No | — | Last name | Application |
+| `full_name` | `VARCHAR(150)` | No | — | Single full-name field (onboarding step 1); replaced `first_name`/`last_name` for every role | Application |
+| `mobile_number` | `VARCHAR(16)` | Yes | `NULL` | E.164 mobile number; required for students by the API, not OTP-verified, not unique | Application |
+| `timezone` | `VARCHAR(64)` | Yes | `NULL` | IANA time zone captured from the browser at registration | Application |
 | `is_active` | `BOOLEAN` | No | `true` | Backwards-compatibility active flag | Database |
 | `status` | `UserStatus` | No | `ACTIVE` | Master account status | Database |
 | `email_verified_at` | `TIMESTAMP(3)` | Yes | `NULL` | Timestamp when email was verified via OTP | Application |
@@ -221,10 +230,14 @@
 | `expires_at` | `TIMESTAMP(3)` | No | — | Challenge expiration timestamp (e.g. 10m) | Database / Application |
 | `consumed_at` | `TIMESTAMP(3)` | Yes | `NULL` | Verification timestamp (atomic one-time use) | Application |
 | `resend_cooldown_until` | `TIMESTAMP(3)` | No | — | Throttling timestamp preventing rapid resends | Application |
+| `registration_token_hash` | `VARCHAR(64)` | Yes | `NULL` | SHA-256 of the single-use registration token issued when a pre-account `REGISTRATION` OTP is verified | Database (`email_challenges_registration_token_hash_key`) |
+| `registration_token_expires_at` | `TIMESTAMP(3)` | Yes | `NULL` | Registration token expiry | Application |
+| `registration_token_consumed_at` | `TIMESTAMP(3)` | Yes | `NULL` | Set when `POST /auth/register` consumes the token | Application |
 | `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Challenge generation timestamp | Database |
 
 - **Indexes & Constraints:**
   - `email_challenges_pkey` (PRIMARY KEY, `id`)
+  - `email_challenges_registration_token_hash_key` (UNIQUE, `registration_token_hash`)
   - `email_challenges_email_purpose_idx` (INDEX, `[email, purpose]`)
   - `email_challenges_expires_at_idx` (INDEX, `[expires_at]`)
   - `email_challenges_user_id_fkey` (FOREIGN KEY, `user_id` → `users.id`, ON DELETE CASCADE)
@@ -256,33 +269,137 @@
 ## 3. Domain 2: Student Domain
 
 ### 3.1 `student_profiles`
-- **Purpose:** Student profile details and legal compliance records for minor students (under 18).
+- **Purpose:** Student onboarding steps 1–3: date of birth, learning profile and guardian contact. Minor status is always computed from `date_of_birth`; no stored flag. The guardian is a contact only, not an account (SOW).
 - **Physical Table:** `student_profiles`
 
 | Column | Type | Nullable | Default | Description & Constraints | Enforcement |
 |---|---|:---:|---|---|---|
 | `id` | `UUID` | No | `gen_random_uuid()` | Primary Key | Database |
 | `user_id` | `UUID` | No | — | 1:1 Unique Foreign Key to `users` | Database (`student_profiles_user_id_key`) |
-| `date_of_birth` | `TIMESTAMP(3)` | Yes | `NULL` | Student date of birth | Application |
-| `is_under_18` | `BOOLEAN` | No | `false` | Minor flag determining consent requirements | Application |
-| `guardian_name` | `VARCHAR(150)` | Yes | `NULL` | Guardian full name | Application |
-| `guardian_email` | `VARCHAR(255)` | Yes | `NULL` | Guardian email address | Application |
-| `guardian_phone` | `VARCHAR(20)` | Yes | `NULL` | Guardian contact number | Application |
-| `guardian_consent_signed` | `BOOLEAN` | No | `false` | Checkbox / digital consent acknowledgement | Application |
-| `guardian_consent_document`| `TEXT` | Yes | `NULL` | Hash / audit URI of signed consent document | Application |
-| `guardian_consent_signed_at`| `TIMESTAMP(3)` | Yes | `NULL` | Timestamp of digital consent signature | Application |
-| `grade_level` | `VARCHAR(50)` | Yes | `NULL` | Class level (e.g. 'Grade 10') | Application |
-| `school_name` | `VARCHAR(200)` | Yes | `NULL` | Institution name | Application |
-| `city` | `VARCHAR(100)` | Yes | `NULL` | City | Application |
-| `state` | `VARCHAR(100)` | Yes | `NULL` | State | Application |
-| `country` | `VARCHAR(2)` | No | `'IN'` | ISO country code | Database |
+| `date_of_birth` | `DATE` | No | — | Student date of birth (step 1) | Database |
+| `category_id` | `UUID` | No | — | Learning category (step 2) | Database (FK → `categories`) |
+| `board_id` | `UUID` | Yes | `NULL` | Board; required only when the category `requires_board` (School) | Database (FK → `boards`) / Application |
+| `level_id` | `UUID` | No | — | Class level (step 2) | Database (FK → `levels`) |
+| `teaching_language_id` | `UUID` | No | — | Preferred teaching language (step 2) | Database (FK → `teaching_languages`) |
+| `guardian_name` | `VARCHAR(150)` | Yes | `NULL` | Guardian full name; required under 18 | Application |
+| `guardian_relationship` | `GuardianRelationship` | Yes | `NULL` | Guardian relationship; required under 18 | Database / Application |
+| `guardian_mobile_number` | `VARCHAR(16)` | Yes | `NULL` | Guardian E.164 mobile; required under 18 | Application |
+| `guardian_email` | `VARCHAR(255)` | Yes | `NULL` | Guardian email; required under 18, must differ from the student email | Application |
+| `guardian_receives_reports` | `BOOLEAN` | No | `false` | "Also send progress reports and payment receipts to the guardian" | Database |
+| `country` | `VARCHAR(2)` | No | `'IN'` | ISO country for revenue reports; derived from the mobile country code (no UI field) | Application |
 | `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Profile creation timestamp | Database |
 | `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
 
+- **Removed in 1.1:** `is_under_18`, `guardian_phone` (renamed `guardian_mobile_number`), `guardian_consent_signed`, `guardian_consent_document`, `guardian_consent_signed_at` (moved to `guardian_consents`), `grade_level` (replaced by `level_id`), `school_name`, `city`, `state` (not collected by the UI).
 - **Indexes & Constraints:**
   - `student_profiles_pkey` (PRIMARY KEY, `id`)
   - `student_profiles_user_id_key` (UNIQUE, `user_id`)
+  - `student_profiles_category_id_board_id_level_id_idx` (INDEX, `[category_id, board_id, level_id]`)
   - `student_profiles_user_id_fkey` (FOREIGN KEY, `user_id` → `users.id`, ON DELETE CASCADE)
+  - `category_id`, `board_id`, `level_id`, `teaching_language_id` foreign keys, ON DELETE RESTRICT
+
+---
+
+### 3.2 `student_subjects`
+- **Purpose:** Step 2 subject multi-select. Each row points to a curriculum (one subject within a category/board/level), so a selection is valid for the profile's combination; the service checks the curriculum matches the profile.
+- **Physical Table:** `student_subjects`
+
+| Column | Type | Nullable | Default | Description & Constraints | Enforcement |
+|---|---|:---:|---|---|---|
+| `student_id` | `UUID` | No | — | FK to `student_profiles` | Database |
+| `curriculum_id` | `UUID` | No | — | FK to `curricula` | Database |
+| `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Selection timestamp | Database |
+
+- **Indexes & Constraints:**
+  - `student_subjects_pkey` (PRIMARY KEY, `[student_id, curriculum_id]`)
+  - `student_subjects_curriculum_id_idx` (INDEX, `[curriculum_id]`)
+  - `student_id` → `student_profiles.id` ON DELETE CASCADE; `curriculum_id` → `curricula.id` ON DELETE RESTRICT
+
+---
+
+### 3.3 `teaching_languages`
+- **Purpose:** Admin-managed options for step 2 "Preferred teaching language" (e.g. "English & Hindi"). `language_codes` also backs faculty search by language (SOW).
+- **Physical Table:** `teaching_languages`
+
+| Column | Type | Nullable | Default | Description & Constraints | Enforcement |
+|---|---|:---:|---|---|---|
+| `id` | `UUID` | No | `gen_random_uuid()` | Primary Key | Database |
+| `code` | `VARCHAR(50)` | No | — | Unique code | Database (`teaching_languages_code_key`) |
+| `name` | `VARCHAR(100)` | No | — | Display label | Application |
+| `language_codes` | `VARCHAR(8)[]` | — | — | ISO 639 codes covered, e.g. `{en,hi}` | Application |
+| `is_active` | `BOOLEAN` | No | `true` | Archive flag | Database |
+| `display_order` | `INTEGER` | No | `0` | Dropdown order | Database |
+| `created_at` / `updated_at` | `TIMESTAMP(3)` | No | — | Timestamps | Database / Prisma |
+
+---
+
+### 3.4 `policy_documents`
+- **Purpose:** Versioned client-supplied legal texts (Terms of Use, Privacy Policy, Child Safety Policy, Student Terms) with the blank PDF used for preview and signing. One current version per type, enforced by the service.
+- **Physical Table:** `policy_documents`
+
+| Column | Type | Nullable | Default | Description & Constraints | Enforcement |
+|---|---|:---:|---|---|---|
+| `id` | `UUID` | No | `gen_random_uuid()` | Primary Key | Database |
+| `type` | `PolicyType` | No | — | Policy type | Database |
+| `version` | `VARCHAR(20)` | No | — | Version label, e.g. `1.0` | Database (unique with `type`) |
+| `title` | `VARCHAR(200)` | No | — | Display title | Application |
+| `effective_at` | `TIMESTAMP(3)` | No | — | Effective date shown in the modal | Application |
+| `storage_key` | `VARCHAR(255)` | No | — | Private storage key of the PDF | Database (unique) |
+| `sha256` | `VARCHAR(64)` | No | — | SHA-256 of the PDF bytes | Application |
+| `is_current` | `BOOLEAN` | No | `false` | Current version flag | Application |
+| `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Upload timestamp | Database |
+
+- **Indexes & Constraints:** `policy_documents_type_version_key` (UNIQUE, `[type, version]`), `policy_documents_storage_key_key` (UNIQUE), `policy_documents_type_is_current_idx` (INDEX).
+- **Note:** overlaps `faculty_terms`; merging the two is follow-up work.
+
+---
+
+### 3.5 `policy_acceptances`
+- **Purpose:** Step 4 checkbox acceptances, one row per user and policy version.
+- **Physical Table:** `policy_acceptances`
+
+| Column | Type | Nullable | Default | Description & Constraints | Enforcement |
+|---|---|:---:|---|---|---|
+| `id` | `UUID` | No | `gen_random_uuid()` | Primary Key | Database |
+| `user_id` | `UUID` | No | — | FK to `users`, ON DELETE CASCADE | Database |
+| `policy_id` | `UUID` | No | — | FK to `policy_documents`, ON DELETE RESTRICT | Database |
+| `ip_address` | `VARCHAR(45)` | Yes | `NULL` | Client IP at acceptance | Application |
+| `user_agent` | `TEXT` | Yes | `NULL` | Browser user agent | Application |
+| `accepted_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Server acceptance time (UTC) | Database |
+
+- **Indexes & Constraints:** `policy_acceptances_user_id_policy_id_key` (UNIQUE, `[user_id, policy_id]`).
+
+---
+
+### 3.6 `guardian_consents`
+- **Purpose:** Parent/guardian signature on the Student Terms, made in the date-of-birth popup **before the account exists**. Signing stores the flattened signed PDF and returns a single-use consent token (only its hash is stored). `POST /auth/register` links the row to the profile. Unlinked rows past `expires_at` are purged together with their PDFs. Not a cryptographic or identity-verified signature (project plan R4 remains open).
+- **Physical Table:** `guardian_consents`
+
+| Column | Type | Nullable | Default | Description & Constraints | Enforcement |
+|---|---|:---:|---|---|---|
+| `id` | `UUID` | No | `gen_random_uuid()` | Primary Key | Database |
+| `student_id` | `UUID` | Yes | `NULL` | FK to `student_profiles`; null until registration links it | Database |
+| `policy_id` | `UUID` | No | — | Student Terms version signed | Database (FK → `policy_documents`) |
+| `token_hash` | `VARCHAR(64)` | No | — | SHA-256 of the consent token | Database (unique) |
+| `student_full_name` | `VARCHAR(150)` | No | — | Step 1 name signed for; registration must match | Application |
+| `student_date_of_birth` | `DATE` | No | — | Step 1 date of birth signed for; registration must match | Application |
+| `signature_mode` | `SignatureMode` | No | — | Draw or type | Database |
+| `typed_name` | `VARCHAR(150)` | Yes | `NULL` | Typed signature text (type mode) | Application |
+| `signed_pdf_storage_key` | `VARCHAR(255)` | No | — | Private storage key of the signed PDF; new object per signing | Database (unique) |
+| `signed_pdf_sha256` | `VARCHAR(64)` | No | — | SHA-256 of the signed PDF (tamper evidence) | Application |
+| `ip_address` | `VARCHAR(45)` | No | — | Client IP from trusted proxy configuration | Application |
+| `user_agent` | `TEXT` | Yes | `NULL` | Browser user agent | Application |
+| `signed_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Signing time (UTC) | Database |
+| `expires_at` | `TIMESTAMP(3)` | No | — | Deadline to link before purge | Application |
+| `linked_at` | `TIMESTAMP(3)` | Yes | `NULL` | When registration linked the consent | Application |
+| `guardian_name` | `VARCHAR(150)` | Yes | `NULL` | Copied from step 3 at linking | Application |
+| `guardian_relationship` | `GuardianRelationship` | Yes | `NULL` | Copied from step 3 at linking | Application |
+
+- **Indexes & Constraints:**
+  - `guardian_consents_token_hash_key`, `guardian_consents_signed_pdf_storage_key_key` (UNIQUE)
+  - `guardian_consents_student_id_policy_id_key` (UNIQUE, `[student_id, policy_id]`): one linked consent per student and version, so re-signing returns 409
+  - `guardian_consents_expires_at_linked_at_idx` (INDEX, cleanup job)
+  - `student_id` → `student_profiles.id` ON DELETE CASCADE; `policy_id` → `policy_documents.id` ON DELETE RESTRICT
 
 ---
 

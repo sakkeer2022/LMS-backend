@@ -9,8 +9,7 @@ export const RegisterDto = z.object({
     .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
     .regex(/[0-9]/, 'Password must contain at least one number')
     .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
-  firstName: z.string().min(1).max(100).trim(),
-  lastName: z.string().min(1).max(100).trim(),
+  fullName: z.string().min(1).max(150).trim(),
 });
 
 export const LoginDto = z.object({

@@ -64,8 +64,7 @@ describe('Admin Portal API', () => {
       .send({
         email: 'admin@example.com',
         password: 'Password123!',
-        firstName: 'System',
-        lastName: 'Admin',
+        fullName: 'System Admin',
       });
 
     const superAdminUser = await prisma.user.findFirst({ where: { email: 'admin@example.com' } });
@@ -84,8 +83,7 @@ describe('Admin Portal API', () => {
       .send({
         email: 'user@example.com',
         password: 'Password123!',
-        firstName: 'Regular',
-        lastName: 'User',
+        fullName: 'Regular User',
       });
 
     const regularUser = await prisma.user.findFirst({ where: { email: 'user@example.com' } });
@@ -101,8 +99,7 @@ describe('Admin Portal API', () => {
       data: {
         email: 'locked@example.com',
         passwordHash: 'fake-hash',
-        firstName: 'Locked',
-        lastName: 'User',
+        fullName: 'Locked User',
         isActive: true,
         failedLoginAttempts: 5,
         lockedUntil: new Date(Date.now() + 1000 * 60 * 15), // locked out for 15 mins

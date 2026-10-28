@@ -43,8 +43,7 @@ describe('Roles API', () => {
       .send({
         email: 'admin@example.com',
         password: 'Password123!',
-        firstName: 'Admin',
-        lastName: 'User',
+        fullName: 'Admin User',
       });
 
     const user = await prisma.user.findFirst({ where: { email: 'admin@example.com' } });
@@ -190,8 +189,7 @@ describe('Roles API', () => {
       const payload = {
         email: 'normal_user@example.com',
         password: 'Password123!',
-        firstName: 'Normal',
-        lastName: 'User',
+        fullName: 'Normal User',
       };
 
       await request(app)
@@ -234,8 +232,7 @@ describe('Roles API', () => {
       const payload = {
         email: 'regular_admin@example.com',
         password: 'Password123!',
-        firstName: 'Regular',
-        lastName: 'Admin',
+        fullName: 'Regular Admin',
       };
 
       await request(app)

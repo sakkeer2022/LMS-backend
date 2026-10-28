@@ -1,5 +1,18 @@
 # Findings & Decisions
 
+## 2026-10-27 — Student onboarding schema decisions
+
+| Finding / Decision | Detail |
+|---|---|
+| UI is final | Schema and contract follow the onboarding screens; conflicts with project documents are marked `DECISION REQUIRED` in the contract instead of changing the UI |
+| Minor status computed, not stored | `is_under_18` removed; a stored flag goes stale at 18. Server computes from `date_of_birth` (`DATE`) |
+| Consent before account | `guardian_consents` rows are created by the DOB popup before registration, keyed by a hashed single-use token, linked at `POST /auth/register`, purged if unlinked after expiry |
+| Open decisions | Student password rule (8 + digit) vs SOW A1.8; R4 guardian identity not verified; guardian SMS not in Phase 1; library browsing without account; country not collected (default IN); full-name change affects faculty/admin; relationship options |
+| `policy_documents` vs `faculty_terms` | Overlap; merge is follow-up work |
+| `migrate diff` workflow | Generate SQL with `prisma migrate diff --from-config-datasource --to-schema` against `amentorz_test` (read-only) instead of `migrate dev` against dev |
+
+---
+
 ## 2026-10-23 — Foundation readiness findings
 
 | Finding / Decision | Detail |

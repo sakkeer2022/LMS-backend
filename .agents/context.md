@@ -57,7 +57,7 @@ tests/setup.ts                # Connects DB, TRUNCATE between tests (runs SECOND
 ## Database Models
 
 ```
-User            id, email, passwordHash, firstName, lastName, isActive, deletedAt
+User            id, email, passwordHash, fullName, mobileNumber, isActive, deletedAt
 Role            id, name, description
 Permission      id, name (format: "resource:action"), description
 UserRole        userId, roleId (many-to-many join)

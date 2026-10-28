@@ -17,6 +17,10 @@
       "description": "Task 1: identity, sessions and recovery."
     },
     {
+      "name": "Consent",
+      "description": "Student onboarding: legal policies and parent/guardian consent signing."
+    },
+    {
       "name": "Faculty",
       "description": "Task 2: faculty onboarding and minimal publication reads."
     },
@@ -87,20 +91,157 @@
         }
       }
     },
+    "/auth/registration/email-otp/requests": {
+      "post": {
+        "operationId": "requestRegistrationEmailOtp",
+        "tags": [
+          "Identity"
+        ],
+        "summary": "Send registration OTP to an email before the account exists",
+        "description": "Public; no authenticated identity required. Onboarding step 1 inline \"Verify\" field. Creates a REGISTRATION challenge with no user. Same proposed OTP limits as email verification, plus per-email and per-IP send limits. No OTP in response. DECISION REQUIRED: What the screen shows when the email is already registered: a uniform 202 (no account enumeration, user learns at submit) or an explicit message.",
+        "x-required-role": "public",
+        "x-review-status": "decision-required",
+        "security": [],
+        "responses": {
+          "202": {
+            "description": "Send registration OTP to an email before the account exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/requestRegistrationEmailOtpResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "challengeId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "expiresAt": "2026-10-21T09:00:00Z",
+                    "resendAfter": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/registration/email-otp/verify": {
+      "post": {
+        "operationId": "verifyRegistrationEmailOtp",
+        "tags": [
+          "Identity"
+        ],
+        "summary": "Verify registration OTP and issue an email verification token",
+        "description": "Public; no authenticated identity required. Consume once atomically; invalid, expired or used OTP returns generic 422, exhausted attempts 429. Returns a short-lived single-use emailVerificationToken (proposed 30 minutes) that POST /auth/register consumes. Cache-Control: no-store. Does not create an account or set cookies.",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Verify registration OTP and issue an email verification token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/verifyRegistrationEmailOtpResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/register": {
       "post": {
         "operationId": "registerStudent",
         "tags": [
           "Identity"
         ],
-        "summary": "Create unverified student identity and minimal profile",
-        "description": "Public; no authenticated identity required. Only student role is assigned atomically; unknown fields including role, isActive or permissions are rejected. Duplicate normalized email returns 409, including soft-deleted identities pending operator resolution. No session cookies until email verification and successful portal login. Queue email via transactional outbox; never claim delivered when merely queued. DECISION REQUIRED: Minor eligibility and guardian-consent mechanism are unresolved. Schema intentionally has no guardian checkbox/contact workaround. Approve registration eligibility policy before implementing or enabling registration.",
+        "summary": "Create student account from the four onboarding steps",
+        "description": "Public; no authenticated identity required. One transaction: consume emailVerificationToken; create the user with fullName, mobileNumber, timezone, verified email and the student role only; create the student profile, subjects and guardian contact; record policy acceptances with IP and user agent; link the guardian consent and copy the guardian name and relationship onto it; audit events. Under 18 is computed on the server from dateOfBirth (UTC date). When under 18: guardian, consentToken and the Child Safety Policy acceptance are required; consent fullName and dateOfBirth must equal the submitted values, or 422 and the student re-signs. Adults: guardian is optional and stored when sent; consentToken is rejected with 422. Board required only when the category requires it. Every curriculum must match the selected category, board and level. Duplicate email returns 409. Unknown fields including role, isActive or permissions are rejected. DECISION REQUIRED: (1) Student password rule (8 characters with one number) is weaker than SOW A1.8 and the 12-character policy; confirm scope. (2) Guardian identity is not verified: a signature drawn on the student device does not close project plan risk R4; Product and Amentorz must accept the risk in writing. (3) Step 3 copy promises SMS; Phase 1 is email only. (4) After success: automatic login or redirect to the student login. (5) Final relationship list. (6) Whether adults see step 3 at all (UI says it is required for every student under 18).",
         "x-required-role": "public",
         "x-review-status": "decision-required",
         "security": [],
         "responses": {
           "201": {
-            "description": "Create unverified student identity and minimal profile.",
+            "description": "Create student account from the four onboarding steps.",
             "content": {
               "application/json": {
                 "schema": {
@@ -110,12 +251,7 @@
                   "success": true,
                   "message": "Success",
                   "data": {
-                    "userId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "verification": {
-                      "challengeId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                      "expiresAt": "2026-10-21T09:00:00Z",
-                      "resendAfter": "2026-10-21T09:00:00Z"
-                    }
+                    "userId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
                   }
                 }
               }
@@ -331,8 +467,8 @@
                     "user": {
                       "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                       "email": "learner@example.org",
-                      "firstName": "Ananya",
-                      "lastName": "Rao",
+                      "fullName": "Ananya Rao",
+                      "mobileNumber": "+919876543210",
                       "isActive": true,
                       "emailVerified": true,
                       "roles": [
@@ -431,8 +567,8 @@
                     "user": {
                       "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                       "email": "learner@example.org",
-                      "firstName": "Ananya",
-                      "lastName": "Rao",
+                      "fullName": "Ananya Rao",
+                      "mobileNumber": "+919876543210",
                       "isActive": true,
                       "emailVerified": true,
                       "roles": [
@@ -531,8 +667,8 @@
                     "user": {
                       "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                       "email": "learner@example.org",
-                      "firstName": "Ananya",
-                      "lastName": "Rao",
+                      "fullName": "Ananya Rao",
+                      "mobileNumber": "+919876543210",
                       "isActive": true,
                       "emailVerified": true,
                       "roles": [
@@ -772,8 +908,8 @@
                   "data": {
                     "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                     "email": "learner@example.org",
-                    "firstName": "Ananya",
-                    "lastName": "Rao",
+                    "fullName": "Ananya Rao",
+                    "mobileNumber": "+919876543210",
                     "isActive": true,
                     "emailVerified": true,
                     "roles": []
@@ -1432,8 +1568,8 @@
                       "user": {
                         "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                         "email": "learner@example.org",
-                        "firstName": "Ananya",
-                        "lastName": "Rao",
+                        "fullName": "Ananya Rao",
+                        "mobileNumber": "+919876543210",
                         "isActive": true,
                         "emailVerified": true,
                         "roles": []
@@ -1657,8 +1793,8 @@
                     "user": {
                       "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                       "email": "learner@example.org",
-                      "firstName": "Ananya",
-                      "lastName": "Rao",
+                      "fullName": "Ananya Rao",
+                      "mobileNumber": "+919876543210",
                       "isActive": true,
                       "emailVerified": true,
                       "roles": []
@@ -1757,8 +1893,8 @@
                     "user": {
                       "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                       "email": "learner@example.org",
-                      "firstName": "Ananya",
-                      "lastName": "Rao",
+                      "fullName": "Ananya Rao",
+                      "mobileNumber": "+919876543210",
                       "isActive": true,
                       "emailVerified": true,
                       "roles": []
@@ -1876,8 +2012,8 @@
                     "user": {
                       "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                       "email": "learner@example.org",
-                      "firstName": "Ananya",
-                      "lastName": "Rao",
+                      "fullName": "Ananya Rao",
+                      "mobileNumber": "+919876543210",
                       "isActive": true,
                       "emailVerified": true,
                       "roles": []
@@ -1961,8 +2097,8 @@
                     "user": {
                       "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                       "email": "learner@example.org",
-                      "firstName": "Ananya",
-                      "lastName": "Rao",
+                      "fullName": "Ananya Rao",
+                      "mobileNumber": "+919876543210",
                       "isActive": true,
                       "emailVerified": true,
                       "roles": []
@@ -2205,8 +2341,8 @@
                     "user": {
                       "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                       "email": "learner@example.org",
-                      "firstName": "Ananya",
-                      "lastName": "Rao",
+                      "fullName": "Ananya Rao",
+                      "mobileNumber": "+919876543210",
                       "isActive": true,
                       "emailVerified": true,
                       "roles": []
@@ -2324,8 +2460,8 @@
                     "user": {
                       "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                       "email": "learner@example.org",
-                      "firstName": "Ananya",
-                      "lastName": "Rao",
+                      "fullName": "Ananya Rao",
+                      "mobileNumber": "+919876543210",
                       "isActive": true,
                       "emailVerified": true,
                       "roles": []
@@ -2443,8 +2579,8 @@
                     "user": {
                       "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                       "email": "learner@example.org",
-                      "firstName": "Ananya",
-                      "lastName": "Rao",
+                      "fullName": "Ananya Rao",
+                      "mobileNumber": "+919876543210",
                       "isActive": true,
                       "emailVerified": true,
                       "roles": []
@@ -3118,8 +3254,7 @@
                   "message": "Success",
                   "data": {
                     "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "firstName": "Ananya",
-                    "lastName": "Rao",
+                    "fullName": "Ananya Rao",
                     "bio": "Mathematics tutor with experience teaching secondary school students.",
                     "qualifications": [],
                     "experience": [],
@@ -3151,6 +3286,393 @@
         "parameters": [
           {
             "name": "facultyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      }
+    },
+    "/policies/current": {
+      "get": {
+        "operationId": "listCurrentPolicies",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "List current legal policy versions",
+        "description": "Public; no authenticated identity required. Terms of Use, Privacy Policy, Child Safety Policy and Student Terms, one current version each. Drives the step 4 links and the signing modal header (\"Student Terms v1.0 \u00b7 Effective 1 September 2026\"). 503 until the client-supplied texts are configured. DECISION REQUIRED: Policy texts and the Student Terms PDF are supplied by the client (SOW A1.8). The Terms of Use summary in the UI hard-codes the 20-minute billable rule; it must match the configured setting and the supplied text.",
+        "x-required-role": "public",
+        "x-review-status": "decision-required",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "List current legal policy versions.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listCurrentPoliciesResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
+    "/policies/{policyId}/file": {
+      "get": {
+        "operationId": "getPolicyFile",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "Download a policy PDF",
+        "description": "Public; no authenticated identity required. Blank PDF for the modal preview and \"View full document\" (consent doc GET /consent/pdf/). Content-Disposition inline; public cache allowed per version.",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Policy PDF bytes.",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "policyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      }
+    },
+    "/consent/guardian-signatures": {
+      "post": {
+        "operationId": "signGuardianConsent",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "Sign the Student Terms as parent or guardian",
+        "description": "Public; no authenticated identity required. Opened from the date-of-birth popup when the server-computed age is under 18, before the account exists (consent doc POST /consent/sign/). Server overlays the signature, \"Parent/guardian of <studentFullName>\", UTC timestamp and client IP on the last page, flattens, stores a new object per signing and records its SHA-256. Client IP comes from the trusted proxy configuration, never the first X-Forwarded-For entry. 422 when the date of birth is 18 or over, the policy is not the current Student Terms, or the mode and fields disagree. Strict per-IP rate limit. Unlinked consents expire (proposed 24 hours) and are purged with their PDFs. Re-signing after the consent is linked to an account returns 409. The signature is a recorded acknowledgement, not a cryptographic or identity-verified signature. DECISION REQUIRED: Project plan R4: guardian identity is not verified. Product and Amentorz must accept this in writing. The PDF cannot show the guardian name because the modal collects only the drawn signature; the name from step 3 is stored on the record at registration.",
+        "x-required-role": "public",
+        "x-review-status": "decision-required",
+        "security": [],
+        "responses": {
+          "201": {
+            "description": "Sign the Student Terms as parent or guardian.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/signGuardianConsentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "415": {
+            "$ref": "#/components/responses/E415"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/GuardianSignatureUpload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/consent/guardian-signatures/file": {
+      "get": {
+        "operationId": "getPendingGuardianConsentFile",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "Download the signed consent before registration",
+        "description": "Public; no authenticated identity required. Only the holder of an unexpired, unlinked consent token. 404 for unknown, expired or linked tokens. Cache-Control: private, no-store; Content-Disposition attachment (consent doc GET /consent/download/).",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Signed consent PDF bytes.",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "x-consent-token",
+            "in": "header",
+            "required": true,
+            "description": "consentToken from the signing response. Header, never a URL.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          }
+        ]
+      }
+    },
+    "/students/me/guardian-consent/file": {
+      "get": {
+        "operationId": "getOwnGuardianConsentFile",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "Download own signed consent",
+        "description": "Current active, email-verified student (self only) identity; server checks role, permission and resource ownership on every request. Linked consent of the authenticated student. 404 when none. Cache-Control: private, no-store.",
+        "x-required-role": "student (self only)",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Signed consent PDF bytes.",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
+    "/admin/students/{studentId}/guardian-consent/file": {
+      "get": {
+        "operationId": "getStudentGuardianConsentFileAdmin",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "Download a student signed consent",
+        "description": "Current active, email-verified admin; students.read identity; server checks role, permission and resource ownership on every request. Recent reauthentication required. Audited. Cache-Control: private, no-store.",
+        "x-required-role": "admin; students.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Signed consent PDF bytes.",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "studentId",
             "in": "path",
             "required": true,
             "schema": {
@@ -3363,6 +3885,7 @@
                     "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                     "code": "mathematics",
                     "name": "Mathematics",
+                    "requiresBoard": true,
                     "isActive": true
                   }
                 }
@@ -3444,6 +3967,7 @@
                     "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                     "code": "mathematics",
                     "name": "Mathematics",
+                    "requiresBoard": true,
                     "isActive": true
                   }
                 }
@@ -4608,6 +5132,28 @@
             }
           },
           {
+            "name": "boardId",
+            "in": "query",
+            "required": false,
+            "description": "boardId",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "levelId",
+            "in": "query",
+            "required": false,
+            "description": "Onboarding step 2 subjects: filter by category, board and level, then join subjectId with /catalogue/subjects.",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -4905,6 +5451,354 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CurriculumWrite"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/catalogue/teaching-languages": {
+      "get": {
+        "operationId": "listTeachingLanguages",
+        "tags": [
+          "Catalogue"
+        ],
+        "summary": "List active teaching-languages",
+        "description": "Public; no authenticated identity required. Public projection excludes inactive or parent-inactive rows. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Onboarding step 2 \"Preferred teaching language\" options such as English & Hindi; final list supplied by Amentorz. ",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "List active teaching-languages.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listTeachingLanguagesResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": [],
+                  "meta": {
+                    "page": 1,
+                    "limit": 1,
+                    "total": 0,
+                    "totalPages": 0
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "One-based page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ]
+      }
+    },
+    "/admin/catalogue/teaching-languages": {
+      "get": {
+        "operationId": "listTeachingLanguagesAdmin",
+        "tags": [
+          "Catalogue"
+        ],
+        "summary": "List all configured teaching-languages",
+        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Onboarding step 2 \"Preferred teaching language\" options such as English & Hindi; final list supplied by Amentorz. ",
+        "x-required-role": "admin; catalogue.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List all configured teaching-languages.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listTeachingLanguagesAdminResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": [],
+                  "meta": {
+                    "page": 1,
+                    "limit": 1,
+                    "total": 0,
+                    "totalPages": 0
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "isActive",
+            "in": "query",
+            "required": false,
+            "description": "isActive",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "One-based page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createTeachingLanguage",
+        "tags": [
+          "Catalogue"
+        ],
+        "summary": "Create teachinglanguage",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Onboarding step 2 \"Preferred teaching language\" options such as English & Hindi; final list supplied by Amentorz. Audit create. Invalid relationships 422; duplicate 409.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Create teachinglanguage.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/createTeachingLanguageResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "code": "mathematics",
+                    "name": "English & Hindi",
+                    "languageCodes": [],
+                    "isActive": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeachingLanguageWrite"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/catalogue/teaching-languages/{id}": {
+      "put": {
+        "operationId": "replaceTeachingLanguage",
+        "tags": [
+          "Catalogue"
+        ],
+        "summary": "Replace or archive teachinglanguage",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Onboarding step 2 \"Preferred teaching language\" options such as English & Hindi; final list supplied by Amentorz. Audit old/new allowlisted values. Archival immediately removes affected assignments/prices from consumer resolution. Reject structural reparenting of referenced curricula with 409; archive and create new tuple instead.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Replace or archive teachinglanguage.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/replaceTeachingLanguageResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "code": "mathematics",
+                    "name": "English & Hindi",
+                    "languageCodes": [],
+                    "isActive": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeachingLanguageWrite"
               }
             }
           }
@@ -5570,7 +6464,7 @@
           "Library"
         ],
         "summary": "Submit private file for library moderation",
-        "description": "Current active, email-verified admin; library.upload identity; server checks role, permission and resource ownership on every request. Single maximum 10 MiB file; proposed PDF/JPEG/PNG only, magic-byte checked. Unknown curriculum 422. Quarantine and scan; pending moderation even if clean. No direct public object URL. Other permitted formats require explicit allowlist decision. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed.",
+        "description": "Current active, email-verified admin; library.upload identity; server checks role, permission and resource ownership on every request. Single maximum 10 MiB file; proposed PDF/JPEG/PNG only, magic-byte checked. Unknown curriculum 422. Quarantine and scan; pending moderation even if clean. No direct public object URL. Other permitted formats require explicit allowlist decision. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "admin; library.upload",
         "x-review-status": "decision-required",
         "security": [
@@ -5660,7 +6554,7 @@
           "Library"
         ],
         "summary": "Submit external HTTPS link for moderation",
-        "description": "Current active, email-verified admin; library.upload identity; server checks role, permission and resource ownership on every request. Always pending; no server fetching or preview crawling. Reject non-HTTPS, credentials in URL, localhost/private IP literals and malformed URL. Review destination and redirects manually. No visibility before approval. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed.",
+        "description": "Current active, email-verified admin; library.upload identity; server checks role, permission and resource ownership on every request. Always pending; no server fetching or preview crawling. Reject non-HTTPS, credentials in URL, localhost/private IP literals and malformed URL. Review destination and redirects manually. No visibility before approval. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "admin; library.upload",
         "x-review-status": "decision-required",
         "security": [
@@ -5747,7 +6641,7 @@
           "Library"
         ],
         "summary": "List library moderation records",
-        "description": "Current active, email-verified admin; library.moderate identity; server checks role, permission and resource ownership on every request.  DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed.",
+        "description": "Current active, email-verified admin; library.moderate identity; server checks role, permission and resource ownership on every request.  DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "admin; library.moderate",
         "x-review-status": "decision-required",
         "security": [
@@ -5859,7 +6753,7 @@
           "Library"
         ],
         "summary": "Read moderation record",
-        "description": "Current active, email-verified admin; library.moderate identity; server checks role, permission and resource ownership on every request.  DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed.",
+        "description": "Current active, email-verified admin; library.moderate identity; server checks role, permission and resource ownership on every request.  DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "admin; library.moderate",
         "x-review-status": "decision-required",
         "security": [
@@ -5940,7 +6834,7 @@
           "Library"
         ],
         "summary": "Approve, reject or withdraw library material",
-        "description": "Current active, email-verified admin; library.moderate identity; server checks role, permission and resource ownership on every request. expectedRevision checked atomically. Approval requires clean scan for files, active curriculum and reviewed external destination. Rejection can withdraw approved material and immediately blocks student listing/detail/file/link access. Audit reason and actor. Proposed no self-approval; distinct authorized admin required. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Self-approval policy also needs a decision.",
+        "description": "Current active, email-verified admin; library.moderate identity; server checks role, permission and resource ownership on every request. expectedRevision checked atomically. Approval requires clean scan for files, active curriculum and reviewed external destination. Rejection can withdraw approved material and immediately blocks student listing/detail/file/link access. Audit reason and actor. Proposed no self-approval; distinct authorized admin required. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below. Self-approval policy also needs a decision.",
         "x-required-role": "admin; library.moderate",
         "x-review-status": "decision-required",
         "security": [
@@ -6040,7 +6934,7 @@
           "Library"
         ],
         "summary": "List approved library resources visible to caller",
-        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. Live permission, active curriculum, approval and clean-scan checks. No pending/rejected records or inaccessible URLs in data/meta. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed.",
+        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. Live permission, active curriculum, approval and clean-scan checks. No pending/rejected records or inaccessible URLs in data/meta. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "student",
         "x-review-status": "decision-required",
         "security": [
@@ -6154,7 +7048,7 @@
           "Library"
         ],
         "summary": "Read permitted library resource metadata",
-        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. 404 for pending/rejected/inaccessible resource. No URL or storage key returned. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed.",
+        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. 404 for pending/rejected/inaccessible resource. No URL or storage key returned. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "student",
         "x-review-status": "decision-required",
         "security": [
@@ -6230,7 +7124,7 @@
           "Library"
         ],
         "summary": "Retrieve authorized library file or external link",
-        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. Require current approval, active curriculum, audience permission and clean scan on every retrieval; 404 if hidden. For file return bytes, safe attachment filename, nosniff, private,no-store. For link return JSON envelope with HTTPS destination after authorization; no redirect with shared cache and no arbitrary proxy fetch. source in metadata determines content type. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed.",
+        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. Require current approval, active curriculum, audience permission and clean scan on every retrieval; 404 if hidden. For file return bytes, safe attachment filename, nosniff, private,no-store. For link return JSON envelope with HTTPS destination after authorization; no redirect with shared cache and no arbitrary proxy fetch. source in metadata determines content type. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "student",
         "x-review-status": "decision-required",
         "security": [
@@ -6338,7 +7232,7 @@
           "Library"
         ],
         "summary": "Retrieve authorized library file or external link",
-        "description": "Current active, email-verified admin; library.moderate identity; server checks role, permission and resource ownership on every request. Moderator may inspect pending/rejected metadata/link, but file bytes require clean scan; 409 while scanning or rejected by scanner. For file return bytes, safe attachment filename, nosniff, private,no-store. For link return JSON envelope with HTTPS destination after authorization; no redirect with shared cache and no arbitrary proxy fetch. source in metadata determines content type. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed.",
+        "description": "Current active, email-verified admin; library.moderate identity; server checks role, permission and resource ownership on every request. Moderator may inspect pending/rejected metadata/link, but file bytes require clean scan; 409 while scanning or rejected by scanner. For file return bytes, safe attachment filename, nosniff, private,no-store. For link return JSON envelope with HTTPS destination after authorization; no redirect with shared cache and no arbitrary proxy fetch. source in metadata determines content type. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "admin; library.moderate",
         "x-review-status": "decision-required",
         "security": [
@@ -7188,15 +8082,21 @@
             "example": "learner@example.org",
             "description": "Trim and lowercase before uniqueness and lookup. No provider-specific dot or plus rewriting."
           },
-          "firstName": {
+          "fullName": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 100
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
           },
-          "lastName": {
+          "mobileNumber": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 100
+            "maxLength": 16,
+            "pattern": "^\\+[1-9][0-9]{7,14}$",
+            "example": "+919876543210",
+            "description": "E.164. The UI defaults to +91. Not OTP-verified in Phase 1. Not unique: siblings may share a parent number.",
+            "nullable": true
           },
           "isActive": {
             "type": "boolean"
@@ -7215,50 +8115,372 @@
         "required": [
           "id",
           "email",
-          "firstName",
-          "lastName",
+          "fullName",
+          "mobileNumber",
           "isActive",
           "emailVerified",
           "roles"
         ]
       },
-      "RegisterRequest": {
+      "RegistrationEmailVerified": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
+          "emailVerificationToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Opaque single-use token proving the registration OTP for this email was verified. Only its hash is stored; never log or put in a URL."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          }
+        },
+        "required": [
+          "emailVerificationToken",
+          "expiresAt"
+        ]
+      },
+      "LearningProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "boardId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true,
+            "description": "Required when the category has requiresBoard=true (School); otherwise null."
+          },
+          "levelId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "teachingLanguageId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "curriculumIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "Subjects multi-select (\"Pick at least one\"). Each curriculum must be active and match categoryId, boardId and levelId."
+          }
+        },
+        "required": [
+          "categoryId",
+          "boardId",
+          "levelId",
+          "teachingLanguageId",
+          "curriculumIds"
+        ]
+      },
+      "GuardianContact": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
+          },
+          "relationship": {
+            "type": "string",
+            "enum": [
+              "father",
+              "mother",
+              "legal_guardian",
+              "grandparent",
+              "sibling",
+              "other"
+            ]
+          },
+          "mobileNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "pattern": "^\\+[1-9][0-9]{7,14}$",
+            "example": "+919876543210",
+            "description": "Guardian mobile; the UI says session reminders and safety alerts are sent here. SMS delivery is not in Phase 1 scope (pending decision)."
+          },
           "email": {
             "type": "string",
             "minLength": 1,
             "maxLength": 255,
             "format": "email",
             "example": "learner@example.org",
-            "description": "Trim and lowercase before uniqueness and lookup. No provider-specific dot or plus rewriting."
+            "description": "Guardian email; must differ from the student email. Trim and lowercase."
           },
-          "password": {
-            "type": "string",
-            "minLength": 12,
-            "maxLength": 72,
-            "format": "password",
-            "writeOnly": true,
-            "pattern": "^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{12,72}$",
-            "description": "Existing composition policy; additionally reject over 72 UTF-8 bytes before bcrypt to avoid truncation. Never log. No example credentials."
-          },
-          "firstName": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "lastName": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
+          "receivesReportsAndReceipts": {
+            "type": "boolean",
+            "description": "\"Also send progress reports and payment receipts to the guardian\"."
           }
         },
         "required": [
+          "fullName",
+          "relationship",
+          "mobileNumber",
           "email",
+          "receivesReportsAndReceipts"
+        ]
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "emailVerificationToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "writeOnly": true,
+            "description": "From POST /auth/registration/email-otp/verify. Identifies the verified email; the email is not sent again."
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
+          },
+          "dateOfBirth": {
+            "type": "string",
+            "format": "date",
+            "example": "2012-05-15"
+          },
+          "mobileNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "pattern": "^\\+[1-9][0-9]{7,14}$",
+            "example": "+919876543210",
+            "description": "E.164. The UI defaults to +91. Not OTP-verified in Phase 1. Not unique: siblings may share a parent number."
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 72,
+            "format": "password",
+            "writeOnly": true,
+            "pattern": "^(?=.*[0-9]).{8,72}$",
+            "description": "Student onboarding UI rule: minimum 8 characters with at least one number. Reject over 72 UTF-8 bytes before bcrypt. Weaker than the 12-character composition policy used for password change/reset; whether it applies to students only or all roles is a pending decision. Never log."
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "example": "Asia/Kolkata",
+            "description": "IANA time zone from the browser; not shown on the screens."
+          },
+          "learningProfile": {
+            "$ref": "#/components/schemas/LearningProfile"
+          },
+          "guardian": {
+            "$ref": "#/components/schemas/GuardianContact",
+            "description": "Step 3. Required when the student is under 18 on the server-computed date; optional for adults."
+          },
+          "consentToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "writeOnly": true,
+            "description": "From POST /consent/guardian-signatures. Required when under 18. Must match fullName and dateOfBirth exactly and be unexpired and unused."
+          },
+          "acceptedPolicyIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            },
+            "maxItems": 4,
+            "minItems": 2,
+            "uniqueItems": true,
+            "description": "Current policy IDs from GET /policies/current that the step 4 checkboxes accepted: Terms of Use and Privacy Policy always, plus Child Safety Policy when under 18."
+          }
+        },
+        "required": [
+          "emailVerificationToken",
+          "fullName",
+          "dateOfBirth",
+          "mobileNumber",
           "password",
-          "firstName",
-          "lastName"
+          "timezone",
+          "learningProfile",
+          "acceptedPolicyIds"
+        ]
+      },
+      "RegisterResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          }
+        },
+        "required": [
+          "userId"
+        ]
+      },
+      "Policy": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "terms_of_use",
+              "privacy_policy",
+              "child_safety_policy",
+              "student_terms"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "example": "1.0"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "example": "Student Terms"
+          },
+          "effectiveAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "sha256": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$",
+            "example": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+            "description": "SHA-256 of the stored PDF bytes, hex."
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "version",
+          "title",
+          "effectiveAt",
+          "sha256"
+        ]
+      },
+      "GuardianSignatureUpload": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "policyId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "description": "Current student_terms policy ID."
+          },
+          "studentFullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
+          },
+          "studentDateOfBirth": {
+            "type": "string",
+            "format": "date",
+            "example": "2012-05-15"
+          },
+          "signatureMode": {
+            "type": "string",
+            "enum": [
+              "draw",
+              "type"
+            ]
+          },
+          "signature": {
+            "type": "string",
+            "format": "binary",
+            "description": "PNG drawn on the canvas; required when signatureMode=draw. Magic-byte checked; proposed 1 MiB limit."
+          },
+          "typedName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "description": "Required when signatureMode=type. The current UI offers draw only."
+          }
+        },
+        "required": [
+          "policyId",
+          "studentFullName",
+          "studentDateOfBirth",
+          "signatureMode"
+        ]
+      },
+      "GuardianConsentReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "consentToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Opaque single-use token for POST /auth/register and the pre-registration download. Only its hash is stored."
+          },
+          "policyId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "signedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "signedPdfSha256": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$",
+            "example": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+            "description": "SHA-256 of the stored PDF bytes, hex."
+          }
+        },
+        "required": [
+          "consentToken",
+          "policyId",
+          "signedAt",
+          "expiresAt",
+          "signedPdfSha256"
         ]
       },
       "LoginRequest": {
@@ -7768,21 +8990,17 @@
             "example": "learner@example.org",
             "description": "Trim and lowercase before uniqueness and lookup. No provider-specific dot or plus rewriting."
           },
-          "firstName": {
+          "fullName": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 100
-          },
-          "lastName": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
           }
         },
         "required": [
           "email",
-          "firstName",
-          "lastName"
+          "fullName"
         ]
       },
       "FacultyCreated": {
@@ -7813,15 +9031,12 @@
             "format": "uuid",
             "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
           },
-          "firstName": {
+          "fullName": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 100
-          },
-          "lastName": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
           },
           "bio": {
             "type": "string",
@@ -7852,8 +9067,7 @@
         },
         "required": [
           "id",
-          "firstName",
-          "lastName",
+          "fullName",
           "bio",
           "qualifications",
           "experience",
@@ -8075,6 +9289,10 @@
             "minLength": 1,
             "maxLength": 200
           },
+          "requiresBoard": {
+            "type": "boolean",
+            "description": "True for School: onboarding shows the board selector and curricula need a board."
+          },
           "isActive": {
             "type": "boolean"
           }
@@ -8082,6 +9300,7 @@
         "required": [
           "code",
           "name",
+          "requiresBoard",
           "isActive"
         ]
       },
@@ -8105,6 +9324,10 @@
             "minLength": 1,
             "maxLength": 200
           },
+          "requiresBoard": {
+            "type": "boolean",
+            "description": "True for School: onboarding shows the board selector and curricula need a board."
+          },
           "isActive": {
             "type": "boolean"
           }
@@ -8113,6 +9336,95 @@
           "id",
           "code",
           "name",
+          "requiresBoard",
+          "isActive"
+        ]
+      },
+      "TeachingLanguageWrite": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "English & Hindi"
+          },
+          "languageCodes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8,
+              "pattern": "^[a-z]{2,3}$",
+              "example": "en"
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "ISO 639 codes the option covers; also used later for faculty search by language."
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "languageCodes",
+          "isActive"
+        ]
+      },
+      "TeachingLanguage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "English & Hindi"
+          },
+          "languageCodes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8,
+              "pattern": "^[a-z]{2,3}$",
+              "example": "en"
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "ISO 639 codes the option covers; also used later for faculty search by language."
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "languageCodes",
           "isActive"
         ]
       },
@@ -9002,6 +10314,56 @@
           "data"
         ]
       },
+      "requestRegistrationEmailOtpResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/Challenge"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "verifyRegistrationEmailOtpResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/RegistrationEmailVerified"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
       "registerStudentResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -9018,22 +10380,7 @@
             "maxLength": 500
           },
           "data": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "userId": {
-                "type": "string",
-                "format": "uuid",
-                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-              },
-              "verification": {
-                "$ref": "#/components/schemas/Challenge"
-              }
-            },
-            "required": [
-              "userId",
-              "verification"
-            ]
+            "$ref": "#/components/schemas/RegisterResult"
           }
         },
         "required": [
@@ -9981,6 +11328,176 @@
           "data"
         ]
       },
+      "listCurrentPoliciesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Policy"
+            },
+            "maxItems": 4
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getPolicyFileResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "object",
+            "nullable": true,
+            "enum": [
+              null
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "signGuardianConsentResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/GuardianConsentReceipt"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getPendingGuardianConsentFileResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "object",
+            "nullable": true,
+            "enum": [
+              null
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getOwnGuardianConsentFileResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "object",
+            "nullable": true,
+            "enum": [
+              null
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getStudentGuardianConsentFileAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "object",
+            "nullable": true,
+            "enum": [
+              null
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
       "listCategorysResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -10553,6 +12070,122 @@
           },
           "data": {
             "$ref": "#/components/schemas/Curriculum"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "listTeachingLanguagesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeachingLanguage"
+            },
+            "maxItems": 100
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data",
+          "meta"
+        ]
+      },
+      "listTeachingLanguagesAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeachingLanguage"
+            },
+            "maxItems": 100
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data",
+          "meta"
+        ]
+      },
+      "createTeachingLanguageResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/TeachingLanguage"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "replaceTeachingLanguageResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/TeachingLanguage"
           }
         },
         "required": [
