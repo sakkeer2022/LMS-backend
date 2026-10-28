@@ -1,0 +1,2 @@
+# Git hook scripts must use LF or the shell passes "\r" into each command
+.husky/* text eol=lf
