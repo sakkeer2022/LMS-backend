@@ -10,7 +10,7 @@
 
 ## 2026-10-23 — Backend foundation readiness (before first business API)
 
-- Committed the previously uncommitted Gate 4 work as a baseline snapshot (`48f0998`, hooks skipped once so it was not reformatted).
+- Committed the previously uncommitted Gate 4 work as a baseline snapshot (hooks skipped once so it was not reformatted; history later regrouped into ticket-based commits under LMS-52).
 - Verified database state read-only: `amentorz_dev` and `amentorz_test` (PostgreSQL 16.14) both have the two migrations applied with checksums matching `prisma/migrations`; `migrate status` on the test DB is up to date. No migrate dev, reset or db push was run.
 - Fixed git hooks: `.husky/*` had CRLF endings (npx received `lint-staged\r`) and the generated `.husky/_` wrappers were not executable, so pre-commit, commit-msg and pre-push never ran. Added `.gitattributes` (LF for `.husky/*`). Locally: `npx husky` + `chmod 755 .husky/_/*`.
 - Fixed `validateRequest` on Express 5 (`req.query` is getter-only; query validation threw). Real-app supertest coverage added.

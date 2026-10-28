@@ -33,8 +33,9 @@ release/LMS-80-sprint-1
 
 - Types: `feature` (new work), `bugfix` (fix found during development), `hotfix` (urgent production fix, branched from `main`), `release` (release preparation).
 - The Jira key links the branch, its commits and its pull request to the ticket. Jira's "Create branch" button produces a valid name.
-- The `pre-push` hook (`scripts/check-branch-name.cjs`) rejects any other name.
+- The `pre-push` hook (`scripts/check-branch-name.cjs`) rejects any other name, and any `backup/*` branch or tag. Push branches by name (`git push -u origin feature/LMS-38-student-registration`); never use `git push --all`, `--tags` or `--mirror`.
 - Keep branches short-lived. Update from `development` at least daily (`git pull --rebase origin development` before you push for review).
+- After rebasing your own branch, push with `git push --force-with-lease`. Never force-push `main`, `development` or someone else's branch.
 
 ## Commit Messages
 
@@ -70,7 +71,8 @@ Refs: LMS-38
 
 1. Push your branch and open a pull request into `development`. The title follows the commit format, for example `feat(auth): student registration (LMS-38)`.
 2. The other developer reviews. At least one approval and a green Bitbucket Pipelines build are required before merging.
-3. Merge with a merge commit or squash, then delete the branch.
+3. Merge with a **merge commit** (not squash) so the ticket's commits stay intact and branches built on top of it still line up, then delete the branch.
+4. If your branch was created from another unmerged branch, open its pull request only after that branch is merged, and rebase onto `development` first.
 
 Before asking for review, check every item:
 
