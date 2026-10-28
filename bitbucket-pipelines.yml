@@ -1,0 +1,62 @@
+# CI for this repository (origin is Bitbucket). Runs on every pull request and
+# on pushes to main and development.
+image: node:20
+
+definitions:
+  caches:
+    npm: ~/.npm
+
+  services:
+    postgres:
+      image: postgres:16
+      variables:
+        POSTGRES_DB: amentorz_test
+        POSTGRES_USER: ci_user
+        POSTGRES_PASSWORD: ci_password
+    redis:
+      image: redis:7
+
+  steps:
+    - step: &build-and-test
+        name: Lint, typecheck, build and test
+        caches:
+          - npm
+        services:
+          - postgres
+          - redis
+        script:
+          # Throwaway CI-only values; the test database guard only accepts amentorz_test
+          - export NODE_ENV=test
+          - export DATABASE_URL="postgresql://ci_user:ci_password@localhost:5432/amentorz_test?schema=public"
+          - export TEST_DATABASE_URL="$DATABASE_URL"
+          - export JWT_SECRET=ci-jwt-secret-minimum-32-characters-long
+          - export JWT_REFRESH_SECRET=ci-jwt-refresh-secret-minimum-32-characters
+          - export COOKIE_SECRET=ci-cookie-secret-minimum-32-characters-long
+          - export REDIS_URL=redis://localhost:6379
+
+          - npm ci
+          - npm run lint
+          - npm run typecheck
+          - npm run contract:validate
+          - npm run build
+          - node --test tests/build-resolution.test.cjs
+
+          # Wait for the Postgres service, then apply committed migrations (never db push)
+          - for i in $(seq 1 30); do (echo > /dev/tcp/127.0.0.1/5432) >/dev/null 2>&1 && break; sleep 1; done
+          - npx prisma migrate deploy
+
+          - npm run test:unit
+          - npm run test:integration
+
+          # Advisory only; does not fail the build
+          - npm run audit || echo "npm audit reported high-severity issues (non-blocking)"
+
+pipelines:
+  pull-requests:
+    '**':
+      - step: *build-and-test
+  branches:
+    main:
+      - step: *build-and-test
+    development:
+      - step: *build-and-test
