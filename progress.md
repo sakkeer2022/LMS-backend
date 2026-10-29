@@ -6,6 +6,9 @@
 - `src/docs/SHARED_COMPONENTS.md`: reusable building blocks, available and planned.
 - CLAUDE.md, AGENTS.md, GEMINI.md and the PR checklist point to both.
 - Decisions recorded in `findings.md`: R4 accepted, placeholder policies for development, 8-character password rule, configurable email transport, LMS-92/LMS-94 parked.
+- Audited our docs against the SOW, project plan and consent document; corrected misattributed rules in the contract generator (regenerated `docs/openapi.yaml`), contract review, database docs and README. One password rule for every role (8 characters with a number); lockout and expiry values described as configuration.
+- `docs/PENDING_DECISIONS.md`: client, product and team questions with working assumptions.
+- `REGIONS.md`: consent age 18 for both countries, country from the mobile number, planned `countries` table, scalability-without-UI-changes rule.
 
 ## 2026-10-28 — Project setup and team conventions (LMS-52)
 

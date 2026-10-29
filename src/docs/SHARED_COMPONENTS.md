@@ -30,10 +30,10 @@ Building blocks that more than one module uses. **Check this list before writing
 
 ## Planned
 
-| Component              | Location                      | Ticket                      | Notes                                                                           |
-| ---------------------- | ----------------------------- | --------------------------- | ------------------------------------------------------------------------------- |
-| Regions (India, UAE)   | `src/shared/regions/`         | LMS-97 or LMS-99            | See `REGIONS.md`                                                                |
-| Email sending          | `src/infrastructure/email/`   | LMS-97 (shared with LMS-79) | One interface; transport chosen by configuration (SMTP now, any provider later) |
-| Per-route rate limiter | `src/middleware/`             | LMS-97                      | Reused by login, OTP, recovery and consent                                      |
-| File storage           | `src/infrastructure/storage/` | LMS-98                      | Put and get by key with SHA-256; used by consent PDFs, policies, library        |
-| PDF stamping           | `src/infrastructure/pdf/`     | LMS-98                      | Needs `pdf-lib` approval                                                        |
+| Component              | Location                                                                 | Ticket                      | Notes                                                                           |
+| ---------------------- | ------------------------------------------------------------------------ | --------------------------- | ------------------------------------------------------------------------------- |
+| Regions (India, UAE)   | `countries` table, `src/modules/regions/`, pure helpers in `src/shared/` | LMS-97 or LMS-99            | See `REGIONS.md`                                                                |
+| Email sending          | `src/infrastructure/email/`                                              | LMS-97 (shared with LMS-79) | One interface; transport chosen by configuration (SMTP now, any provider later) |
+| Per-route rate limiter | `src/middleware/`                                                        | LMS-97                      | Reused by login, OTP, recovery and consent                                      |
+| File storage           | `src/infrastructure/storage/`                                            | LMS-98                      | Put and get by key with SHA-256; used by consent PDFs, policies, library        |
+| PDF stamping           | `src/infrastructure/pdf/`                                                | LMS-98                      | Needs `pdf-lib` approval                                                        |

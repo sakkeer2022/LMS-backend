@@ -62,6 +62,7 @@ Every feature is built as a self-contained module. These rules extend the `contr
 7. **Contract first**: a module's endpoints must match `docs/openapi.yaml` (generated from `docs/build-contract-draft.py`). Change the generator and regenerate the contract before or with the code, never after.
 8. **India and UAE**: Phase 1 serves both countries. Never hard-code a country, dialling code, time zone, currency or age rule in a module; use the shared region helpers and follow `src/docs/REGIONS.md`. Country-specific content (policies, consent) is chosen by the user's country.
 9. **Reuse before you write**: check `src/docs/SHARED_COMPONENTS.md` before writing a helper, and add an entry when you create something another module could use.
+10. **Scalability without UI changes**: design for growth (reference tables, configuration, more countries), but a backend change must not change what the UI shows or collects. If it would, raise it in `docs/PENDING_DECISIONS.md` instead.
 
 ### 9. Git Workflow (Compulsory)
 

@@ -30,31 +30,50 @@ Phase 1 serves students and faculty in **India (`IN`)** and the **United Arab Em
 | Language                                   | English                                      | English                                                                    | Client documents mention no other language for Phase 1                                                                                    |
 | Policies and consent documents             | India versions                               | UAE versions                                                               | Client supplies both; placeholders in development (see below)                                                                             |
 | Data protection law                        | Digital Personal Data Protection Act 2023    | Federal Decree-Law No. 45 of 2021 (PDPL)                                   | Client or legal to confirm what each requires of the platform                                                                             |
-| Age below which guardian consent is needed | Under 18 (current rule)                      | **To confirm**                                                             | The consent flow uses 18 today. Keep the threshold per country in the shared region data, not hard-coded, until the UAE rule is confirmed |
+| Age below which guardian consent is needed | Under 18                                     | Under 18                                                                   | Team decision 2026-10-29; client confirmation pending (`docs/PENDING_DECISIONS.md` C8). Read it from the country data, never hard-code it |
 | School boards                              | CBSE, ICSE, state boards                     | Schools follow several curricula (for example CBSE, British, American, IB) | Catalogue data is configured by admins per country (`boards.country`); never hard-coded                                                   |
 | Taxes on payments                          | To confirm (Payments, M10)                   | To confirm (Payments, M10)                                                 | Not needed in Sprint 1                                                                                                                    |
 
-## Shared region module (planned)
+## Shared region data (planned)
 
-Create `src/shared/regions/` with the first feature that needs it (LMS-97 or LMS-99) and use it everywhere afterwards:
+Built with the first feature that needs it (LMS-97 or LMS-99), designed so a new country is a data change, not a code change.
 
-- `SUPPORTED_COUNTRIES`: `IN` and `AE` with dialling code, mobile pattern, default time zone and guardian-consent age.
-- `isSupportedCountry(code)`, `countryFromMobile(e164)`, `isValidMobile(e164, country?)`, `defaultTimezone(country)`.
-- A Zod schema for a supported country code and for an E.164 mobile number valid for that country.
+**Database: a `countries` reference table** (source of truth, seeded with `IN` and `AE`):
 
-It holds data and pure functions only (no database access), so any module can import it. Add a new country by adding one entry there, not by editing modules.
+| Column                          | Example (`IN` / `AE`)         | Purpose                                                                                   |
+| ------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------- |
+| `code` (PK, ISO 3166-1 alpha-2) | `IN` / `AE`                   | Referenced by `student_profiles.country`, `boards.country` and `policy_documents.country` |
+| `name`                          | India / United Arab Emirates  | Display                                                                                   |
+| `dial_code`                     | `+91` / `+971`                | Mobile numbers and deriving the country from a number                                     |
+| `mobile_pattern`                | National-number pattern       | Validation                                                                                |
+| `default_timezone`              | `Asia/Kolkata` / `Asia/Dubai` | New users' default time zone                                                              |
+| `guardian_consent_age`          | `18` / `18`                   | Age below which guardian consent is needed                                                |
+| `is_active`, `display_order`    |                               | Enable a country without a deployment                                                     |
+
+A `country_regions` table (Indian states, UAE emirates) is added only once the client answers what "region" means for reports (`docs/PENDING_DECISIONS.md` C10).
+
+**Code:**
+
+- `src/modules/regions/` reads the table (cached) and exports `getCountry(code)`, `countryFromMobile(e164)`, `isValidMobile(e164, country?)`, `defaultTimezone(code)`, `guardianConsentAge(code)` and a Zod schema for an active country code.
+- Pure helpers with no database access (E.164 parsing) go in `src/shared/`.
+- Modules use these functions; none of them reads country rules from anywhere else.
+
+## How the country is captured
+
+- **Now:** derived from the mobile number's dialling code at registration (`+91` → `IN`, `+971` → `AE`). No new form field, so the onboarding UI does not change.
+- **Later:** may switch to IP-based detection or a form field without changing how the country is stored or used.
+- **Region:** a mobile number does not identify an Indian state or a UAE emirate, so region stays empty until C10 is answered.
+
+## Scalability without UI changes
+
+Backend changes made for scalability (reference tables, configuration, extra columns) must not change what the UI shows or collects. If a scalability change would need a UI change (a new field, a different validation message, a new step), raise it as a pending decision instead of making it.
 
 ## Current state in the schema
 
 - `users.mobile_number` (E.164), `users.timezone` (IANA) and `boards.country` exist.
-- `student_profiles.country` defaults to `IN` and is meant to be derived from the mobile country code until the UI collects it.
+- `student_profiles.country` defaults to `IN` and is derived from the mobile number's dialling code (see above).
 - `policy_documents` has **no country** yet. Country-specific consent and policies (LMS-98) need a `country` column and a unique `(type, country, version)` with a migration.
 
 ## Open decisions
 
-| Decision                                                                                                                    | Needed for     |
-| --------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| How the student's country is captured at registration: derived from the mobile number's country code, or chosen in the form | LMS-99         |
-| The UAE age below which guardian consent is required, and the UAE consent requirements under PDPL                           | LMS-98, LMS-99 |
-| Whether separate UAE policy documents are required at launch                                                                | LMS-98         |
-| Tax treatment for each country                                                                                              | Payments (M10) |
+Tracked in `docs/PENDING_DECISIONS.md`: consent age confirmation (C8), policy documents per country (C7), region meaning (C10), hosting region (C11) and, later, tax treatment for each country (payments).

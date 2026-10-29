@@ -11,7 +11,14 @@
 | Backups and deployment | LMS-92 and LMS-94 are parked until hosting is decided |
 | Regions | Phase 1 serves India and the UAE. Rules in `src/docs/REGIONS.md`: no hard-coded country rules, E.164 mobiles, UTC storage with user time zone, INR only (project plan), country-specific policies and consent. `policy_documents` needs a `country` column (LMS-98) |
 | Reuse | `src/docs/SHARED_COMPONENTS.md` lists reusable building blocks; check it before writing a helper |
-| Audit against client documents | Contract notes and docs are being checked against the SOW, project plan and consent document for other claims presented as client requirements |
+| Audit against client documents | Done. Corrected in the contract generator, contract review and database docs: packages ("excluded per SOW" → deferred by the draft plan, SOW allows them), Razorpay ("approved" → leading candidate), 60-minute slots and authorize/capture/void (draft plan, not SOW), consent design ("client instructions" → ours to design), boards, review statuses, notification read state. SOW-vs-plan conflicts recorded as pending: 20-minute rule, rescheduling. Missing items recorded: data protection and refund/cancellation policies, region on the student profile |
+| Consent age | Under 18 needs guardian consent in **both India and the UAE** (client confirmation pending, C8) |
+| Country capture | Derived from the mobile number's dialling code for now; IP or form capture may follow. Region cannot be derived from a mobile number and stays empty until the client defines it (C10) |
+| Countries table | Planned `countries` reference table (code, name, dialling code, mobile pattern, default time zone, guardian consent age, active flag), built with the first feature that needs it, so adding a country is a data change |
+| Library | Kept as designed (admin-only uploads, PDF/JPEG/PNG, logged-in students) although SOW A1.7.5 is broader; client question C1 |
+| Lockout and expiry values | Removed from the contract and docs as requirements; they are configuration values. The lockout and token expiry features themselves are unchanged |
+| Scalability without UI changes | Backend scalability changes must not change what the UI shows or collects; anything that would is raised in `docs/PENDING_DECISIONS.md` (rule added to CLAUDE.md, AGENTS.md, GEMINI.md and the PR checklist) |
+| Pending decisions | `docs/PENDING_DECISIONS.md` lists every open question by owner (client, product and UI, team) with the working assumption |
 
 ---
 
@@ -22,7 +29,7 @@
 | UI is final | Schema and contract follow the onboarding screens; conflicts with project documents are marked `DECISION REQUIRED` in the contract instead of changing the UI |
 | Minor status computed, not stored | `is_under_18` removed; a stored flag goes stale at 18. Server computes from `date_of_birth` (`DATE`) |
 | Consent before account | `guardian_consents` rows are created by the DOB popup before registration, keyed by a hashed single-use token, linked at `POST /auth/register`, purged if unlinked after expiry |
-| Open decisions | Student password rule (8 + digit) vs SOW A1.8; R4 guardian identity not verified; guardian SMS not in Phase 1; library browsing without account; country not collected (default IN); full-name change affects faculty/admin; relationship options |
+| Open decisions | (Updated 2026-10-29: password rule, R4 and the consent age are decided; current list in `docs/PENDING_DECISIONS.md`.) Student password rule (8 + digit) vs SOW A1.8; R4 guardian identity not verified; guardian SMS not in Phase 1; library browsing without account; country not collected (default IN); full-name change affects faculty/admin; relationship options |
 | `policy_documents` vs `faculty_terms` | Overlap; merge is follow-up work |
 | `migrate diff` workflow | Generate SQL with `prisma migrate diff --from-config-datasource --to-schema` against `amentorz_test` (read-only) instead of `migrate dev` against dev |
 

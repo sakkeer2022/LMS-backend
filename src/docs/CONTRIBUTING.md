@@ -87,6 +87,7 @@ Before asking for review, check every item:
 - [ ] No secrets, `.env` files, build output or uploaded files are committed.
 - [ ] Works for both India and UAE users (`src/docs/REGIONS.md`): no hard-coded country, dialling code, time zone or age rule, and tests cover both countries where behaviour differs.
 - [ ] Reused existing shared components (`src/docs/SHARED_COMPONENTS.md`), and listed any new reusable one there.
+- [ ] No change to what the UI shows or collects unless it is recorded in `docs/PENDING_DECISIONS.md`; open questions are added there.
 
 ## Shared Files
 
