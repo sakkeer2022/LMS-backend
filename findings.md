@@ -1,5 +1,16 @@
 # Findings & Decisions
 
+## 2026-10-29 — Security baseline decisions (LMS-91)
+
+| Finding / Decision | Detail |
+|---|---|
+| JWT algorithm pinned to HS256 | Sign and verify both pass HS256 explicitly. It was already the library default, so existing tokens stay valid; tokens with any other algorithm, including `none`, are rejected |
+| CORS allowlist in every environment | The old development setting (`*` with credentials) is rejected by browsers for cookie requests. `ALLOWED_ORIGINS` now applies everywhere; outside production an empty value allows only `http://localhost:3001`. **Confirm the admin frontend's local port** |
+| Verification checklist | `src/docs/SECURITY.md` maps each baseline control to its test; open rows point to LMS-94 (TLS, Secure cookie), LMS-97/LMS-100 (per-route rate limits) and LMS-99/LMS-100 (student data access) |
+| `cors` always sends Allow-Credentials | For an unknown origin it omits `Access-Control-Allow-Origin`, so the browser blocks the response; the credentials header alone has no effect |
+
+---
+
 ## 2026-10-27 — Student onboarding schema decisions
 
 | Finding / Decision | Detail |
