@@ -594,6 +594,7 @@
 | `country` | `VARCHAR(2)` | No | `'IN'` | ISO country code | Database |
 | `state` | `VARCHAR(100)` | Yes | `NULL` | Applicable state for State Boards | Application |
 | `is_active` | `BOOLEAN` | No | `true` | Active flag | Database |
+| `sort_order` | `INTEGER` | No | `0` | Dropdown order; ties sort by name (LMS-53) | Application |
 | `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Creation timestamp | Database |
 | `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
 
@@ -614,6 +615,7 @@
 | `name` | `VARCHAR(100)` | No | — | Subject title | Application |
 | `description` | `TEXT` | Yes | `NULL` | Subject summary | Application |
 | `is_active` | `BOOLEAN` | No | `true` | Active flag | Database |
+| `sort_order` | `INTEGER` | No | `0` | Dropdown order; ties sort by name (LMS-53) | Application |
 | `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Creation timestamp | Database |
 | `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
 
@@ -634,12 +636,16 @@
 | `name` | `VARCHAR(100)` | No | — | Level title | Application |
 | `description` | `TEXT` | Yes | `NULL` | Level scope | Application |
 | `is_active` | `BOOLEAN` | No | `true` | Active flag | Database |
+| `category_id` | `UUID` | Yes | `NULL` | Optional category scope for dropdowns; Foreign Key to `categories` (LMS-53) | Database (`levels_category_id_fkey`) |
+| `sort_order` | `INTEGER` | No | `0` | Order within the category, so Class 2 sorts before Class 10 (LMS-53) | Application |
 | `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Creation timestamp | Database |
 | `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
 
 - **Indexes & Constraints:**
   - `levels_pkey` (PRIMARY KEY, `id`)
   - `levels_code_key` (UNIQUE, `code`)
+  - `levels_category_id_sort_order_idx` (INDEX, `[category_id, sort_order]`)
+  - `levels_category_id_fkey` (FOREIGN KEY, `category_id` → `categories.id`, ON DELETE RESTRICT)
 
 ---
 
@@ -656,6 +662,7 @@
 | `level_id` | `UUID` | No | — | Foreign Key to `levels` | Database (`curricula_level_id_fkey`) |
 | `syllabus` | `TEXT` | Yes | `NULL` | Syllabus outline text | Application |
 | `is_active` | `BOOLEAN` | No | `true` | Active flag | Database |
+| `node_id` | `UUID` | Yes | `NULL` | LEVEL leaf in `catalogue_nodes` that owns this offering; tuple columns are copied from its ancestors by the catalogue service (ADR 0003) | Database (`curricula_node_id_key`, `curricula_node_id_fkey`) |
 | `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Creation timestamp | Database |
 | `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
 
@@ -666,6 +673,43 @@
   - `curricula_board_id_fkey` (FOREIGN KEY, `board_id` → `boards.id`, ON DELETE RESTRICT)
   - `curricula_subject_id_fkey` (FOREIGN KEY, `subject_id` → `subjects.id`, ON DELETE RESTRICT)
   - `curricula_level_id_fkey` (FOREIGN KEY, `level_id` → `levels.id`, ON DELETE RESTRICT)
+  - `curricula_node_id_key` (UNIQUE, `node_id`): one curriculum per leaf
+  - `curricula_node_id_fkey` (FOREIGN KEY, `node_id` → `catalogue_nodes.id`, ON DELETE RESTRICT)
+
+
+---
+
+### 5.5.1 `catalogue_nodes`
+- **Purpose:** Categories & Content tree (screen 28): category → subsection → board → subject → level. SUBSECTION and BOARD may be skipped. Each LEVEL leaf owns one `curricula` row. See ADR 0003.
+- **Physical Table:** `catalogue_nodes`
+
+| Column | Type | Nullable | Default | Description & Constraints | Enforcement |
+|---|---|:---:|---|---|---|
+| `id` | `UUID` | No | `gen_random_uuid()` | Primary Key | Database |
+| `parent_id` | `UUID` | Yes | `NULL` | Parent node; null only for CATEGORY roots | Database (`catalogue_nodes_parent_id_fkey`, `catalogue_nodes_parent_check`) |
+| `root_id` | `UUID` | No | — | CATEGORY node this node belongs to; equals `id` for roots; never changes | Database (`catalogue_nodes_root_id_fkey`, `catalogue_nodes_root_check`) |
+| `type` | `CatalogueNodeType` | No | — | `CATEGORY`, `SUBSECTION`, `BOARD`, `SUBJECT`, `LEVEL`; a child's type comes after its parent's | Database enum / Application order |
+| `name` | `VARCHAR(200)` | No | — | Display name | Application |
+| `slug` | `VARCHAR(64)` | No | — | Unique among siblings | Database (`catalogue_nodes_parent_id_slug_key`) |
+| `status` | `CatalogueNodeStatus` | No | `DRAFT` | `DRAFT`, `PUBLISHED`, `ARCHIVED`; public reads need the node and every ancestor PUBLISHED | Database enum / Application |
+| `sort_order` | `INTEGER` | No | `0` | Order among siblings, ≥ 0 | Database (`catalogue_nodes_sort_order_check`) |
+| `category_id` | `UUID` | Yes | `NULL` | Set only on CATEGORY nodes; one node per category | Database (`catalogue_nodes_category_id_key`, `catalogue_nodes_master_ref_check`) |
+| `board_id` | `UUID` | Yes | `NULL` | Set only on BOARD nodes | Database (`catalogue_nodes_master_ref_check`) |
+| `subject_id` | `UUID` | Yes | `NULL` | Set only on SUBJECT nodes | Database (`catalogue_nodes_master_ref_check`) |
+| `level_id` | `UUID` | Yes | `NULL` | Set only on LEVEL nodes | Database (`catalogue_nodes_master_ref_check`) |
+| `booking_enabled` | `BOOLEAN` | No | `true` | "Book a session" option; meaningful on CATEGORY nodes | Application |
+| `archived_at` | `TIMESTAMP(3)` | Yes | `NULL` | Set when archived; nothing is hard-deleted | Application |
+| `created_by_id` | `UUID` | Yes | `NULL` | Acting user; no FK, users are never deleted | Application |
+| `updated_by_id` | `UUID` | Yes | `NULL` | Acting user; no FK | Application |
+| `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Creation timestamp | Database |
+| `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
+
+- **Indexes & Constraints:**
+  - `catalogue_nodes_pkey` (PRIMARY KEY, `id`)
+  - `catalogue_nodes_parent_id_slug_key`, `catalogue_nodes_parent_id_board_id_key`, `catalogue_nodes_parent_id_subject_id_key`, `catalogue_nodes_parent_id_level_id_key` (UNIQUE): one node per slug and per master value among siblings
+  - `catalogue_nodes_root_id_parent_id_sort_order_idx` (INDEX): loads a whole category in one query
+  - `catalogue_nodes_parent_check`, `catalogue_nodes_master_ref_check`, `catalogue_nodes_root_check`, `catalogue_nodes_sort_order_check` (CHECK, hand-written in migration `20261029090000_catalogue_tree`)
+  - All foreign keys ON DELETE RESTRICT
 
 ---
 

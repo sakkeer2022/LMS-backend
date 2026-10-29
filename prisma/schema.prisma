@@ -41,6 +41,22 @@ enum DocumentScanStatus {
   FAILED
 }
 
+// Catalogue tree (screen 28). Types follow this order from root to leaf;
+// SUBSECTION and BOARD may be skipped. LEVEL nodes are leaves.
+enum CatalogueNodeType {
+  CATEGORY
+  SUBSECTION
+  BOARD
+  SUBJECT
+  LEVEL
+}
+
+enum CatalogueNodeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 enum LibraryMaterialKind {
   DOCUMENT
   LINK
@@ -576,6 +592,8 @@ model Category {
 
   curricula Curriculum[]
   students  StudentProfile[]
+  levels    Level[]
+  node      CatalogueNode?
 
   @@map("categories")
 }
@@ -587,11 +605,14 @@ model Board {
   country   String   @default("IN") @db.VarChar(2)
   state     String?  @db.VarChar(100)
   isActive  Boolean  @default(true) @map("is_active")
+  // Dropdown order (screen 28a); ties sort by name
+  sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   curricula Curriculum[]
   students  StudentProfile[]
+  nodes     CatalogueNode[]
 
   @@map("boards")
 }
@@ -602,10 +623,12 @@ model Subject {
   name        String   @db.VarChar(100)
   description String?  @db.Text
   isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   curricula Curriculum[]
+  nodes     CatalogueNode[]
 
   @@map("subjects")
 }
@@ -616,12 +639,19 @@ model Level {
   name        String   @db.VarChar(100)
   description String?  @db.Text
   isActive    Boolean  @default(true) @map("is_active")
+  // Optional category scope, so dropdowns show only that category's levels
+  categoryId  String?  @map("category_id") @db.Uuid
+  // Class 2 must sort before Class 10, so name order is not enough
+  sortOrder   Int      @default(0) @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  category  Category?        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   curricula Curriculum[]
   students  StudentProfile[]
+  nodes     CatalogueNode[]
 
+  @@index([categoryId, sortOrder])
   @@map("levels")
 }
 
@@ -631,15 +661,19 @@ model Curriculum {
   boardId    String?  @map("board_id") @db.Uuid
   subjectId  String   @map("subject_id") @db.Uuid
   levelId    String   @map("level_id") @db.Uuid
+  // The LEVEL leaf that owns this offering (ADR 0003). The tuple columns above are
+  // copied from the leaf's ancestors and kept in sync by the catalogue service.
+  nodeId     String?  @unique @map("node_id") @db.Uuid
   syllabus   String?  @db.Text
   isActive   Boolean  @default(true) @map("is_active")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  board    Board?   @relation(fields: [boardId], references: [id], onDelete: Restrict)
-  subject  Subject  @relation(fields: [subjectId], references: [id], onDelete: Restrict)
-  level    Level    @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  category Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  board    Board?         @relation(fields: [boardId], references: [id], onDelete: Restrict)
+  subject  Subject        @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  level    Level          @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  node     CatalogueNode? @relation(fields: [nodeId], references: [id], onDelete: Restrict)
 
   assignments FacultyAssignment[]
   materials   LibraryMaterial[]
@@ -647,6 +681,53 @@ model Curriculum {
 
   @@unique([categoryId, boardId, subjectId, levelId], name: "uk_curriculum_tuple")
   @@map("curricula")
+}
+
+// Categories & Content tree (screen 28), ADR 0003. Each node of type BOARD, SUBJECT,
+// LEVEL or CATEGORY references exactly one master row; the migration adds CHECK
+// constraints for that, which Prisma does not model. rootId is the CATEGORY node the
+// node belongs to and never changes, so one indexed query loads a whole category.
+model CatalogueNode {
+  id             String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parentId       String?             @map("parent_id") @db.Uuid
+  rootId         String              @map("root_id") @db.Uuid
+  type           CatalogueNodeType
+  name           String              @db.VarChar(200)
+  slug           String              @db.VarChar(64)
+  status         CatalogueNodeStatus @default(DRAFT)
+  sortOrder      Int                 @default(0) @map("sort_order")
+  categoryId     String?             @unique @map("category_id") @db.Uuid
+  boardId        String?             @map("board_id") @db.Uuid
+  subjectId      String?             @map("subject_id") @db.Uuid
+  levelId        String?             @map("level_id") @db.Uuid
+  // "Book a session" option; meaningful on CATEGORY nodes only
+  bookingEnabled Boolean             @default(true) @map("booking_enabled")
+  archivedAt     DateTime?           @map("archived_at")
+  // Actor ids, kept without a FK so the identity schema stays untouched
+  createdById    String?             @map("created_by_id") @db.Uuid
+  updatedById    String?             @map("updated_by_id") @db.Uuid
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  parent     CatalogueNode?  @relation("CatalogueNodeTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children   CatalogueNode[] @relation("CatalogueNodeTree")
+  root       CatalogueNode   @relation("CatalogueNodeRoot", fields: [rootId], references: [id], onDelete: Restrict)
+  members    CatalogueNode[] @relation("CatalogueNodeRoot")
+  category   Category?       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  board      Board?          @relation(fields: [boardId], references: [id], onDelete: Restrict)
+  subject    Subject?        @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  level      Level?          @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  curriculum Curriculum?
+
+  @@unique([parentId, slug], name: "uk_catalogue_node_sibling_slug")
+  @@unique([parentId, boardId], name: "uk_catalogue_node_sibling_board")
+  @@unique([parentId, subjectId], name: "uk_catalogue_node_sibling_subject")
+  @@unique([parentId, levelId], name: "uk_catalogue_node_sibling_level")
+  @@index([rootId, parentId, sortOrder])
+  @@index([boardId])
+  @@index([subjectId])
+  @@index([levelId])
+  @@map("catalogue_nodes")
 }
 
 model FacultyAssignment {

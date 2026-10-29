@@ -1,5 +1,6 @@
 import { prisma } from '../src/infrastructure/database/connection.js';
 import { v4 as uuidv4 } from 'uuid';
+import { seedCatalogue, seedCataloguePermissions } from './seeds/catalogue.js';
 
 const RESOURCES = ['users', 'roles', 'permissions', 'audit_logs', 'feature_flags'];
 const ACTIONS = ['create', 'read', 'update', 'delete'];
@@ -35,6 +36,9 @@ async function main() {
     data: allPermissionsData,
     skipDuplicates: true,
   });
+
+  // ── Catalogue (LMS-53): resource.action names, mapped to roles below ──
+  await seedCataloguePermissions(prisma);
 
   // Query permissions back to map them correctly in memory
   const dbPermissions = await prisma.permission.findMany();
@@ -110,6 +114,10 @@ async function main() {
     data: allRolePerms,
     skipDuplicates: true,
   });
+
+  // ── Catalogue reference data (LMS-53) ──
+  console.log('Creating catalogue reference data...');
+  await seedCatalogue(prisma);
 
   console.log('🌱 Seeding finished.');
 }
