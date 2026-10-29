@@ -45,7 +45,7 @@
 
 ## Access Token Claims [Implemented]
 
-The access token carries `sub` (user id), `email`, `roles` (role names), `permissions` (resolved through role inheritance), `policies` (ABAC rules) and `jti`. **Open decision:** the admin frontend currently expects a `tenantIds` claim that the backend does not issue. The backend has no tenants (single shared database), so either the frontend drops the requirement or a claim is agreed. Agree this with the frontend owner before LMS-100.
+The access token carries `sub` (user id), `email`, `roles` (role names), `permissions` (resolved through role inheritance), `policies` (ABAC rules) and `jti`. **Decided (2026-10-29):** no tenant parameter and no invented tenant claims. The admin frontend currently expects a `tenantIds` claim; that gate must be removed or resolved through review during frontend integration. The backend has a single shared database with no tenants.
 
 ## Future Extensibility [Planned]
 
