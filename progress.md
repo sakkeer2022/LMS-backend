@@ -1,5 +1,21 @@
 # Progress Log
 
+## 2026-10-29 — Audit hash chain fix (LMS-102)
+
+- Migration `20261029120000_audit_chain_sequence` adds `audit_logs.sequence` (BIGINT, unique), numbering existing rows by `created_at`, `id`. Applied to `amentorz_test`; no drift. **Run `npx prisma migrate deploy` on dev databases.**
+- `logAction` serialises chain writes with `pg_advisory_xact_lock` and links to the latest record by `sequence`; `verifyAuditChain` walks `sequence` ascending.
+- `tests/modules/audit_chain.test.ts` selects records by `sequence` and adds burst (100 writes) and concurrent (50 parallel writes) chain tests.
+- Docs: data dictionary (`audit_logs.sequence`), SECURITY.md (hash chain), findings.
+
+### Test Results
+
+| Check | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint`, Prettier, build | ✅ Pass (lint: 0 errors, 33 pre-existing warnings) |
+| `npm run test:unit` | ✅ 132 passed (13 files) |
+| `npm run test:integration` (amentorz_test) | ✅ 82 passed, **20 of 20 consecutive full runs** |
+| Probe: 3 writes × 200 | Same millisecond in 115 of 200; untampered chain reported broken in 0 of 200 (78 of 200 before) |
+
 ## 2026-10-29 — Permission naming and portal roles (LMS-96)
 
 - Fixed the seed/guard mismatch: seeded admins were denied by every guard (`users:manage` vs `user.read`).
