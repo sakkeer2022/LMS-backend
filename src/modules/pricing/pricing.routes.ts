@@ -149,7 +149,7 @@ adminPricesRouter.post('/', manage, Pricing.createPriceRule);
  *     responses:
  *       200: { description: All changes saved }
  *       403: { description: Missing pricing.manage or CSRF token }
- *       409: { description: Nothing saved; errors lists the rejected rows as changes[i] }
+ *       409: { description: 'Nothing saved; errors lists the rejected rows as changes[i]' }
  *       422: { description: Invalid body }
  */
 adminPricesRouter.put('/bulk', manage, Pricing.bulkUpdatePriceRules);
