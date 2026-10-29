@@ -3,7 +3,7 @@
   "info": {
     "title": "Amentorz Sprint 1 API \u2014 review draft",
     "version": "0.1.0-draft",
-    "description": "PROPOSED CONTRACT ONLY. No client acceptance approval evidence supplied. No endpoint implementation implied. x-review-status separates ready-for-review from decision-required operations. Backend docs/openapi.yaml is the sole proposed Amentorz contract; existing JSDoc Swagger describes legacy template behavior and is not this draft. All paths below are relative to /api/v1. No booking, payment, live-session, earnings, scoring, messaging or infrastructure-control endpoints.\n\nExisting envelope retained: success/message/data/meta; errors use success=false/message/errors/traceId (no new error-code field). Unknown fields rejected; strict Zod DTO validation proposed for every body, query and path. Strings trimmed before length checks except credentials; identifiers UUID, UTC RFC3339 timestamps. 422 validation, 409 conflict, 401 authentication, 403 permission/CSRF, 404 concealed resources. All protected responses and auth challenges use Cache-Control: no-store. Credentials never logged. Every unsafe request requires signed _csrf cookie plus x-csrf-token, even when unauthenticated. CSRF is additional to authentication, never a replacement.\n\nProposed authentication reuses HttpOnly JWT access/refresh cookies, same-origin frontend rewrite, SameSite=Strict, Secure in deployed HTTPS, no Domain. No JSON token delivery/localStorage. Access cookie Path=/; refresh Path=/api/v1/auth. PostgreSQL session family and token hashes are authoritative; every protected request checks live user activity, role and session version. Immediate server revocation on logout, password reset/change, account deactivation and any existing role change; refresh rotation and replay revoke family. Fail closed when authoritative checks unavailable. Proposed 15-minute access / seven-day absolute session / five-minute recent reauthentication, six-digit email OTP / 10-minute expiry / five attempts / 60-second resend cooldown / five sends per hour require approval. Refresh/logout/session-management routes remain usable during faculty onboarding restrictions. No public faculty/admin registration or role elevation API. Initial admin is an operator-only, audited provisioning command with prompted or secure-secret input, never a public endpoint or seeded password.\n\nPublic faculty eligibility is active user AND verified email AND active faculty profile AND current required terms accepted AND approved AND published AND at least one active valid assignment. This is a shared prerequisite for future bookability, not a guarantee of future booking, payment or attendance eligibility. Future bookability also rechecks selected assignment/price and later-sprint rules. All moderation and eligibility checks apply to content bytes as well as listings. Configuration/catalogue/pricing changes audit actor, UTC time and redacted values. Infrastructure backups, CI and deployment are operational procedures, not new API endpoints."
+    "description": "PROPOSED CONTRACT ONLY. No client acceptance approval evidence supplied. No endpoint implementation implied. x-review-status separates ready-for-review from decision-required operations. Backend docs/openapi.yaml is the sole proposed Amentorz contract; existing JSDoc Swagger describes legacy template behavior and is not this draft. All paths below are relative to /api/v1. No booking, payment, live-session, earnings, scoring, messaging or infrastructure-control endpoints.\n\nExisting envelope retained: success/message/data/meta; errors use success=false/message/errors/traceId (no new error-code field). Unknown fields rejected; strict Zod DTO validation proposed for every body, query and path. Strings trimmed before length checks except credentials; identifiers UUID, UTC RFC3339 timestamps. 422 validation, 409 conflict, 401 authentication, 403 permission/CSRF, 404 concealed resources. All protected responses and auth challenges use Cache-Control: no-store. Credentials never logged. Every unsafe request requires signed _csrf cookie plus x-csrf-token, even when unauthenticated. CSRF is additional to authentication, never a replacement.\n\nProposed authentication reuses HttpOnly JWT access/refresh cookies, same-origin frontend rewrite, SameSite=Strict, Secure in deployed HTTPS, no Domain. No JSON token delivery/localStorage. Access cookie Path=/; refresh Path=/api/v1/auth. PostgreSQL session family and token hashes are authoritative; every protected request checks live user activity, role and session version. Immediate server revocation on logout, password reset/change, account deactivation and any existing role change; refresh rotation and replay revoke family. Fail closed when authoritative checks unavailable. Token lifetimes, re-authentication freshness, OTP expiry, attempt, lockout and resend limits are configuration values, not fixed in this contract; email OTPs have six digits. Refresh/logout/session-management routes remain usable during faculty onboarding restrictions. No public faculty/admin registration or role elevation API. Initial admin is an operator-only, audited provisioning command with prompted or secure-secret input, never a public endpoint or seeded password.\n\nPublic faculty eligibility is active user AND verified email AND active faculty profile AND current required terms accepted AND approved AND published AND at least one active valid assignment. This is a shared prerequisite for future bookability, not a guarantee of future booking, payment or attendance eligibility. Future bookability also rechecks selected assignment/price and later-sprint rules. All moderation and eligibility checks apply to content bytes as well as listings. Configuration/catalogue/pricing changes audit actor, UTC time and redacted values. Infrastructure backups, CI and deployment are operational procedures, not new API endpoints."
   },
   "servers": [
     {
@@ -171,7 +171,7 @@
           "Identity"
         ],
         "summary": "Verify registration OTP and issue an email verification token",
-        "description": "Public; no authenticated identity required. Consume once atomically; invalid, expired or used OTP returns generic 422, exhausted attempts 429. Returns a short-lived single-use emailVerificationToken (proposed 30 minutes) that POST /auth/register consumes. Cache-Control: no-store. Does not create an account or set cookies.",
+        "description": "Public; no authenticated identity required. Consume once atomically; invalid, expired or used OTP returns generic 422, exhausted attempts 429. Returns a short-lived single-use emailVerificationToken (lifetime set in configuration) that POST /auth/register consumes. Cache-Control: no-store. Does not create an account or set cookies.",
         "x-required-role": "public",
         "x-review-status": "ready-for-review",
         "security": [],
@@ -235,7 +235,7 @@
           "Identity"
         ],
         "summary": "Create student account from the four onboarding steps",
-        "description": "Public; no authenticated identity required. One transaction: consume emailVerificationToken; create the user with fullName, mobileNumber, timezone, verified email and the student role only; create the student profile, subjects and guardian contact; record policy acceptances with IP and user agent; link the guardian consent and copy the guardian name and relationship onto it; audit events. Under 18 is computed on the server from dateOfBirth (UTC date). When under 18: guardian, consentToken and the Child Safety Policy acceptance are required; consent fullName and dateOfBirth must equal the submitted values, or 422 and the student re-signs. Adults: guardian is optional and stored when sent; consentToken is rejected with 422. Board required only when the category requires it. Every curriculum must match the selected category, board and level. Duplicate email returns 409. Unknown fields including role, isActive or permissions are rejected. DECISION REQUIRED: (1) Student password rule (8 characters with one number) is weaker than SOW A1.8 and the 12-character policy; confirm scope. (2) Guardian identity is not verified: a signature drawn on the student device does not close project plan risk R4; Product and Amentorz must accept the risk in writing. (3) Step 3 copy promises SMS; Phase 1 is email only. (4) After success: automatic login or redirect to the student login. (5) Final relationship list. (6) Whether adults see step 3 at all (UI says it is required for every student under 18).",
+        "description": "Public; no authenticated identity required. One transaction: consume emailVerificationToken; create the user with fullName, mobileNumber, timezone, verified email and the student role only; create the student profile, subjects and guardian contact; record policy acceptances with IP and user agent; link the guardian consent and copy the guardian name and relationship onto it; audit events. Under 18 is computed on the server from dateOfBirth (UTC date); the threshold is 18 for both India and the UAE (decided 2026-10-29). When under 18: guardian, consentToken and the Child Safety Policy acceptance are required; consent fullName and dateOfBirth must equal the submitted values, or 422 and the student re-signs. Adults: guardian is optional and stored when sent; consentToken is rejected with 422. Board required only when the category requires it. Every curriculum must match the selected category, board and level. Duplicate email returns 409. Unknown fields including role, isActive or permissions are rejected. DECISION REQUIRED: (1) Step 3 copy promises SMS; Phase 1 is email only. (2) After success: automatic login or redirect to the student login. (3) Final relationship list. (4) Whether adults see step 3 at all (UI says it is required for every student under 18). Decided 2026-10-29: password rule (8 characters with one number) and acceptance of project plan risk R4 (guardian identity not verified; written acceptance to be filed). Country is derived from the mobile number for now. See docs/PENDING_DECISIONS.md.",
         "x-required-role": "public",
         "x-review-status": "decision-required",
         "security": [],
@@ -306,7 +306,7 @@
           "Identity"
         ],
         "summary": "Request or resend email verification",
-        "description": "Public; no authenticated identity required. Uniform response for unknown, already verified or unverified email; opaque decoy challenge for ineligible address. At most one active challenge per user and purpose. Resend invalidates old OTP and challenge, preserving aggregate throttles. Proposed limits: six digits, 10-minute expiry, 60-second resend cooldown, five failed attempts, five sends per hour per address plus IP limit. Values require review; no OTP in response.",
+        "description": "Public; no authenticated identity required. Uniform response for unknown, already verified or unverified email; opaque decoy challenge for ineligible address. At most one active challenge per user and purpose. Resend invalidates old OTP and challenge, preserving aggregate throttles. Six-digit OTP. Expiry, resend cooldown, failed-attempt and send limits are configuration values, not fixed in this contract. No OTP in response.",
         "x-required-role": "public",
         "x-review-status": "ready-for-review",
         "security": [],
@@ -748,7 +748,7 @@
           "Identity"
         ],
         "summary": "Rotate refresh credential and access cookie",
-        "description": "Refresh cookie owns the session; access cookie may have expired. Cookie-only refresh; reject token supplied in body. Atomic single-use rotation. Reuse of a consumed credential revokes the entire session family including linked access tokens. Concurrent requests must be serialized by clients; no reuse grace proposal. Recheck account, portal role, session version and expiry. Absolute session deadline does not slide. Proposed access TTL 15 minutes and absolute session TTL seven days need approval.",
+        "description": "Refresh cookie owns the session; access cookie may have expired. Cookie-only refresh; reject token supplied in body. Atomic single-use rotation. Reuse of a consumed credential revokes the entire session family including linked access tokens. Concurrent requests must be serialized by clients; no reuse grace proposal. Recheck account, portal role, session version and expiry. Absolute session deadline does not slide. Access and session lifetimes are configuration values.",
         "x-required-role": "refresh",
         "x-review-status": "ready-for-review",
         "security": [
@@ -949,7 +949,7 @@
           "Identity"
         ],
         "summary": "Confirm current password for sensitive actions",
-        "description": "Current active, email-verified student, faculty or admin (self only) identity; server checks role, permission and resource ownership on every request. Bound to current server session; no transferable credential returned. Proposed five-minute freshness. Wrong password 401, failed attempts 429. Required before admin faculty creation, approval/publication/status changes, configuration updates and private verification-document retrieval. A failed check never extends freshness.",
+        "description": "Current active, email-verified student, faculty or admin (self only) identity; server checks role, permission and resource ownership on every request. Bound to current server session; no transferable credential returned. Freshness window is a configuration value. Wrong password 401, failed attempts 429. Required before admin faculty creation, approval/publication/status changes, configuration updates and private verification-document retrieval. A failed check never extends freshness.",
         "x-required-role": "student, faculty or admin (self only)",
         "x-review-status": "ready-for-review",
         "security": [
@@ -1111,7 +1111,7 @@
           "Identity"
         ],
         "summary": "Send email recovery OTP",
-        "description": "Public; no authenticated identity required. Uniform 202 and decoy challenge for unknown/wrong-portal/inactive account. Same proposed expiry, resend and aggregate attempt policy as verification. Only email. Repeated requests invalidate prior recovery challenge and any unconsumed reset grant; no password change yet.",
+        "description": "Public; no authenticated identity required. Uniform 202 and decoy challenge for unknown/wrong-portal/inactive account. Same configurable expiry, resend and aggregate attempt limits as verification. Only email. Repeated requests invalidate prior recovery challenge and any unconsumed reset grant; no password change yet.",
         "x-required-role": "public",
         "x-review-status": "ready-for-review",
         "security": [],
@@ -3417,7 +3417,7 @@
           "Consent"
         ],
         "summary": "Sign the Student Terms as parent or guardian",
-        "description": "Public; no authenticated identity required. Opened from the date-of-birth popup when the server-computed age is under 18, before the account exists (consent doc POST /consent/sign/). Server overlays the signature, \"Parent/guardian of <studentFullName>\", UTC timestamp and client IP on the last page, flattens, stores a new object per signing and records its SHA-256. Client IP comes from the trusted proxy configuration, never the first X-Forwarded-For entry. 422 when the date of birth is 18 or over, the policy is not the current Student Terms, or the mode and fields disagree. Strict per-IP rate limit. Unlinked consents expire (proposed 24 hours) and are purged with their PDFs. Re-signing after the consent is linked to an account returns 409. The signature is a recorded acknowledgement, not a cryptographic or identity-verified signature. DECISION REQUIRED: Project plan R4: guardian identity is not verified. Product and Amentorz must accept this in writing. The PDF cannot show the guardian name because the modal collects only the drawn signature; the name from step 3 is stored on the record at registration.",
+        "description": "Public; no authenticated identity required. Opened from the date-of-birth popup when the server-computed age is under 18, before the account exists (consent doc POST /consent/sign/). Server overlays the signature, \"Parent/guardian of <studentFullName>\", UTC timestamp and client IP on the last page, flattens, stores a new object per signing and records its SHA-256. Client IP comes from the trusted proxy configuration, never the first X-Forwarded-For entry. 422 when the date of birth is 18 or over, the policy is not the current Student Terms, or the mode and fields disagree. Strict per-IP rate limit. Unlinked consents expire after a configured period and are purged with their PDFs. Re-signing after the consent is linked to an account returns 409. The signature is a recorded acknowledgement, not a cryptographic or identity-verified signature. DECISION REQUIRED: Project plan R4 (guardian identity not verified) accepted on 2026-10-29; the written acceptance is still to be filed. Deliberate differences from the consent signing document: the PDF shows \"Parent/guardian of <student>\" instead of a signer name, because the modal collects only the signature (the guardian name from step 3 is stored at registration); and the client IP comes from the trusted proxy configuration rather than the first X-Forwarded-For entry, which a client can forge. Separate consent documents per country (India, UAE) are pending; see docs/PENDING_DECISIONS.md.",
         "x-required-role": "public",
         "x-review-status": "decision-required",
         "security": [],
@@ -6213,7 +6213,7 @@
           "Pricing"
         ],
         "summary": "Configure one price for faculty offering",
-        "description": "Current active, email-verified admin; pricing.manage identity; server checks role, permission and resource ownership on every request. Exactly one row per assignment including inactive rows; DB unique constraint. Faculty/subject/category/level/board derived from validated assignment. Integer paise >0; proposed safety maximum INR 1,000,000 requires review. Currency INR and duration 60 are immutable, not client input. No overlapping schedules, packages or fallback prices.",
+        "description": "Current active, email-verified admin; pricing.manage identity; server checks role, permission and resource ownership on every request. Exactly one row per assignment including inactive rows; DB unique constraint. Faculty/subject/category/level/board derived from validated assignment. Integer paise >0; proposed safety maximum INR 1,000,000 requires review. Currency INR and duration 60 are immutable, not client input; the 60-minute slot comes from the draft project plan (M05), not the SOW. No overlapping schedules, packages or fallback prices: packages are deferred per the draft project plan (M03), while SOW A1.7.2 allows them where applicable, so client confirmation is pending.",
         "x-required-role": "admin; pricing.manage",
         "x-review-status": "ready-for-review",
         "security": [
@@ -6464,7 +6464,7 @@
           "Library"
         ],
         "summary": "Submit private file for library moderation",
-        "description": "Current active, email-verified admin; library.upload identity; server checks role, permission and resource ownership on every request. Single maximum 10 MiB file; proposed PDF/JPEG/PNG only, magic-byte checked. Unknown curriculum 422. Quarantine and scan; pending moderation even if clean. No direct public object URL. Other permitted formats require explicit allowlist decision. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
+        "description": "Current active, email-verified admin; library.upload identity; server checks role, permission and resource ownership on every request. Single maximum 10 MiB file; proposed PDF/JPEG/PNG only, magic-byte checked. Unknown curriculum 422. Quarantine and scan; pending moderation even if clean. No direct public object URL. Other permitted formats require explicit allowlist decision. DECISION REQUIRED: Deliberately narrower than SOW A1.7.5, which lists uploads by Amentorz, admin and authorized faculty, DOC/DOCX/PPT/PPTX files and video or resource links, and open student access. Kept as designed (decided 2026-10-29) pending client confirmation in docs/PENDING_DECISIONS.md: admin-only upload/moderation and an authenticated-student audience; no faculty upload endpoint. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "admin; library.upload",
         "x-review-status": "decision-required",
         "security": [
@@ -6554,7 +6554,7 @@
           "Library"
         ],
         "summary": "Submit external HTTPS link for moderation",
-        "description": "Current active, email-verified admin; library.upload identity; server checks role, permission and resource ownership on every request. Always pending; no server fetching or preview crawling. Reject non-HTTPS, credentials in URL, localhost/private IP literals and malformed URL. Review destination and redirects manually. No visibility before approval. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
+        "description": "Current active, email-verified admin; library.upload identity; server checks role, permission and resource ownership on every request. Always pending; no server fetching or preview crawling. Reject non-HTTPS, credentials in URL, localhost/private IP literals and malformed URL. Review destination and redirects manually. No visibility before approval. DECISION REQUIRED: Deliberately narrower than SOW A1.7.5, which lists uploads by Amentorz, admin and authorized faculty, DOC/DOCX/PPT/PPTX files and video or resource links, and open student access. Kept as designed (decided 2026-10-29) pending client confirmation in docs/PENDING_DECISIONS.md: admin-only upload/moderation and an authenticated-student audience; no faculty upload endpoint. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "admin; library.upload",
         "x-review-status": "decision-required",
         "security": [
@@ -6641,7 +6641,7 @@
           "Library"
         ],
         "summary": "List library moderation records",
-        "description": "Current active, email-verified admin; library.moderate identity; server checks role, permission and resource ownership on every request.  DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
+        "description": "Current active, email-verified admin; library.moderate identity; server checks role, permission and resource ownership on every request.  DECISION REQUIRED: Deliberately narrower than SOW A1.7.5, which lists uploads by Amentorz, admin and authorized faculty, DOC/DOCX/PPT/PPTX files and video or resource links, and open student access. Kept as designed (decided 2026-10-29) pending client confirmation in docs/PENDING_DECISIONS.md: admin-only upload/moderation and an authenticated-student audience; no faculty upload endpoint. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "admin; library.moderate",
         "x-review-status": "decision-required",
         "security": [
@@ -6753,7 +6753,7 @@
           "Library"
         ],
         "summary": "Read moderation record",
-        "description": "Current active, email-verified admin; library.moderate identity; server checks role, permission and resource ownership on every request.  DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
+        "description": "Current active, email-verified admin; library.moderate identity; server checks role, permission and resource ownership on every request.  DECISION REQUIRED: Deliberately narrower than SOW A1.7.5, which lists uploads by Amentorz, admin and authorized faculty, DOC/DOCX/PPT/PPTX files and video or resource links, and open student access. Kept as designed (decided 2026-10-29) pending client confirmation in docs/PENDING_DECISIONS.md: admin-only upload/moderation and an authenticated-student audience; no faculty upload endpoint. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "admin; library.moderate",
         "x-review-status": "decision-required",
         "security": [
@@ -6834,7 +6834,7 @@
           "Library"
         ],
         "summary": "Approve, reject or withdraw library material",
-        "description": "Current active, email-verified admin; library.moderate identity; server checks role, permission and resource ownership on every request. expectedRevision checked atomically. Approval requires clean scan for files, active curriculum and reviewed external destination. Rejection can withdraw approved material and immediately blocks student listing/detail/file/link access. Audit reason and actor. Proposed no self-approval; distinct authorized admin required. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below. Self-approval policy also needs a decision.",
+        "description": "Current active, email-verified admin; library.moderate identity; server checks role, permission and resource ownership on every request. expectedRevision checked atomically. Approval requires clean scan for files, active curriculum and reviewed external destination. Rejection can withdraw approved material and immediately blocks student listing/detail/file/link access. Audit reason and actor. Proposed no self-approval; distinct authorized admin required. DECISION REQUIRED: Deliberately narrower than SOW A1.7.5, which lists uploads by Amentorz, admin and authorized faculty, DOC/DOCX/PPT/PPTX files and video or resource links, and open student access. Kept as designed (decided 2026-10-29) pending client confirmation in docs/PENDING_DECISIONS.md: admin-only upload/moderation and an authenticated-student audience; no faculty upload endpoint. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below. Self-approval policy also needs a decision.",
         "x-required-role": "admin; library.moderate",
         "x-review-status": "decision-required",
         "security": [
@@ -6934,7 +6934,7 @@
           "Library"
         ],
         "summary": "List approved library resources visible to caller",
-        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. Live permission, active curriculum, approval and clean-scan checks. No pending/rejected records or inaccessible URLs in data/meta. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
+        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. Live permission, active curriculum, approval and clean-scan checks. No pending/rejected records or inaccessible URLs in data/meta. DECISION REQUIRED: Deliberately narrower than SOW A1.7.5, which lists uploads by Amentorz, admin and authorized faculty, DOC/DOCX/PPT/PPTX files and video or resource links, and open student access. Kept as designed (decided 2026-10-29) pending client confirmation in docs/PENDING_DECISIONS.md: admin-only upload/moderation and an authenticated-student audience; no faculty upload endpoint. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "student",
         "x-review-status": "decision-required",
         "security": [
@@ -7048,7 +7048,7 @@
           "Library"
         ],
         "summary": "Read permitted library resource metadata",
-        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. 404 for pending/rejected/inaccessible resource. No URL or storage key returned. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
+        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. 404 for pending/rejected/inaccessible resource. No URL or storage key returned. DECISION REQUIRED: Deliberately narrower than SOW A1.7.5, which lists uploads by Amentorz, admin and authorized faculty, DOC/DOCX/PPT/PPTX files and video or resource links, and open student access. Kept as designed (decided 2026-10-29) pending client confirmation in docs/PENDING_DECISIONS.md: admin-only upload/moderation and an authenticated-student audience; no faculty upload endpoint. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "student",
         "x-review-status": "decision-required",
         "security": [
@@ -7124,7 +7124,7 @@
           "Library"
         ],
         "summary": "Retrieve authorized library file or external link",
-        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. Require current approval, active curriculum, audience permission and clean scan on every retrieval; 404 if hidden. For file return bytes, safe attachment filename, nosniff, private,no-store. For link return JSON envelope with HTTPS destination after authorization; no redirect with shared cache and no arbitrary proxy fetch. source in metadata determines content type. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
+        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. Require current approval, active curriculum, audience permission and clean scan on every retrieval; 404 if hidden. For file return bytes, safe attachment filename, nosniff, private,no-store. For link return JSON envelope with HTTPS destination after authorization; no redirect with shared cache and no arbitrary proxy fetch. source in metadata determines content type. DECISION REQUIRED: Deliberately narrower than SOW A1.7.5, which lists uploads by Amentorz, admin and authorized faculty, DOC/DOCX/PPT/PPTX files and video or resource links, and open student access. Kept as designed (decided 2026-10-29) pending client confirmation in docs/PENDING_DECISIONS.md: admin-only upload/moderation and an authenticated-student audience; no faculty upload endpoint. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "student",
         "x-review-status": "decision-required",
         "security": [
@@ -7232,7 +7232,7 @@
           "Library"
         ],
         "summary": "Retrieve authorized library file or external link",
-        "description": "Current active, email-verified admin; library.moderate identity; server checks role, permission and resource ownership on every request. Moderator may inspect pending/rejected metadata/link, but file bytes require clean scan; 409 while scanning or rejected by scanner. For file return bytes, safe attachment filename, nosniff, private,no-store. For link return JSON envelope with HTTPS destination after authorization; no redirect with shared cache and no arbitrary proxy fetch. source in metadata determines content type. DECISION REQUIRED: Uploader roles, audience permissions and permitted file types are unapproved. Admin-only upload/moderation and authenticated-student audience below are a least-privilege proposal, not a final requirement; no faculty upload endpoint is proposed. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
+        "description": "Current active, email-verified admin; library.moderate identity; server checks role, permission and resource ownership on every request. Moderator may inspect pending/rejected metadata/link, but file bytes require clean scan; 409 while scanning or rejected by scanner. For file return bytes, safe attachment filename, nosniff, private,no-store. For link return JSON envelope with HTTPS destination after authorization; no redirect with shared cache and no arbitrary proxy fetch. source in metadata determines content type. DECISION REQUIRED: Deliberately narrower than SOW A1.7.5, which lists uploads by Amentorz, admin and authorized faculty, DOC/DOCX/PPT/PPTX files and video or resource links, and open student access. Kept as designed (decided 2026-10-29) pending client confirmation in docs/PENDING_DECISIONS.md: admin-only upload/moderation and an authenticated-student audience; no faculty upload endpoint. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "admin; library.moderate",
         "x-review-status": "decision-required",
         "security": [
@@ -8279,7 +8279,7 @@
             "format": "password",
             "writeOnly": true,
             "pattern": "^(?=.*[0-9]).{8,72}$",
-            "description": "Student onboarding UI rule: minimum 8 characters with at least one number. Reject over 72 UTF-8 bytes before bcrypt. Weaker than the 12-character composition policy used for password change/reset; whether it applies to students only or all roles is a pending decision. Never log."
+            "description": "Platform password rule, as on the onboarding screen (decided 2026-10-29): minimum 8 characters with at least one number. Reject over 72 UTF-8 bytes before bcrypt. Never log."
           },
           "timezone": {
             "type": "string",
@@ -8645,12 +8645,12 @@
           },
           "newPassword": {
             "type": "string",
-            "minLength": 12,
+            "minLength": 8,
             "maxLength": 72,
             "format": "password",
             "writeOnly": true,
-            "pattern": "^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{12,72}$",
-            "description": "Existing composition policy; additionally reject over 72 UTF-8 bytes before bcrypt to avoid truncation. Never log. No example credentials."
+            "pattern": "^(?=.*[0-9]).{8,72}$",
+            "description": "Platform password rule for every role (decided 2026-10-29): minimum 8 characters with at least one number. SOW A1.8 asks for secure password policies without fixing a length. Reject over 72 UTF-8 bytes before bcrypt to avoid truncation. Never log. No example credentials."
           }
         },
         "required": [
@@ -8768,12 +8768,12 @@
           },
           "newPassword": {
             "type": "string",
-            "minLength": 12,
+            "minLength": 8,
             "maxLength": 72,
             "format": "password",
             "writeOnly": true,
-            "pattern": "^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{12,72}$",
-            "description": "Existing composition policy; additionally reject over 72 UTF-8 bytes before bcrypt to avoid truncation. Never log. No example credentials."
+            "pattern": "^(?=.*[0-9]).{8,72}$",
+            "description": "Platform password rule for every role (decided 2026-10-29): minimum 8 characters with at least one number. SOW A1.8 asks for secure password policies without fixing a length. Reject over 72 UTF-8 bytes before bcrypt to avoid truncation. Never log. No example credentials."
           }
         },
         "required": [
