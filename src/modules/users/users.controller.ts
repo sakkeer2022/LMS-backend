@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { CreateUserDto, UpdateUserDto, AssignRolesDto, PaginationQueryDto } from './users.dto.js';
 import * as UsersService from './users.service.js';
 import { successResponse } from '@core/response/index';
-import type { AuditContext } from '@modules/audit/audit.service.js';
+import { auditContextFrom } from '@middleware/audit.middleware';
 
 export async function listUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -52,19 +52,14 @@ export async function deleteUser(req: Request, res: Response, next: NextFunction
   }
 }
 
-function auditContext(req: Request): AuditContext {
-  return {
-    actorId: req.user?.sub ?? null,
-    ipAddress: req.ip ?? null,
-    userAgent: req.get('User-Agent') ?? null,
-    traceId: (req as Request & { traceId?: string }).traceId ?? null,
-  };
-}
-
 export async function assignRoles(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const dto = AssignRolesDto.parse(req.body);
-    const user = await UsersService.assignRoles(req.params['id'] as string, dto, auditContext(req));
+    const user = await UsersService.assignRoles(
+      req.params['id'] as string,
+      dto,
+      auditContextFrom(req)
+    );
     res.json(successResponse(user, 'Roles assigned'));
   } catch (err) {
     next(err);
@@ -74,7 +69,11 @@ export async function assignRoles(req: Request, res: Response, next: NextFunctio
 export async function removeRoles(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const dto = AssignRolesDto.parse(req.body);
-    const user = await UsersService.removeRoles(req.params['id'] as string, dto, auditContext(req));
+    const user = await UsersService.removeRoles(
+      req.params['id'] as string,
+      dto,
+      auditContextFrom(req)
+    );
     res.json(successResponse(user, 'Roles removed'));
   } catch (err) {
     next(err);
@@ -84,7 +83,11 @@ export async function removeRoles(req: Request, res: Response, next: NextFunctio
 export async function setRoles(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const dto = AssignRolesDto.parse(req.body);
-    const user = await UsersService.setRoles(req.params['id'] as string, dto, auditContext(req));
+    const user = await UsersService.setRoles(
+      req.params['id'] as string,
+      dto,
+      auditContextFrom(req)
+    );
     res.json(successResponse(user, 'Roles updated'));
   } catch (err) {
     next(err);
