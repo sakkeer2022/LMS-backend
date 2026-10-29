@@ -17,7 +17,14 @@
 | `npm run typecheck` | ✅ Pass |
 | `npm run lint` | ✅ 0 errors, 33 warnings (pre-existing) |
 | `npm run test:unit` | ✅ 132 passed (13 files), including `tests/unit/rbac.test.ts` (guard coverage) |
-| `npm run test:integration` (amentorz_test) | ✅ 80 passed (13 files), including `tests/modules/rbac_seed.test.ts`. One full run failed once in `auth.test.ts` ("should fail to register with existing email") and then passed 5 re-runs. Later runs on this branch and LMS-90 showed intermittent `socket hang up` failures in several files, including unchanged ones; cause not yet established, tracked separately |
+| `npm run test:integration` (amentorz_test) | ✅ 80 passed (13 files), including `tests/modules/rbac_seed.test.ts`. Intermittent failures found and fixed (see below) |
+
+### Intermittent integration test failures (found while testing LMS-96 and LMS-90)
+
+- **Port clashes:** supertest started a server per request on all interfaces; macOS sometimes handed out a port another local app held on 127.0.0.1, so the request reached that app (`socket hang up`, `Client sent an HTTP request to an HTTPS server`). Fixed: one test server per file bound to 127.0.0.1 (`tests/helpers/app.ts`).
+- **Data leaking between files:** `upload.test.ts` creates `uploads.create` in `beforeAll`, which ran before the tables were emptied; when a file that seeds RBAC ran first, the name already existed. Fixed: `tests/setup.ts` also truncates at the start of each file.
+- Measured: development 0 of 12 full runs failed; this work before the fixes 5 of 12; after both fixes 1 of 12, and that one was the audit-chain bug below.
+- **Open, existing bug:** see the audit hash chain entry in `findings.md` (2026-10-29). It makes `audit_chain.test.ts` fail occasionally on every branch.
 
 ## 2026-10-28 — Project setup and team conventions (LMS-52)
 
