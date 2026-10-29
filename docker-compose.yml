@@ -9,7 +9,8 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: amentorz_dev
     ports:
-      - "5432:5432"
+      # Override when 5432 is taken locally: POSTGRES_PORT=5434 docker compose up -d
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - amentorz_postgres_data:/var/lib/postgresql/data
       - ./scripts/init-test-db.sql:/docker-entrypoint-initdb.d/01-init-test-db.sql:ro
