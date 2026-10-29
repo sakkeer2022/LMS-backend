@@ -284,7 +284,7 @@ describe('Amentorz Domain Schema Integration', () => {
   });
 
   describe('Catalogue, Pricing & Nullable Board Uniqueness', () => {
-    it('creates Category, Board, Subject, Level, Curriculum and SessionPrice (INR paise, 60min)', async () => {
+    it('creates Category, Board, Subject, Level, Curriculum and a tutor PriceRule (INR paise)', async () => {
       const category = await prisma.category.create({
         data: {
           code: 'SCHOOL',
@@ -336,27 +336,23 @@ describe('Amentorz Domain Schema Integration', () => {
       });
 
       const assignment = await prisma.facultyAssignment.create({
+        data: { facultyId: faculty.id, curriculumId: curriculum.id },
+      });
+      expect(assignment.isActive).toBe(true);
+
+      // session_prices was replaced by price_rules (LMS-58); GST is stored with the rule
+      const price = await prisma.priceRule.create({
         data: {
-          facultyId: faculty.id,
           curriculumId: curriculum.id,
-          price: {
-            create: {
-              pricePaise: 75000, // ₹750.00
-              currency: 'INR',
-              durationMinutes: 60,
-              isActive: true,
-            },
-          },
-        },
-        include: {
-          price: true,
+          facultyId: faculty.id,
+          sessionPricePaise: 75000, // ₹750.00
+          gstRateBps: 1800,
+          gstPaise: 13500,
+          studentPaysPaise: 88500,
         },
       });
-
-      expect(assignment.price).toBeDefined();
-      expect(assignment.price?.pricePaise).toBe(75000);
-      expect(assignment.price?.currency).toBe('INR');
-      expect(assignment.price?.durationMinutes).toBe(60);
+      expect(price.sessionPricePaise).toBe(75000);
+      expect(price.studentPaysPaise).toBe(88500);
     });
 
     it('enforces non-School curriculum tuple uniqueness with NULL board', async () => {

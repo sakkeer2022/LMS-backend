@@ -11,6 +11,7 @@ import { adminRouter } from '@modules/admin/admin.routes.js';
 import { uploadsRouter } from '@modules/uploads/uploads.routes.js';
 import { auditLogMiddleware } from '@middleware/audit.middleware';
 import { catalogueRouter, adminCatalogueRouter } from '@modules/catalogue/index.js';
+import { pricesRouter, adminPricesRouter } from '@modules/pricing/index.js';
 
 export const router = Router();
 
@@ -29,6 +30,10 @@ router.use('/notifications', notificationsRouter);
 // ── Catalogue (LMS-54). Mounted before '/admin', whose router authenticates every path ──
 router.use('/catalogue', catalogueRouter);
 router.use('/admin/catalogue', adminCatalogueRouter);
+
+// ── Pricing (LMS-58). Also mounted before '/admin' ──
+router.use('/prices', pricesRouter);
+router.use('/admin/prices', adminPricesRouter);
 
 router.use('/admin', adminRouter);
 router.use('/uploads', uploadsRouter);

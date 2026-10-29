@@ -105,10 +105,12 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 
 | Method | Path | Operation ID | Access | Review status |
 |---|---|---|---|---|
-| GET | `/admin/prices` | `listSessionPrices` | admin; pricing.read | ready-for-review |
-| POST | `/admin/prices` | `createSessionPrice` | admin; pricing.manage | ready-for-review |
-| PUT | `/admin/prices/{priceId}` | `replaceSessionPrice` | admin; pricing.manage | ready-for-review |
-| GET | `/prices/resolve` | `resolveSessionPrice` | public | ready-for-review |
+| GET | `/admin/prices` | `listPriceRules` | admin; pricing.read | ready-for-review |
+| POST | `/admin/prices` | `createPriceRule` | admin; pricing.manage | ready-for-review |
+| PUT | `/admin/prices/bulk` | `bulkUpdatePriceRules` | admin; pricing.manage | ready-for-review |
+| PUT | `/admin/prices/{priceId}` | `updatePriceRule` | admin; pricing.manage | ready-for-review |
+| GET | `/prices/resolve` | `resolveSessionPrice` | public | decision-required |
+| POST | `/prices/quote` | `quoteSessionPrices` | public | decision-required |
 
 ## Library
 

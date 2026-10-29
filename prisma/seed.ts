@@ -1,6 +1,7 @@
 import { prisma } from '../src/infrastructure/database/connection.js';
 import { v4 as uuidv4 } from 'uuid';
 import { seedCatalogue, seedCataloguePermissions } from './seeds/catalogue.js';
+import { seedPricingPermissions } from './seeds/pricing.js';
 
 const RESOURCES = ['users', 'roles', 'permissions', 'audit_logs', 'feature_flags'];
 const ACTIONS = ['create', 'read', 'update', 'delete'];
@@ -39,6 +40,8 @@ async function main() {
 
   // ── Catalogue (LMS-53): resource.action names, mapped to roles below ──
   await seedCataloguePermissions(prisma);
+  // ── Pricing (LMS-58) ──
+  await seedPricingPermissions(prisma);
 
   // Query permissions back to map them correctly in memory
   const dbPermissions = await prisma.permission.findMany();

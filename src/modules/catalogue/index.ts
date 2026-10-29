@@ -6,5 +6,9 @@ export {
   findOfferings,
   getAncestors,
   getOfferings,
+  registerCurriculumPriceProvider,
+  registerCurriculumUsageCheck,
+  type CurriculumPriceProvider,
+  type CurriculumUsageCheck,
   type OfferingSummary,
 } from './catalogue.service.js';

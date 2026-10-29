@@ -90,3 +90,49 @@ export async function createChildNode(
     },
   });
 }
+
+/**
+ * Published path category › (subsection) › (board) › subject › level with its
+ * active curriculum, built directly in the database. Expects the reference seed.
+ */
+export async function createPublishedOffering(codes: {
+  category: string;
+  subsection?: string;
+  board?: string;
+  subject: string;
+  level: string;
+}) {
+  const category = await prisma.category.findUniqueOrThrow({ where: { code: codes.category } });
+  const root = await prisma.catalogueNode.findUniqueOrThrow({ where: { categoryId: category.id } });
+  let parent: { id: string; rootId: string } = root;
+
+  const child = async (
+    type: 'SUBSECTION' | 'BOARD' | 'SUBJECT' | 'LEVEL',
+    slug: string,
+    ref: { boardId?: string; subjectId?: string; levelId?: string } = {}
+  ) => {
+    const existing = await prisma.catalogueNode.findFirst({ where: { parentId: parent.id, slug } });
+    parent = existing ?? (await createChildNode(parent, { type, slug, ...ref }));
+    return parent;
+  };
+
+  if (codes.subsection) await child('SUBSECTION', codes.subsection);
+  const board = codes.board ? await prisma.board.findUniqueOrThrow({ where: { code: codes.board } }) : null;
+  if (board) await child('BOARD', board.code, { boardId: board.id });
+  const subject = await prisma.subject.findUniqueOrThrow({ where: { code: codes.subject } });
+  const subjectNode = await child('SUBJECT', subject.code, { subjectId: subject.id });
+  const level = await prisma.level.findUniqueOrThrow({ where: { code: codes.level } });
+  const leaf = await child('LEVEL', level.code, { levelId: level.id });
+
+  const curriculum = await prisma.curriculum.create({
+    data: {
+      categoryId: category.id,
+      boardId: board?.id ?? null,
+      subjectId: subject.id,
+      levelId: level.id,
+      nodeId: leaf.id,
+      isActive: true,
+    },
+  });
+  return { curriculum, leaf, subjectNode, categoryId: category.id, boardId: board?.id ?? null, subjectId: subject.id, levelId: level.id };
+}

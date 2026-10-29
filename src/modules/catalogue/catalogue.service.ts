@@ -11,10 +11,30 @@ import { NodeIndex, buildTree, type TreeNodeRow, type TreeNodeView } from './cat
  * faculty use (ADR 0003). Mutations live in catalogue.mutations.ts.
  */
 
-type Db = Prisma.TransactionClient | typeof prisma;
+export type Db = Prisma.TransactionClient | typeof prisma;
 
 export interface Actor {
   userId: string | null;
+}
+
+// ── Extension points for modules that depend on the catalogue ───────────────
+// Pricing (and later faculty or library) registers here instead of the catalogue
+// importing them, which would create a circular dependency.
+
+/** Returns the ids (from the given list) of curricula the registering module uses. */
+export type CurriculumUsageCheck = (db: Db, curriculumIds: string[]) => Promise<string[]>;
+/** Returns the default session price in paise for a curriculum, or null. */
+export type CurriculumPriceProvider = (curriculumId: string) => Promise<number | null>;
+
+const usageChecks: CurriculumUsageCheck[] = [];
+let priceProvider: CurriculumPriceProvider | null = null;
+
+export function registerCurriculumUsageCheck(check: CurriculumUsageCheck): void {
+  usageChecks.push(check);
+}
+
+export function registerCurriculumPriceProvider(provider: CurriculumPriceProvider): void {
+  priceProvider = provider;
 }
 
 const nodeSelect = {
@@ -122,6 +142,7 @@ export async function getNodeDetail(
     curriculumByNode,
   });
   const sub = view ? findInView(view, node.id) : null;
+  const curriculumId = curriculumByNode.get(node.id) ?? null;
   return {
     id: node.id,
     parentId: node.parentId,
@@ -136,14 +157,14 @@ export async function getNodeDetail(
     subjectId: node.subjectId,
     levelId: node.levelId,
     bookingEnabled: node.bookingEnabled,
-    curriculumId: curriculumByNode.get(node.id) ?? null,
+    curriculumId,
     path: index.ancestors(node.id).map((a) => ({ id: a.id, type: a.type, name: a.name })),
     childCount: sub?.childCount ?? 0,
     counts: sub?.counts ?? { subsections: 0, boards: 0, subjects: 0, levels: 0 },
     libraryResources: null,
     tutorsMapped: null,
     sessionsThisMonth: null,
-    sessionPricePaise: null,
+    sessionPricePaise: curriculumId && priceProvider ? await priceProvider(curriculumId) : null,
     createdAt: node.createdAt,
     updatedAt: node.updatedAt,
   };
@@ -222,6 +243,7 @@ export async function curriculaInUse(db: Db, curriculumIds: string[]): Promise<s
   const ids = [...students, ...assignments, ...materials].flatMap((r) =>
     r.curriculumId ? [r.curriculumId] : []
   );
+  for (const check of usageChecks) ids.push(...(await check(db, curriculumIds)));
   return [...new Set(ids)];
 }
 

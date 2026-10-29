@@ -485,6 +485,7 @@ model FacultyProfile {
   documents        FacultyDocument[]
   termsAcceptances FacultyTermsAcceptance[]
   assignments      FacultyAssignment[]
+  priceRules       PriceRule[]
 
   @@index([approvalStatus, isPublished, isActive])
   @@map("faculty_profiles")
@@ -677,6 +678,7 @@ model Curriculum {
 
   assignments FacultyAssignment[]
   materials   LibraryMaterial[]
+  priceRules  PriceRule[]
   students    StudentSubject[]
 
   @@unique([categoryId, boardId, subjectId, levelId], name: "uk_curriculum_tuple")
@@ -740,25 +742,43 @@ model FacultyAssignment {
 
   faculty    FacultyProfile @relation(fields: [facultyId], references: [id], onDelete: Cascade)
   curriculum Curriculum     @relation(fields: [curriculumId], references: [id], onDelete: Restrict)
-  price      SessionPrice?
 
   @@unique([facultyId, curriculumId], name: "uk_faculty_curriculum_assignment")
   @@map("faculty_assignments")
 }
 
-model SessionPrice {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  assignmentId    String   @unique @map("assignment_id") @db.Uuid
-  pricePaise      Int      @map("price_paise")
-  currency        String   @default("INR") @db.VarChar(3)
-  durationMinutes Int      @default(60) @map("duration_minutes")
-  isActive        Boolean  @default(true) @map("is_active")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+// Admin-set session price for one offering (curriculum), optionally for one tutor
+// (LMS-58). facultyId null = the default price for the offering. Currency is INR
+// and every session is 60 minutes, so neither is stored. gstPaise and
+// studentPaysPaise are computed by the server on every write; CHECK constraints in
+// the migration enforce the formula. At most one active rule per curriculum and
+// tutor for any overlapping window, enforced in a locked transaction.
+model PriceRule {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  curriculumId      String    @map("curriculum_id") @db.Uuid
+  facultyId         String?   @map("faculty_id") @db.Uuid
+  sessionPricePaise Int       @map("session_price_paise")
+  // Basis points; 1800 = 18%. Defaults from the GST setting once LMS-90 exists.
+  gstRateBps        Int       @default(1800) @map("gst_rate_bps")
+  gstPaise          Int       @map("gst_paise")
+  studentPaysPaise  Int       @map("student_pays_paise")
+  effectiveFrom     DateTime  @default(now()) @map("effective_from")
+  // Exclusive end; null = open-ended
+  effectiveTo       DateTime? @map("effective_to")
+  isActive          Boolean   @default(true) @map("is_active")
+  revision          Int       @default(1)
+  // Actor ids, kept without a FK so the identity schema stays untouched
+  createdById       String?   @map("created_by_id") @db.Uuid
+  updatedById       String?   @map("updated_by_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  assignment FacultyAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  curriculum Curriculum      @relation(fields: [curriculumId], references: [id], onDelete: Restrict)
+  faculty    FacultyProfile? @relation(fields: [facultyId], references: [id], onDelete: Restrict)
 
-  @@map("session_prices")
+  @@index([curriculumId, facultyId, isActive])
+  @@index([facultyId])
+  @@map("price_rules")
 }
 
 model LibraryMaterial {

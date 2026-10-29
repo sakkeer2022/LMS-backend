@@ -91,7 +91,7 @@ The table below delineates the concrete **Foreign-Key Relationships** versus **C
 | **Identity & RBAC** | **Faculty Domain** | 1 : N | `faculty_documents.verified_by → users.id` (SET NULL) | Administrator attribution for background check and document verification. |
 | **Faculty Domain** | **Catalogue & Pricing**| 1 : N | `faculty_assignments.faculty_id → faculty_profiles.id` (CASCADE) | Connects approved tutor to teaching assignments. |
 | **Catalogue & Pricing**| **Catalogue Hierarchy**| N : 1 | `curricula.{category_id, board_id, subject_id, level_id}` (RESTRICT) | Restricts deletion of master educational tiers if curricula are active. |
-| **Catalogue & Pricing**| **Pricing Engine** | 1 : 1 | `session_prices.assignment_id → faculty_assignments.id` (CASCADE) | Guarantees exact 1:1 price per faculty curriculum assignment. |
+| **Catalogue & Pricing**| **Pricing Engine** | N : 1 | `price_rules.curriculum_id → curricula.id`, optional `price_rules.faculty_id → faculty_profiles.id` (RESTRICT) | Default price per offering plus optional tutor prices; one active rule per offering and tutor per period (ADR 0004). |
 | **Identity & RBAC** | **Library Domain** | 1 : N | `library_materials.uploaded_by → users.id` (RESTRICT) | Identifies study material author/uploader. |
 | **Catalogue** | **Library Domain** | 1 : N | `library_materials.curriculum_id → curricula.id` (SET NULL) | Associates study materials with optional educational curriculum. |
 | **Identity & RBAC** | **Library Domain** | 1 : N | `library_reviews.reviewer_id → users.id` (RESTRICT) | Administrative moderation attribution before material publication. |
@@ -114,7 +114,7 @@ The implemented schema strictly enforces the contractual boundaries agreed in th
 
 ### 3.3 Single-Session INR Pricing (No Packages)
 - **Contractual Rule:** M03 confirmed rule: prepaid packages and bundles are deferred from Phase 1. Pricing is single-session only, strictly denominated in INR.
-- **Implementation:** `session_prices` stores `price_paise` (integer paise, e.g. 75000 = ₹750.00), `currency = "INR"`, and `duration_minutes = 60`. No package, credit-pack, or subscription tables exist.
+- **Implementation:** `price_rules` stores `session_price_paise` (integer paise, e.g. 75000 = ₹750.00) with server-computed `gst_paise` and `student_pays_paise`; currency INR and 60-minute sessions are fixed (ADR 0004). No package, credit-pack, or subscription tables exist.
 
 ### 3.4 Tutor Incentive Model (50-Point / 30-Session Threshold)
 - **Contractual Rule:** Annexure 1 Section A1.7.9 replaced the old 10-parameter model with a five-parameter, 50-point score (30 sessions, 40 points, 10% on sessions from the 31st onward).

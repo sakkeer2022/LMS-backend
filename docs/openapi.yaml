@@ -6842,7 +6842,7 @@
           "Catalogue"
         ],
         "summary": "Activate or deactivate faculty assignment",
-        "description": "Current active, email-verified admin; faculty.assign identity; server checks role, permission and resource ownership on every request. 404 if assignment belongs to another faculty. curriculumId is immutable after creation; mismatch 409. Deactivation immediately disables associated price resolution and may make faculty ineligible. Audit change.",
+        "description": "Current active, email-verified admin; faculty.assign identity; server checks role, permission and resource ownership on every request. 404 if assignment belongs to another faculty. curriculumId is immutable after creation; mismatch 409. Deactivation may make faculty ineligible; price rules are kept and resolution of tutor-specific prices is unaffected (eligibility is checked by booking). Audit change.",
         "x-required-role": "admin; faculty.assign",
         "x-review-status": "ready-for-review",
         "security": [
@@ -6941,12 +6941,12 @@
     },
     "/admin/prices": {
       "get": {
-        "operationId": "listSessionPrices",
+        "operationId": "listPriceRules",
         "tags": [
           "Pricing"
         ],
-        "summary": "List configured single-session prices",
-        "description": "Current active, email-verified admin; pricing.read identity; server checks role, permission and resource ownership on every request. ",
+        "summary": "List price rules with GST and student totals",
+        "description": "Current active, email-verified admin; pricing.read identity; server checks role, permission and resource ownership on every request. Rule per curriculum (category+board+subject+level offering) and optional tutor; facultyId null = default price. At most one active rule per curriculumId+facultyId (null treated as a value) for any overlapping effective window; overlap 409. gstPaise and studentPaysPaise are computed by the server on every create/update/bulk update and never accepted from clients. Integer paise >0; proposed safety maximum INR 1,000,000 requires review. Currency INR and duration 60 are fixed, not client input. No packages, bundles or credits. ",
         "x-required-role": "admin; pricing.read",
         "x-review-status": "ready-for-review",
         "security": [
@@ -6956,11 +6956,11 @@
         ],
         "responses": {
           "200": {
-            "description": "List configured single-session prices.",
+            "description": "List price rules with GST and student totals.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/listSessionPricesResponse"
+                  "$ref": "#/components/schemas/listPriceRulesResponse"
                 },
                 "example": {
                   "success": true,
@@ -7000,10 +7000,63 @@
         },
         "parameters": [
           {
-            "name": "assignmentId",
+            "name": "facultyId",
             "in": "query",
             "required": false,
-            "description": "assignmentId",
+            "description": "facultyId",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "defaultOnly",
+            "in": "query",
+            "required": false,
+            "description": "true = only rules without a tutor.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": false,
+            "description": "categoryId",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "boardId",
+            "in": "query",
+            "required": false,
+            "description": "boardId",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "subjectId",
+            "in": "query",
+            "required": false,
+            "description": "subjectId",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "levelId",
+            "in": "query",
+            "required": false,
+            "description": "levelId",
             "schema": {
               "type": "string",
               "format": "uuid",
@@ -7017,6 +7070,17 @@
             "description": "isActive",
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive match on tutor, subject, board or level name.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
             }
           },
           {
@@ -7046,12 +7110,12 @@
         ]
       },
       "post": {
-        "operationId": "createSessionPrice",
+        "operationId": "createPriceRule",
         "tags": [
           "Pricing"
         ],
-        "summary": "Configure one price for faculty offering",
-        "description": "Current active, email-verified admin; pricing.manage identity; server checks role, permission and resource ownership on every request. Exactly one row per assignment including inactive rows; DB unique constraint. Faculty/subject/category/level/board derived from validated assignment. Integer paise >0; proposed safety maximum INR 1,000,000 requires review. Currency INR and duration 60 are immutable, not client input. No overlapping schedules, packages or fallback prices.",
+        "summary": "Create price rule",
+        "description": "Current active, email-verified admin; pricing.manage identity; server checks role, permission and resource ownership on every request. Rule per curriculum (category+board+subject+level offering) and optional tutor; facultyId null = default price. At most one active rule per curriculumId+facultyId (null treated as a value) for any overlapping effective window; overlap 409. gstPaise and studentPaysPaise are computed by the server on every create/update/bulk update and never accepted from clients. Integer paise >0; proposed safety maximum INR 1,000,000 requires review. Currency INR and duration 60 are fixed, not client input. No packages, bundles or credits. Unknown curriculum, or unknown or inactive faculty profile, 422. Audit create.",
         "x-required-role": "admin; pricing.manage",
         "x-review-status": "ready-for-review",
         "security": [
@@ -7061,22 +7125,39 @@
         ],
         "responses": {
           "201": {
-            "description": "Configure one price for faculty offering.",
+            "description": "Create price rule.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/createSessionPriceResponse"
+                  "$ref": "#/components/schemas/createPriceRuleResponse"
                 },
                 "example": {
                   "success": true,
                   "message": "Success",
                   "data": {
                     "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "assignmentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "amountPaise": 1,
+                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "facultyId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "facultyName": "Example value",
+                    "categoryName": "Example value",
+                    "boardName": "Example value",
+                    "subjectName": "Example value",
+                    "levelName": "Example value",
+                    "amounts": {
+                      "currency": "INR",
+                      "durationMinutes": 60,
+                      "sessionPricePaise": 1,
+                      "gstRateBps": 0,
+                      "gstPaise": 0,
+                      "cgstPaise": 0,
+                      "sgstPaise": 0,
+                      "studentPaysPaise": 0
+                    },
+                    "effectiveFrom": "2026-10-21T09:00:00Z",
+                    "effectiveTo": "2026-10-21T09:00:00Z",
                     "isActive": true,
-                    "currency": "INR",
-                    "durationMinutes": 60
+                    "revision": 1,
+                    "updatedAt": "2026-10-21T09:00:00Z"
                   }
                 }
               }
@@ -7120,21 +7201,21 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PriceWrite"
+                "$ref": "#/components/schemas/PriceRuleWrite"
               }
             }
           }
         }
       }
     },
-    "/admin/prices/{priceId}": {
+    "/admin/prices/bulk": {
       "put": {
-        "operationId": "replaceSessionPrice",
+        "operationId": "bulkUpdatePriceRules",
         "tags": [
           "Pricing"
         ],
-        "summary": "Update or deactivate single-session price",
-        "description": "Current active, email-verified admin; pricing.manage identity; server checks role, permission and resource ownership on every request. assignmentId immutable, mismatch 409; audit amount/status change. No payment or earnings effects implemented.",
+        "summary": "Save several price changes atomically",
+        "description": "Current active, email-verified admin; pricing.manage identity; server checks role, permission and resource ownership on every request. Rule per curriculum (category+board+subject+level offering) and optional tutor; facultyId null = default price. At most one active rule per curriculumId+facultyId (null treated as a value) for any overlapping effective window; overlap 409. gstPaise and studentPaysPaise are computed by the server on every create/update/bulk update and never accepted from clients. Integer paise >0; proposed safety maximum INR 1,000,000 requires review. Currency INR and duration 60 are fixed, not client input. No packages, bundles or credits. Screen 29b. All changes or none: any stale revision or unknown id returns 409 with errors keyed changes[i] and nothing is saved; an invalid body returns 422. GST and student totals recalculate on save. Audit each changed rule.",
         "x-required-role": "admin; pricing.manage",
         "x-review-status": "ready-for-review",
         "security": [
@@ -7144,22 +7225,115 @@
         ],
         "responses": {
           "200": {
-            "description": "Update or deactivate single-session price.",
+            "description": "Save several price changes atomically.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/replaceSessionPriceResponse"
+                  "$ref": "#/components/schemas/bulkUpdatePriceRulesResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PriceBulkUpdate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/prices/{priceId}": {
+      "put": {
+        "operationId": "updatePriceRule",
+        "tags": [
+          "Pricing"
+        ],
+        "summary": "Update or deactivate price rule",
+        "description": "Current active, email-verified admin; pricing.manage identity; server checks role, permission and resource ownership on every request. Rule per curriculum (category+board+subject+level offering) and optional tutor; facultyId null = default price. At most one active rule per curriculumId+facultyId (null treated as a value) for any overlapping effective window; overlap 409. gstPaise and studentPaysPaise are computed by the server on every create/update/bulk update and never accepted from clients. Integer paise >0; proposed safety maximum INR 1,000,000 requires review. Currency INR and duration 60 are fixed, not client input. No packages, bundles or credits. curriculumId and facultyId are immutable. Stale expectedRevision 409. isActive=false deactivates. Audit old/new values.",
+        "x-required-role": "admin; pricing.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Update or deactivate price rule.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/updatePriceRuleResponse"
                 },
                 "example": {
                   "success": true,
                   "message": "Success",
                   "data": {
                     "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "assignmentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "amountPaise": 1,
+                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "facultyId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "facultyName": "Example value",
+                    "categoryName": "Example value",
+                    "boardName": "Example value",
+                    "subjectName": "Example value",
+                    "levelName": "Example value",
+                    "amounts": {
+                      "currency": "INR",
+                      "durationMinutes": 60,
+                      "sessionPricePaise": 1,
+                      "gstRateBps": 0,
+                      "gstPaise": 0,
+                      "cgstPaise": 0,
+                      "sgstPaise": 0,
+                      "studentPaysPaise": 0
+                    },
+                    "effectiveFrom": "2026-10-21T09:00:00Z",
+                    "effectiveTo": "2026-10-21T09:00:00Z",
                     "isActive": true,
-                    "currency": "INR",
-                    "durationMinutes": 60
+                    "revision": 1,
+                    "updatedAt": "2026-10-21T09:00:00Z"
                   }
                 }
               }
@@ -7216,7 +7390,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PriceWrite"
+                "$ref": "#/components/schemas/PriceRuleUpdate"
               }
             }
           }
@@ -7229,14 +7403,14 @@
         "tags": [
           "Pricing"
         ],
-        "summary": "Resolve exact configured offering price",
-        "description": "Public; no authenticated identity required. Exact unique active faculty assignment and price only; no fallback or estimate. Unknown referenced IDs 404. Known inactive offering/faculty returns 200 available=false and reason. Missing configured price returns 200 available=false, reason NO_CONFIGURED_PRICE. No booking or availability promise.",
+        "summary": "Resolve session price for an offering and optional tutor",
+        "description": "Public; no authenticated identity required. Order: (1) active rule for this tutor and curriculum effective at the given time; (2) otherwise the default rule (no tutor) for the curriculum; (3) otherwise 200 available=false, reason PRICE_NOT_CONFIGURED. Never returns 0. Broader category or board defaults are not supported. Inactive or unpublished curriculum returns available=false, reason INACTIVE_CATALOGUE. Unknown ids 404. Response names matchedRuleId. Tutor eligibility is not checked here; booking (M05) copies the resolved amounts onto the booking. DECISION REQUIRED: D4: who may call with a facultyId (public vs authenticated).",
         "x-required-role": "public",
-        "x-review-status": "ready-for-review",
+        "x-review-status": "decision-required",
         "security": [],
         "responses": {
           "200": {
-            "description": "Resolve exact configured offering price.",
+            "description": "Resolve session price for an offering and optional tutor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7247,7 +7421,7 @@
                   "message": "Success",
                   "data": {
                     "available": false,
-                    "reason": "NO_CONFIGURED_PRICE"
+                    "reason": "PRICE_NOT_CONFIGURED"
                   }
                 }
               }
@@ -7271,17 +7445,6 @@
         },
         "parameters": [
           {
-            "name": "facultyId",
-            "in": "query",
-            "required": true,
-            "description": "facultyId",
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-            }
-          },
-          {
             "name": "curriculumId",
             "in": "query",
             "required": true,
@@ -7291,8 +7454,99 @@
               "format": "uuid",
               "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
             }
+          },
+          {
+            "name": "facultyId",
+            "in": "query",
+            "required": false,
+            "description": "Optional tutor (faculty_profiles.id).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "at",
+            "in": "query",
+            "required": false,
+            "description": "Defaults to now.",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "example": "2026-10-21T09:00:00Z"
+            }
           }
         ]
+      }
+    },
+    "/prices/quote": {
+      "post": {
+        "operationId": "quoteSessionPrices",
+        "tags": [
+          "Pricing"
+        ],
+        "summary": "Quote prices for several offerings",
+        "description": "Public; no authenticated identity required. Read-only; no state change. Each item resolves like /prices/resolve. An item given as category+subject+level without boardId can match several curricula (for example CBSE and ICSE); the response returns min and max amounts over the priced ones. Used by faculty registration (subjects and rates) to show the default rate without a tutor. DECISION REQUIRED: D4: public vs authenticated access; D6: what a class band is.",
+        "x-required-role": "public",
+        "x-review-status": "decision-required",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Quote prices for several offerings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/quoteSessionPricesResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PriceQuoteRequest"
+              }
+            }
+          }
+        }
       }
     },
     "/admin/library/files": {
@@ -10837,7 +11091,7 @@
             "minimum": 0,
             "maximum": 2147483647,
             "nullable": true,
-            "description": "Default session price for the leaf; null until pricing (LMS-58)."
+            "description": "Default (tutor-free) pre-GST session price for the leaf; null when not configured."
           },
           "createdAt": {
             "type": "string",
@@ -11136,52 +11390,10 @@
           "isActive"
         ]
       },
-      "PriceWrite": {
+      "PriceAmounts": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "assignmentId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-          },
-          "amountPaise": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 100000000
-          },
-          "isActive": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "assignmentId",
-          "amountPaise",
-          "isActive"
-        ]
-      },
-      "Price": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-          },
-          "assignmentId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-          },
-          "amountPaise": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 100000000
-          },
-          "isActive": {
-            "type": "boolean"
-          },
           "currency": {
             "type": "string",
             "enum": [
@@ -11193,15 +11405,264 @@
             "enum": [
               60
             ]
+          },
+          "sessionPricePaise": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000000,
+            "description": "Pre-GST session price set by admin."
+          },
+          "gstRateBps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000,
+            "description": "Basis points stored on the rule; 1800 = 18%. Defaults to 1800 until the LMS-90 GST setting is connected."
+          },
+          "gstPaise": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000,
+            "description": "Server-computed and stored: round_half_up(sessionPricePaise x gstRateBps / 10000). Never accepted from clients."
+          },
+          "cgstPaise": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000,
+            "description": "Display only, not stored: ceil(gstPaise / 2). Intra-state split; IGST is decision D15."
+          },
+          "sgstPaise": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000,
+            "description": "Display only, not stored: gstPaise - cgstPaise."
+          },
+          "studentPaysPaise": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000,
+            "description": "Server-computed and stored: sessionPricePaise + gstPaise."
+          }
+        },
+        "required": [
+          "currency",
+          "durationMinutes",
+          "sessionPricePaise",
+          "gstRateBps",
+          "gstPaise",
+          "cgstPaise",
+          "sgstPaise",
+          "studentPaysPaise"
+        ]
+      },
+      "PriceRuleWrite": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "curriculumId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "facultyId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true,
+            "description": "faculty_profiles.id, the key FacultyAssignment uses. null = default price for the curriculum (no tutor)."
+          },
+          "sessionPricePaise": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000000
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z",
+            "description": "Defaults to now."
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z",
+            "nullable": true,
+            "description": "Exclusive end; null = open-ended."
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "curriculumId",
+          "facultyId",
+          "sessionPricePaise"
+        ]
+      },
+      "PriceRuleUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sessionPricePaise": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000000
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "false deactivates the rule."
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ]
+      },
+      "PriceRule": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "curriculumId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "facultyId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          },
+          "facultyName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "nullable": true
+          },
+          "categoryName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "boardName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "nullable": true
+          },
+          "subjectName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "levelName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "amounts": {
+            "$ref": "#/components/schemas/PriceAmounts"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
           }
         },
         "required": [
           "id",
-          "assignmentId",
-          "amountPaise",
+          "curriculumId",
+          "facultyId",
+          "facultyName",
+          "categoryName",
+          "boardName",
+          "subjectName",
+          "levelName",
+          "amounts",
+          "effectiveFrom",
+          "effectiveTo",
           "isActive",
-          "currency",
-          "durationMinutes"
+          "revision",
+          "updatedAt"
+        ]
+      },
+      "PriceBulkUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "sessionPricePaise": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100000000
+                },
+                "expectedRevision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                }
+              },
+              "required": [
+                "id",
+                "sessionPricePaise",
+                "expectedRevision"
+              ]
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "description": "Each id at most once."
+          }
+        },
+        "required": [
+          "changes"
         ]
       },
       "PriceResolution": {
@@ -11216,13 +11677,41 @@
                   true
                 ]
               },
-              "price": {
-                "$ref": "#/components/schemas/Price"
+              "matchedRuleId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+              },
+              "matchedOn": {
+                "type": "string",
+                "enum": [
+                  "FACULTY",
+                  "DEFAULT"
+                ],
+                "description": "FACULTY = rule for this tutor and curriculum; DEFAULT = curriculum rule without tutor."
+              },
+              "curriculumId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+              },
+              "facultyId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                "nullable": true
+              },
+              "amounts": {
+                "$ref": "#/components/schemas/PriceAmounts"
               }
             },
             "required": [
               "available",
-              "price"
+              "matchedRuleId",
+              "matchedOn",
+              "curriculumId",
+              "facultyId",
+              "amounts"
             ]
           },
           {
@@ -11238,13 +11727,169 @@
               "reason": {
                 "type": "string",
                 "enum": [
-                  "NO_CONFIGURED_PRICE",
-                  "INELIGIBLE_FACULTY",
+                  "PRICE_NOT_CONFIGURED",
                   "INACTIVE_CATALOGUE"
                 ]
               }
             },
             "required": [
+              "available",
+              "reason"
+            ]
+          }
+        ]
+      },
+      "PriceQuoteItemRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "curriculumId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                "description": "Exact offering."
+              },
+              "facultyId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                "nullable": true,
+                "description": "Optional tutor (faculty_profiles.id); null or omitted = default price."
+              }
+            },
+            "required": [
+              "curriculumId"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "categoryId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+              },
+              "boardId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                "nullable": true,
+                "description": "Omit to match every board (returns a range)."
+              },
+              "subjectId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+              },
+              "levelId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+              },
+              "facultyId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                "nullable": true,
+                "description": "Optional tutor (faculty_profiles.id); null or omitted = default price."
+              }
+            },
+            "required": [
+              "categoryId",
+              "subjectId",
+              "levelId"
+            ]
+          }
+        ]
+      },
+      "PriceQuoteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PriceQuoteItemRequest"
+            },
+            "maxItems": 50,
+            "minItems": 1
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "PriceQuoteItem": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 49
+              },
+              "available": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "min": {
+                "$ref": "#/components/schemas/PriceAmounts"
+              },
+              "max": {
+                "$ref": "#/components/schemas/PriceAmounts"
+              },
+              "curriculaMatched": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2147483647
+              },
+              "curriculaPriced": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2147483647
+              }
+            },
+            "required": [
+              "index",
+              "available",
+              "min",
+              "max",
+              "curriculaMatched",
+              "curriculaPriced"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 49
+              },
+              "available": {
+                "type": "boolean",
+                "enum": [
+                  false
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "PRICE_NOT_CONFIGURED",
+                  "NO_MATCHING_CURRICULUM"
+                ]
+              }
+            },
+            "required": [
+              "index",
               "available",
               "reason"
             ]
@@ -13886,7 +14531,7 @@
           "data"
         ]
       },
-      "listSessionPricesResponse": {
+      "listPriceRulesResponse": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
@@ -13904,7 +14549,7 @@
           "data": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Price"
+              "$ref": "#/components/schemas/PriceRule"
             },
             "maxItems": 100
           },
@@ -13919,7 +14564,7 @@
           "meta"
         ]
       },
-      "createSessionPriceResponse": {
+      "createPriceRuleResponse": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
@@ -13935,7 +14580,7 @@
             "maxLength": 500
           },
           "data": {
-            "$ref": "#/components/schemas/Price"
+            "$ref": "#/components/schemas/PriceRule"
           }
         },
         "required": [
@@ -13944,7 +14589,7 @@
           "data"
         ]
       },
-      "replaceSessionPriceResponse": {
+      "bulkUpdatePriceRulesResponse": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
@@ -13960,7 +14605,36 @@
             "maxLength": 500
           },
           "data": {
-            "$ref": "#/components/schemas/Price"
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PriceRule"
+            },
+            "maxItems": 200
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "updatePriceRuleResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/PriceRule"
           }
         },
         "required": [
@@ -13986,6 +14660,35 @@
           },
           "data": {
             "$ref": "#/components/schemas/PriceResolution"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "quoteSessionPricesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PriceQuoteItem"
+            },
+            "maxItems": 50
           }
         },
         "required": [

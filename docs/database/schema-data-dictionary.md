@@ -42,7 +42,7 @@
    - [levels](#54-levels)
    - [curricula](#55-curricula)
    - [faculty_assignments](#56-faculty_assignments)
-   - [session_prices](#57-session_prices)
+   - [price_rules](#57-price_rules)
 6. [Domain 5: Library & Moderation](#6-domain-5-library--moderation)
    - [library_materials](#61-library_materials)
    - [library_reviews](#62-library_reviews)
@@ -734,26 +734,35 @@
 
 ---
 
-### 5.7 `session_prices`
-- **Purpose:** Admin-configured price for an assigned faculty-curriculum tuple. Fixed 60-min, INR paise.
-- **Physical Table:** `session_prices`
+### 5.7 `price_rules`
+- **Purpose:** Admin-set session price for one offering (curriculum), optionally for one tutor. `faculty_id` null is the default price for the offering. Replaces `session_prices` (ADR 0004). Currency INR and 60-minute sessions are fixed and not stored.
+- **Physical Table:** `price_rules`
 
 | Column | Type | Nullable | Default | Description & Constraints | Enforcement |
 |---|---|:---:|---|---|---|
 | `id` | `UUID` | No | `gen_random_uuid()` | Primary Key | Database |
-| `assignment_id` | `UUID` | No | — | 1:1 Unique Foreign Key to `faculty_assignments` | Database (`session_prices_assignment_id_key`) |
-| `price_paise` | `INTEGER` | No | — | Price in paise (e.g. 50000 = ₹500.00). Must be > 0 | Application |
-| `currency` | `VARCHAR(3)` | No | `'INR'` | Currency code (single currency platform) | Database |
-| `duration_minutes`| `INTEGER` | No | `60` | Fixed session slot duration | Database |
-| `is_active` | `BOOLEAN` | No | `true` | Active status | Database |
+| `curriculum_id` | `UUID` | No | — | Offering priced; Foreign Key to `curricula` | Database (`price_rules_curriculum_id_fkey`) |
+| `faculty_id` | `UUID` | Yes | `NULL` | Tutor (`faculty_profiles.id`); null = default price | Database (`price_rules_faculty_id_fkey`) |
+| `session_price_paise` | `INTEGER` | No | — | Pre-GST price set by admin; 1 to 100,000,000 | Database (`price_rules_session_price_check`) |
+| `gst_rate_bps` | `INTEGER` | No | `1800` | GST rate in basis points (1800 = 18%); 0 to 10000 | Database (`price_rules_gst_rate_check`) |
+| `gst_paise` | `INTEGER` | No | — | Server-computed: round_half_up(price × rate / 10000) | Database (`price_rules_amounts_check`) |
+| `student_pays_paise` | `INTEGER` | No | — | Server-computed: price + GST | Database (`price_rules_amounts_check`) |
+| `effective_from` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Start of the window (inclusive) | Application |
+| `effective_to` | `TIMESTAMP(3)` | Yes | `NULL` | End of the window (exclusive); null = open-ended | Database (`price_rules_window_check`) |
+| `is_active` | `BOOLEAN` | No | `true` | Inactive rules never resolve and never block others | Application |
+| `revision` | `INTEGER` | No | `1` | Optimistic concurrency; writes send `expectedRevision` | Database (`price_rules_revision_check`) / Application |
+| `created_by_id` | `UUID` | Yes | `NULL` | Acting user; no FK | Application |
+| `updated_by_id` | `UUID` | Yes | `NULL` | Acting user; no FK | Application |
 | `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Creation timestamp | Database |
 | `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
 
 - **Indexes & Constraints:**
-  - `session_prices_pkey` (PRIMARY KEY, `id`)
-  - `session_prices_assignment_id_key` (UNIQUE, `assignment_id`)
-  - `session_prices_assignment_id_fkey` (FOREIGN KEY, `assignment_id` → `faculty_assignments.id`, ON DELETE CASCADE)
-
+  - `price_rules_pkey` (PRIMARY KEY, `id`)
+  - `price_rules_curriculum_id_faculty_id_is_active_idx` (INDEX): resolution lookups
+  - `price_rules_faculty_id_idx` (INDEX)
+  - `price_rules_curriculum_id_fkey`, `price_rules_faculty_id_fkey` (FOREIGN KEY, ON DELETE RESTRICT)
+  - CHECK constraints listed above (hand-written in migration `20261029100000_price_rules`)
+  - At most one active rule per curriculum and tutor for any overlapping window: enforced by the pricing service under a row lock on the curriculum
 ---
 
 ## 6. Domain 5: Library & Moderation
