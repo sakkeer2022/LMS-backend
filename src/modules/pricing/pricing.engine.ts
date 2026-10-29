@@ -50,10 +50,14 @@ export function computeStoredAmounts(sessionPricePaise: number, gstRateBps: numb
  */
 export function toPriceAmounts(stored: StoredAmounts): PriceAmounts {
   const cgstPaise = Math.ceil(stored.gstPaise / 2);
+  // Copy the four amounts only: callers pass whole price_rules rows, which must not leak out
   return {
     currency: CURRENCY,
     durationMinutes: SESSION_MINUTES,
-    ...stored,
+    sessionPricePaise: stored.sessionPricePaise,
+    gstRateBps: stored.gstRateBps,
+    gstPaise: stored.gstPaise,
+    studentPaysPaise: stored.studentPaysPaise,
     cgstPaise,
     sgstPaise: stored.gstPaise - cgstPaise,
   };
