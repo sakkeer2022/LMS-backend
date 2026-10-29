@@ -27,7 +27,7 @@
 - **One source of truth:** `src/core/security/rbac.ts` lists every permission (`PERMISSIONS`) and the seeded system roles (`SYSTEM_ROLES`). `prisma/seed.ts` seeds from it.
 - **Every guard must use a listed name.** `tests/unit/rbac.test.ts` scans every `requirePermission('…')` in `src/modules/**/*.routes.ts` and fails when a name is missing from the list, or when a seeded admin would fail a guard.
 - **Adding a permission:** add it to `PERMISSIONS`, grant it to the roles that need it in `SYSTEM_ROLES`, use it in the route guard, and re-run `npx prisma db seed`.
-- **Planned names from the Sprint 1 contract** are added by the epic that builds the endpoints: `catalogue.read`, `catalogue.manage`, `pricing.read`, `pricing.manage`, `library.upload`, `library.moderate`, `faculty.create`, `faculty.read`, `faculty.update`, `faculty.update_self`, `faculty.documents`, `faculty.approve`, `faculty.publish`, `faculty.assign`, `students.read`, `configuration.read`, `configuration.manage`.
+- **Planned names from the Sprint 1 contract** are added by the epic that builds the endpoints: `catalogue.read`, `catalogue.manage`, `pricing.read`, `pricing.manage`, `library.upload`, `library.moderate`, `faculty.create`, `faculty.read`, `faculty.update`, `faculty.update_self`, `faculty.documents`, `faculty.approve`, `faculty.publish`, `faculty.assign`, `students.read`. (`configuration.read` and `configuration.manage` were added with the settings API, LMS-90.)
 
 ## Seeded System Roles [Implemented]
 
