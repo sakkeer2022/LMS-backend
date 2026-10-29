@@ -40,6 +40,7 @@ Open `.env` and verify the configuration:
 - `JWT_SECRET`, `JWT_REFRESH_SECRET`, `COOKIE_SECRET` — Replace with 32+ character secrets (generate via `openssl rand -hex 32`)
 - `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` — Approved payment gateway credentials (`rzp_test_*` for local development)
 - `METRICS_TOKEN` — Bearer token for `GET /metrics`; optional locally, **required (32+ characters) in production**
+- `ALLOWED_ORIGINS` — Comma-separated browser origins allowed to call the API with cookies; empty locally allows only `http://localhost:3001`, **required in production**
 
 ### B. Install Dependencies
 
