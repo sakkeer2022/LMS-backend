@@ -17,7 +17,7 @@
 | `npm run typecheck` | ✅ Pass |
 | `npm run lint` | ✅ 0 errors, 33 warnings (pre-existing) |
 | `npm run test:unit` | ✅ 132 passed (13 files), including `tests/unit/rbac.test.ts` (guard coverage) |
-| `npm run test:integration` (amentorz_test) | ✅ 80 passed (13 files), including `tests/modules/rbac_seed.test.ts`. One earlier run failed once in `auth.test.ts` ("should fail to register with existing email") and passed in 5 re-runs; existing flake, not related |
+| `npm run test:integration` (amentorz_test) | ✅ 80 passed (13 files), including `tests/modules/rbac_seed.test.ts`. One full run failed once in `auth.test.ts` ("should fail to register with existing email") and then passed 5 re-runs. Later runs on this branch and LMS-90 showed intermittent `socket hang up` failures in several files, including unchanged ones; cause not yet established, tracked separately |
 
 ## 2026-10-28 — Project setup and team conventions (LMS-52)
 
