@@ -85,6 +85,8 @@ Before asking for review, check every item:
 - [ ] `npm run lint`, `npm run typecheck` and `npm run build` pass.
 - [ ] `progress.md` is updated, and `findings.md` too if a decision was made.
 - [ ] No secrets, `.env` files, build output or uploaded files are committed.
+- [ ] Works for both India and UAE users (`src/docs/REGIONS.md`): no hard-coded country, dialling code, time zone or age rule, and tests cover both countries where behaviour differs.
+- [ ] Reused existing shared components (`src/docs/SHARED_COMPONENTS.md`), and listed any new reusable one there.
 
 ## Shared Files
 

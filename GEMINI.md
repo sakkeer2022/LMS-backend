@@ -45,6 +45,8 @@ For non-trivial tasks (new module, schema change, migration, refactor), **always
 
 Follow the Modular Design and Git Workflow rules in `.agents/AGENTS.md` (sections 8 and 9) and `src/docs/CONTRIBUTING.md`: module `index.ts` boundaries, adapters for external services, Jira-keyed branches and commits, and no AI `Co-Authored-By` trailers.
 
+Phase 1 serves India and the UAE: follow `src/docs/REGIONS.md` (no hard-coded country rules) and check `src/docs/SHARED_COMPONENTS.md` before writing a helper.
+
 1. Read an existing similar module completely (e.g., `src/modules/permissions/`).
 2. Create `prisma/schema.prisma` model addition.
 3. Run `npx prisma migrate dev --create-only`, review the SQL, then `npx prisma migrate dev`. Never use `prisma db push`.

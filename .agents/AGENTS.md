@@ -60,6 +60,8 @@ Every feature is built as a self-contained module. These rules extend the `contr
 5. **Routing is wired in one place**: a module exports its router from `index.ts` and it is mounted only in `src/routes/index.ts`. Route-specific rate limits, guards and upload middleware are applied in the module's own routes file.
 6. **Tests mirror modules**: integration tests in `tests/modules/<name>.test.ts` and unit tests for the module's pure logic in `tests/unit/`. Test fixtures create data through `tests/helpers/` factories, not through another module's HTTP endpoints, so changing one module's API does not break unrelated suites.
 7. **Contract first**: a module's endpoints must match `docs/openapi.yaml` (generated from `docs/build-contract-draft.py`). Change the generator and regenerate the contract before or with the code, never after.
+8. **India and UAE**: Phase 1 serves both countries. Never hard-code a country, dialling code, time zone, currency or age rule in a module; use the shared region helpers and follow `src/docs/REGIONS.md`. Country-specific content (policies, consent) is chosen by the user's country.
+9. **Reuse before you write**: check `src/docs/SHARED_COMPONENTS.md` before writing a helper, and add an entry when you create something another module could use.
 
 ### 9. Git Workflow (Compulsory)
 

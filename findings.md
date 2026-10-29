@@ -1,5 +1,20 @@
 # Findings & Decisions
 
+## 2026-10-29 — Product and tech lead decisions; India and UAE support
+
+| Finding / Decision | Detail |
+|---|---|
+| Guardian identity (project plan risk R4) | **Accepted.** The consent signature is not identity-verified; the acceptance is to be recorded in writing. Unblocks LMS-98/LMS-99; remove the R4 `DECISION REQUIRED` note from the contract when LMS-98 is built |
+| Policy documents | Production documents come from the client. Development uses AI-generated placeholder Student Terms, Terms of Use, Privacy Policy and Child Safety Policy, clearly marked as placeholders and never seeded in production |
+| Password rule | **8 characters with at least one number** (the onboarding UI rule). The SOW (A1.8) only asks for "secure password policies"; the "12-character policy" in our contract notes came from the template DTO (`src/modules/auth/auth.dto.ts`, `.min(12)`), not from a client document. Align the template DTOs and the contract when LMS-99/LMS-101 are built |
+| Email | Gmail SMTP for development; a different provider (SendGrid or similar) for production. Build one email interface with the transport chosen by configuration so switching is a settings change (LMS-97, shared with LMS-79) |
+| Backups and deployment | LMS-92 and LMS-94 are parked until hosting is decided |
+| Regions | Phase 1 serves India and the UAE. Rules in `src/docs/REGIONS.md`: no hard-coded country rules, E.164 mobiles, UTC storage with user time zone, INR only (project plan), country-specific policies and consent. `policy_documents` needs a `country` column (LMS-98) |
+| Reuse | `src/docs/SHARED_COMPONENTS.md` lists reusable building blocks; check it before writing a helper |
+| Audit against client documents | Contract notes and docs are being checked against the SOW, project plan and consent document for other claims presented as client requirements |
+
+---
+
 ## 2026-10-27 — Student onboarding schema decisions
 
 | Finding / Decision | Detail |
