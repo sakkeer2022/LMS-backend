@@ -1,36 +1,29 @@
 /**
- * Local and test login accounts (LMS-64). Never run in production.
- * Credentials come only from the environment; nothing is stored in the repo.
- * Requires the reference seed (`npx prisma db seed`) first, for the roles.
+ * Local development admin (LMS-64). Never runs in production: it requires
+ * APP_ENV=development and refuses NODE_ENV=production (prisma/seeds/dev-admin.ts).
+ * The password comes only from the environment; nothing is stored in the repo.
+ * Requires the reference seed (`npm run db:seed`) first, for the roles.
  *
- *   SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD   an `admin` account (catalogue.manage, pricing.manage)
+ *   APP_ENV=development
+ *   DEV_ADMIN_EMAIL      optional, default admin@local.test
+ *   DEV_ADMIN_PASSWORD   required, at least 12 characters
  *
- * Usage: npm run db:seed:users
+ * Usage: npm run db:seed:users   (re-running resets the password and unlocks the account)
  */
 import bcrypt from 'bcrypt';
 import { z } from 'zod';
 import { prisma } from '../src/infrastructure/database/connection.js';
+import { parseDevAdminEnv, type DevAdminSettings } from './seeds/dev-admin.js';
 
 const BCRYPT_ROUNDS = 12;
 
-const EnvDto = z.object({
-  NODE_ENV: z.string().optional(),
-  SEED_ADMIN_EMAIL: z.email(),
-  SEED_ADMIN_PASSWORD: z.string().min(12, 'SEED_ADMIN_PASSWORD must be at least 12 characters'),
-  SEED_ADMIN_NAME: z.string().trim().min(1).max(150).default('Local Admin'),
-});
-
-async function upsertUser(
-  account: { email: string; password: string; fullName: string },
-  roleName: string
-): Promise<void> {
-  const role = await prisma.role.findUnique({ where: { name: roleName } });
-  if (!role) throw new Error(`Role "${roleName}" is missing; run the reference seed first`);
+async function upsertAdmin(account: DevAdminSettings): Promise<void> {
+  const role = await prisma.role.findUnique({ where: { name: 'admin' } });
+  if (!role) throw new Error('Role "admin" is missing; run `npm run db:seed` first');
 
   const passwordHash = await bcrypt.hash(account.password, BCRYPT_ROUNDS);
   const user = await prisma.user.upsert({
-    where: { email: account.email.toLowerCase() },
-    // Re-running resets the password and unlocks the account
+    where: { email: account.email },
     update: {
       passwordHash,
       fullName: account.fullName,
@@ -39,7 +32,7 @@ async function upsertUser(
       lockedUntil: null,
     },
     create: {
-      email: account.email.toLowerCase(),
+      email: account.email,
       passwordHash,
       fullName: account.fullName,
       emailVerifiedAt: new Date(),
@@ -50,27 +43,17 @@ async function upsertUser(
     update: {},
     create: { userId: user.id, roleId: role.id },
   });
-  console.log(`Seeded ${roleName} ${user.email}`);
+  console.log(`Seeded admin ${user.email}`);
 }
 
 async function main(): Promise<void> {
-  const env = EnvDto.parse(process.env);
-  if (env.NODE_ENV === 'production')
-    throw new Error('Refusing to seed login accounts in production');
-  await upsertUser(
-    {
-      email: env.SEED_ADMIN_EMAIL,
-      password: env.SEED_ADMIN_PASSWORD,
-      fullName: env.SEED_ADMIN_NAME,
-    },
-    'admin'
-  );
+  await upsertAdmin(parseDevAdminEnv(process.env));
 }
 
 main()
   .then(() => prisma.$disconnect())
   .catch(async (e) => {
-    console.error(e instanceof z.ZodError ? z.prettifyError(e) : e);
+    console.error(e instanceof z.ZodError ? z.prettifyError(e) : e instanceof Error ? e.message : e);
     await prisma.$disconnect();
     process.exit(1);
   });
