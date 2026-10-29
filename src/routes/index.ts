@@ -10,6 +10,7 @@ import { notificationsRouter } from '@modules/notifications/notifications.routes
 import { adminRouter } from '@modules/admin/admin.routes.js';
 import { uploadsRouter } from '@modules/uploads/uploads.routes.js';
 import { auditLogMiddleware } from '@middleware/audit.middleware';
+import { catalogueRouter, adminCatalogueRouter } from '@modules/catalogue/index.js';
 
 export const router = Router();
 
@@ -24,6 +25,11 @@ router.use('/users', usersRouter);
 router.use('/audit', auditRouter);
 router.use('/feature-flags', featureFlagsRouter);
 router.use('/notifications', notificationsRouter);
+
+// ── Catalogue (LMS-54). Mounted before '/admin', whose router authenticates every path ──
+router.use('/catalogue', catalogueRouter);
+router.use('/admin/catalogue', adminCatalogueRouter);
+
 router.use('/admin', adminRouter);
 router.use('/uploads', uploadsRouter);
 

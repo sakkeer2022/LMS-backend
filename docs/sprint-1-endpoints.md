@@ -67,28 +67,36 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 |---|---|---|---|---|
 | GET | `/catalogue/categories` | `listCategorys` | public | ready-for-review |
 | GET | `/admin/catalogue/categories` | `listCategorysAdmin` | admin; catalogue.read | ready-for-review |
-| POST | `/admin/catalogue/categories` | `createCategory` | admin; catalogue.manage | ready-for-review |
-| PUT | `/admin/catalogue/categories/{id}` | `replaceCategory` | admin; catalogue.manage | ready-for-review |
+| POST | `/admin/catalogue/categories` | `createCategory` | admin; catalogue.manage | decision-required |
+| PUT | `/admin/catalogue/categories/{id}` | `replaceCategory` | admin; catalogue.manage | decision-required |
 | GET | `/catalogue/boards` | `listBoards` | public | ready-for-review |
 | GET | `/admin/catalogue/boards` | `listBoardsAdmin` | admin; catalogue.read | ready-for-review |
-| POST | `/admin/catalogue/boards` | `createBoard` | admin; catalogue.manage | ready-for-review |
-| PUT | `/admin/catalogue/boards/{id}` | `replaceBoard` | admin; catalogue.manage | ready-for-review |
+| POST | `/admin/catalogue/boards` | `createBoard` | admin; catalogue.manage | decision-required |
+| PUT | `/admin/catalogue/boards/{id}` | `replaceBoard` | admin; catalogue.manage | decision-required |
 | GET | `/catalogue/subjects` | `listSubjects` | public | ready-for-review |
 | GET | `/admin/catalogue/subjects` | `listSubjectsAdmin` | admin; catalogue.read | ready-for-review |
-| POST | `/admin/catalogue/subjects` | `createSubject` | admin; catalogue.manage | ready-for-review |
-| PUT | `/admin/catalogue/subjects/{id}` | `replaceSubject` | admin; catalogue.manage | ready-for-review |
+| POST | `/admin/catalogue/subjects` | `createSubject` | admin; catalogue.manage | decision-required |
+| PUT | `/admin/catalogue/subjects/{id}` | `replaceSubject` | admin; catalogue.manage | decision-required |
 | GET | `/catalogue/levels` | `listLevels` | public | ready-for-review |
 | GET | `/admin/catalogue/levels` | `listLevelsAdmin` | admin; catalogue.read | ready-for-review |
-| POST | `/admin/catalogue/levels` | `createLevel` | admin; catalogue.manage | ready-for-review |
-| PUT | `/admin/catalogue/levels/{id}` | `replaceLevel` | admin; catalogue.manage | ready-for-review |
+| POST | `/admin/catalogue/levels` | `createLevel` | admin; catalogue.manage | decision-required |
+| PUT | `/admin/catalogue/levels/{id}` | `replaceLevel` | admin; catalogue.manage | decision-required |
 | GET | `/catalogue/curricula` | `listCurriculums` | public | ready-for-review |
 | GET | `/admin/catalogue/curricula` | `listCurriculumsAdmin` | admin; catalogue.read | ready-for-review |
-| POST | `/admin/catalogue/curricula` | `createCurriculum` | admin; catalogue.manage | ready-for-review |
-| PUT | `/admin/catalogue/curricula/{id}` | `replaceCurriculum` | admin; catalogue.manage | ready-for-review |
 | GET | `/catalogue/teaching-languages` | `listTeachingLanguages` | public | ready-for-review |
 | GET | `/admin/catalogue/teaching-languages` | `listTeachingLanguagesAdmin` | admin; catalogue.read | ready-for-review |
 | POST | `/admin/catalogue/teaching-languages` | `createTeachingLanguage` | admin; catalogue.manage | ready-for-review |
 | PUT | `/admin/catalogue/teaching-languages/{id}` | `replaceTeachingLanguage` | admin; catalogue.manage | ready-for-review |
+| GET | `/catalogue/tree` | `getCatalogueTree` | public | ready-for-review |
+| GET | `/catalogue/nodes/{nodeId}` | `getCatalogueNode` | public | ready-for-review |
+| GET | `/admin/catalogue/tree` | `getCatalogueTreeAdmin` | admin; catalogue.read | ready-for-review |
+| GET | `/admin/catalogue/nodes/{nodeId}` | `getCatalogueNodeAdmin` | admin; catalogue.read | ready-for-review |
+| PUT | `/admin/catalogue/nodes/{nodeId}` | `updateCatalogueNode` | admin; catalogue.manage | ready-for-review |
+| POST | `/admin/catalogue/paths` | `createCataloguePath` | admin; catalogue.manage | ready-for-review |
+| POST | `/admin/catalogue/nodes` | `createCatalogueNode` | admin; catalogue.manage | ready-for-review |
+| PUT | `/admin/catalogue/nodes/reorder` | `reorderCatalogueNodes` | admin; catalogue.manage | ready-for-review |
+| PUT | `/admin/catalogue/nodes/{nodeId}/move` | `moveCatalogueNode` | admin; catalogue.manage | ready-for-review |
+| PUT | `/admin/catalogue/nodes/{nodeId}/archive` | `archiveCatalogueNode` | admin; catalogue.manage | ready-for-review |
 | GET | `/admin/faculty/{facultyId}/assignments` | `listFacultyAssignments` | admin; faculty.read | ready-for-review |
 | POST | `/admin/faculty/{facultyId}/assignments` | `createFacultyAssignment` | admin; faculty.assign | ready-for-review |
 | PUT | `/admin/faculty/{facultyId}/assignments/{assignmentId}` | `replaceFacultyAssignment` | admin; faculty.assign | ready-for-review |

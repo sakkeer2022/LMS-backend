@@ -1394,7 +1394,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -1751,7 +1751,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -2756,7 +2756,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -3046,7 +3046,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -3219,7 +3219,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -3750,7 +3750,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -3846,7 +3846,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -3862,9 +3862,9 @@
           "Catalogue"
         ],
         "summary": "Create category",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Seed four categories: School, University, JEE/NEET, Research & Skill Learning (combined). No category split required. Audit create. Invalid relationships 422; duplicate 409.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Seed four categories: School, University, JEE/NEET, Research & Skill Learning (combined). No category split required. Audit create. Invalid relationships 422; duplicate 409. DECISION REQUIRED: D12: admin create/edit of master lists is deferred; Sprint 1 seeds them and exposes list-only endpoints.",
         "x-required-role": "admin; catalogue.manage",
-        "x-review-status": "ready-for-review",
+        "x-review-status": "decision-required",
         "security": [
           {
             "cookieAuth": []
@@ -3944,9 +3944,9 @@
           "Catalogue"
         ],
         "summary": "Replace or archive category",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Seed four categories: School, University, JEE/NEET, Research & Skill Learning (combined). No category split required. Audit old/new allowlisted values. Archival immediately removes affected assignments/prices from consumer resolution. Reject structural reparenting of referenced curricula with 409; archive and create new tuple instead.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Seed four categories: School, University, JEE/NEET, Research & Skill Learning (combined). No category split required. Audit old/new allowlisted values. Archival immediately removes affected assignments/prices from consumer resolution. Reject structural reparenting of referenced curricula with 409; archive and create new tuple instead. DECISION REQUIRED: D12: admin create/edit of master lists is deferred; Sprint 1 seeds them and exposes list-only endpoints.",
         "x-required-role": "admin; catalogue.manage",
-        "x-review-status": "ready-for-review",
+        "x-review-status": "decision-required",
         "security": [
           {
             "cookieAuth": []
@@ -4098,7 +4098,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -4194,7 +4194,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -4210,9 +4210,9 @@
           "Catalogue"
         ],
         "summary": "Create board",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Seed NCERT and ICSE; State Board structures need named state-board entries decided by admin. NCERT is retained as requested business label pending terminology review. Audit create. Invalid relationships 422; duplicate 409.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Seed NCERT and ICSE; State Board structures need named state-board entries decided by admin. NCERT is retained as requested business label pending terminology review. Audit create. Invalid relationships 422; duplicate 409. DECISION REQUIRED: D12: admin create/edit of master lists is deferred; Sprint 1 seeds them and exposes list-only endpoints.",
         "x-required-role": "admin; catalogue.manage",
-        "x-review-status": "ready-for-review",
+        "x-review-status": "decision-required",
         "security": [
           {
             "cookieAuth": []
@@ -4233,7 +4233,8 @@
                     "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                     "code": "mathematics",
                     "name": "Mathematics",
-                    "isActive": true
+                    "isActive": true,
+                    "sortOrder": 0
                   }
                 }
               }
@@ -4291,9 +4292,9 @@
           "Catalogue"
         ],
         "summary": "Replace or archive board",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Seed NCERT and ICSE; State Board structures need named state-board entries decided by admin. NCERT is retained as requested business label pending terminology review. Audit old/new allowlisted values. Archival immediately removes affected assignments/prices from consumer resolution. Reject structural reparenting of referenced curricula with 409; archive and create new tuple instead.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Seed NCERT and ICSE; State Board structures need named state-board entries decided by admin. NCERT is retained as requested business label pending terminology review. Audit old/new allowlisted values. Archival immediately removes affected assignments/prices from consumer resolution. Reject structural reparenting of referenced curricula with 409; archive and create new tuple instead. DECISION REQUIRED: D12: admin create/edit of master lists is deferred; Sprint 1 seeds them and exposes list-only endpoints.",
         "x-required-role": "admin; catalogue.manage",
-        "x-review-status": "ready-for-review",
+        "x-review-status": "decision-required",
         "security": [
           {
             "cookieAuth": []
@@ -4314,7 +4315,8 @@
                     "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                     "code": "mathematics",
                     "name": "Mathematics",
-                    "isActive": true
+                    "isActive": true,
+                    "sortOrder": 0
                   }
                 }
               }
@@ -4444,7 +4446,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -4540,7 +4542,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -4556,9 +4558,9 @@
           "Catalogue"
         ],
         "summary": "Create subject",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Audit create. Invalid relationships 422; duplicate 409.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Audit create. Invalid relationships 422; duplicate 409. DECISION REQUIRED: D12: admin create/edit of master lists is deferred; Sprint 1 seeds them and exposes list-only endpoints.",
         "x-required-role": "admin; catalogue.manage",
-        "x-review-status": "ready-for-review",
+        "x-review-status": "decision-required",
         "security": [
           {
             "cookieAuth": []
@@ -4579,7 +4581,8 @@
                     "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                     "code": "mathematics",
                     "name": "Mathematics",
-                    "isActive": true
+                    "isActive": true,
+                    "sortOrder": 0
                   }
                 }
               }
@@ -4637,9 +4640,9 @@
           "Catalogue"
         ],
         "summary": "Replace or archive subject",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Audit old/new allowlisted values. Archival immediately removes affected assignments/prices from consumer resolution. Reject structural reparenting of referenced curricula with 409; archive and create new tuple instead.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Audit old/new allowlisted values. Archival immediately removes affected assignments/prices from consumer resolution. Reject structural reparenting of referenced curricula with 409; archive and create new tuple instead. DECISION REQUIRED: D12: admin create/edit of master lists is deferred; Sprint 1 seeds them and exposes list-only endpoints.",
         "x-required-role": "admin; catalogue.manage",
-        "x-review-status": "ready-for-review",
+        "x-review-status": "decision-required",
         "security": [
           {
             "cookieAuth": []
@@ -4660,7 +4663,8 @@
                     "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                     "code": "mathematics",
                     "name": "Mathematics",
-                    "isActive": true
+                    "isActive": true,
+                    "sortOrder": 0
                   }
                 }
               }
@@ -4775,6 +4779,17 @@
         },
         "parameters": [
           {
+            "name": "categoryId",
+            "in": "query",
+            "required": false,
+            "description": "Only levels scoped to this category.",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -4790,7 +4805,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -4886,7 +4901,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -4902,9 +4917,9 @@
           "Catalogue"
         ],
         "summary": "Create level",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Audit create. Invalid relationships 422; duplicate 409.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Audit create. Invalid relationships 422; duplicate 409. DECISION REQUIRED: D12: admin create/edit of master lists is deferred; Sprint 1 seeds them and exposes list-only endpoints.",
         "x-required-role": "admin; catalogue.manage",
-        "x-review-status": "ready-for-review",
+        "x-review-status": "decision-required",
         "security": [
           {
             "cookieAuth": []
@@ -4925,7 +4940,9 @@
                     "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                     "code": "mathematics",
                     "name": "Mathematics",
-                    "isActive": true
+                    "isActive": true,
+                    "sortOrder": 0,
+                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
                   }
                 }
               }
@@ -4983,9 +5000,9 @@
           "Catalogue"
         ],
         "summary": "Replace or archive level",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Audit old/new allowlisted values. Archival immediately removes affected assignments/prices from consumer resolution. Reject structural reparenting of referenced curricula with 409; archive and create new tuple instead.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Audit old/new allowlisted values. Archival immediately removes affected assignments/prices from consumer resolution. Reject structural reparenting of referenced curricula with 409; archive and create new tuple instead. DECISION REQUIRED: D12: admin create/edit of master lists is deferred; Sprint 1 seeds them and exposes list-only endpoints.",
         "x-required-role": "admin; catalogue.manage",
-        "x-review-status": "ready-for-review",
+        "x-review-status": "decision-required",
         "security": [
           {
             "cookieAuth": []
@@ -5006,7 +5023,9 @@
                     "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                     "code": "mathematics",
                     "name": "Mathematics",
-                    "isActive": true
+                    "isActive": true,
+                    "sortOrder": 0,
+                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
                   }
                 }
               }
@@ -5077,7 +5096,7 @@
           "Catalogue"
         ],
         "summary": "List active curricula",
-        "description": "Public; no authenticated identity required. Public projection excludes inactive or parent-inactive rows. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Unique categoryId+boardId+subjectId+levelId, treating null board as equal. Board required only for School; otherwise must be null. All references active. This tuple is the configured offering; alternate curricula for the same tuple need a reviewed contract change. ",
+        "description": "Public; no authenticated identity required. Public projection excludes inactive or parent-inactive rows. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Created and kept in sync by the catalogue tree: each LEVEL leaf owns one curriculum, active only while the leaf and every ancestor are PUBLISHED (ADR 0003). A combination appears once in the tree. Unique categoryId+boardId+subjectId+levelId, treating null board as equal. Board required only for School; otherwise must be null. All references active. This tuple is the configured offering; alternate curricula for the same tuple need a reviewed contract change. ",
         "x-required-role": "public",
         "x-review-status": "ready-for-review",
         "security": [],
@@ -5169,7 +5188,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -5187,7 +5206,7 @@
           "Catalogue"
         ],
         "summary": "List all configured curricula",
-        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Unique categoryId+boardId+subjectId+levelId, treating null board as equal. Board required only for School; otherwise must be null. All references active. This tuple is the configured offering; alternate curricula for the same tuple need a reviewed contract change. ",
+        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Created and kept in sync by the catalogue tree: each LEVEL leaf owns one curriculum, active only while the leaf and every ancestor are PUBLISHED (ADR 0003). A combination appears once in the tree. Unique categoryId+boardId+subjectId+levelId, treating null board as equal. Board required only for School; otherwise must be null. All references active. This tuple is the configured offering; alternate curricula for the same tuple need a reviewed contract change. ",
         "x-required-role": "admin; catalogue.read",
         "x-review-status": "ready-for-review",
         "security": [
@@ -5265,7 +5284,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -5274,187 +5293,6 @@
             }
           }
         ]
-      },
-      "post": {
-        "operationId": "createCurriculum",
-        "tags": [
-          "Catalogue"
-        ],
-        "summary": "Create curriculum",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Unique categoryId+boardId+subjectId+levelId, treating null board as equal. Board required only for School; otherwise must be null. All references active. This tuple is the configured offering; alternate curricula for the same tuple need a reviewed contract change. Audit create. Invalid relationships 422; duplicate 409.",
-        "x-required-role": "admin; catalogue.manage",
-        "x-review-status": "ready-for-review",
-        "security": [
-          {
-            "cookieAuth": []
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Create curriculum.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/createCurriculumResponse"
-                },
-                "example": {
-                  "success": true,
-                  "message": "Success",
-                  "data": {
-                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "boardId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "subjectId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "levelId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "name": "Mathematics",
-                    "syllabus": "Linear equations and introductory algebra.",
-                    "isActive": true
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/E400"
-          },
-          "401": {
-            "$ref": "#/components/responses/E401"
-          },
-          "403": {
-            "$ref": "#/components/responses/E403"
-          },
-          "409": {
-            "$ref": "#/components/responses/E409"
-          },
-          "413": {
-            "$ref": "#/components/responses/E413"
-          },
-          "422": {
-            "$ref": "#/components/responses/E422"
-          },
-          "429": {
-            "$ref": "#/components/responses/E429"
-          },
-          "500": {
-            "$ref": "#/components/responses/E500"
-          },
-          "503": {
-            "$ref": "#/components/responses/E503"
-          }
-        },
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/CsrfHeader"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CurriculumWrite"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/admin/catalogue/curricula/{id}": {
-      "put": {
-        "operationId": "replaceCurriculum",
-        "tags": [
-          "Catalogue"
-        ],
-        "summary": "Replace or archive curriculum",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Admin-managed persistent catalogue. Unique code for named entities; archive with isActive=false instead of deleting referenced rows. Unique categoryId+boardId+subjectId+levelId, treating null board as equal. Board required only for School; otherwise must be null. All references active. This tuple is the configured offering; alternate curricula for the same tuple need a reviewed contract change. Audit old/new allowlisted values. Archival immediately removes affected assignments/prices from consumer resolution. Reject structural reparenting of referenced curricula with 409; archive and create new tuple instead.",
-        "x-required-role": "admin; catalogue.manage",
-        "x-review-status": "ready-for-review",
-        "security": [
-          {
-            "cookieAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Replace or archive curriculum.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/replaceCurriculumResponse"
-                },
-                "example": {
-                  "success": true,
-                  "message": "Success",
-                  "data": {
-                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "boardId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "subjectId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "levelId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "name": "Mathematics",
-                    "syllabus": "Linear equations and introductory algebra.",
-                    "isActive": true
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/E400"
-          },
-          "401": {
-            "$ref": "#/components/responses/E401"
-          },
-          "403": {
-            "$ref": "#/components/responses/E403"
-          },
-          "404": {
-            "$ref": "#/components/responses/E404"
-          },
-          "409": {
-            "$ref": "#/components/responses/E409"
-          },
-          "413": {
-            "$ref": "#/components/responses/E413"
-          },
-          "422": {
-            "$ref": "#/components/responses/E422"
-          },
-          "429": {
-            "$ref": "#/components/responses/E429"
-          },
-          "500": {
-            "$ref": "#/components/responses/E500"
-          },
-          "503": {
-            "$ref": "#/components/responses/E503"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/CsrfHeader"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CurriculumWrite"
-              }
-            }
-          }
-        }
       }
     },
     "/catalogue/teaching-languages": {
@@ -5523,7 +5361,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -5619,7 +5457,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -5805,6 +5643,1006 @@
         }
       }
     },
+    "/catalogue/tree": {
+      "get": {
+        "operationId": "getCatalogueTree",
+        "tags": [
+          "Catalogue"
+        ],
+        "summary": "Published catalogue tree for one category",
+        "description": "Public; no authenticated identity required. Categories & Content tree (ADR 0003): CATEGORY > SUBSECTION > BOARD > SUBJECT > LEVEL; SUBSECTION and BOARD may be skipped; BOARD only where the category requires a board. Each LEVEL leaf owns one curriculum. Only nodes that are published and whose every ancestor is published. Unknown or inactive category 404. Cache-Control: public, max-age=60.",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Published catalogue tree for one category.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getCatalogueTreeResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "type": "CATEGORY",
+                    "name": "Mathematics",
+                    "slug": "Example value",
+                    "status": "DRAFT",
+                    "sortOrder": 0,
+                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "boardId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "subjectId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "levelId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "bookingEnabled": true,
+                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "childCount": 0,
+                    "counts": {
+                      "subsections": 0,
+                      "boards": 0,
+                      "subjects": 0,
+                      "levels": 0
+                    },
+                    "children": []
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": true,
+            "description": "Category id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      }
+    },
+    "/catalogue/nodes/{nodeId}": {
+      "get": {
+        "operationId": "getCatalogueNode",
+        "tags": [
+          "Catalogue"
+        ],
+        "summary": "Published catalogue node with its path",
+        "description": "Public; no authenticated identity required. Categories & Content tree (ADR 0003): CATEGORY > SUBSECTION > BOARD > SUBJECT > LEVEL; SUBSECTION and BOARD may be skipped; BOARD only where the category requires a board. Each LEVEL leaf owns one curriculum. Draft, archived or hidden nodes 404.",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Published catalogue node with its path.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getCatalogueNodeResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "type": "CATEGORY",
+                    "name": "Mathematics",
+                    "slug": "Example value",
+                    "status": "DRAFT",
+                    "sortOrder": 0,
+                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "boardId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "subjectId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "levelId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "bookingEnabled": true,
+                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "childCount": 0,
+                    "counts": {
+                      "subsections": 0,
+                      "boards": 0,
+                      "subjects": 0,
+                      "levels": 0
+                    },
+                    "rootId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "path": [],
+                    "libraryResources": 0,
+                    "tutorsMapped": 0,
+                    "sessionsThisMonth": 0,
+                    "sessionPricePaise": 0,
+                    "createdAt": "2026-10-21T09:00:00Z",
+                    "updatedAt": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "nodeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      }
+    },
+    "/admin/catalogue/tree": {
+      "get": {
+        "operationId": "getCatalogueTreeAdmin",
+        "tags": [
+          "Catalogue"
+        ],
+        "summary": "Full catalogue tree with drafts and counts",
+        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Categories & Content tree (ADR 0003): CATEGORY > SUBSECTION > BOARD > SUBJECT > LEVEL; SUBSECTION and BOARD may be skipped; BOARD only where the category requires a board. Each LEVEL leaf owns one curriculum. Includes DRAFT and ARCHIVED nodes, child counts and descendant counts by type (screen 28).",
+        "x-required-role": "admin; catalogue.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Full catalogue tree with drafts and counts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getCatalogueTreeAdminResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "type": "CATEGORY",
+                    "name": "Mathematics",
+                    "slug": "Example value",
+                    "status": "DRAFT",
+                    "sortOrder": 0,
+                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "boardId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "subjectId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "levelId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "bookingEnabled": true,
+                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "childCount": 0,
+                    "counts": {
+                      "subsections": 0,
+                      "boards": 0,
+                      "subjects": 0,
+                      "levels": 0
+                    },
+                    "children": []
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": true,
+            "description": "Category id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Name search; matches keep their ancestors and subtree.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          }
+        ]
+      }
+    },
+    "/admin/catalogue/nodes/{nodeId}": {
+      "get": {
+        "operationId": "getCatalogueNodeAdmin",
+        "tags": [
+          "Catalogue"
+        ],
+        "summary": "Catalogue node detail panel",
+        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Categories & Content tree (ADR 0003): CATEGORY > SUBSECTION > BOARD > SUBJECT > LEVEL; SUBSECTION and BOARD may be skipped; BOARD only where the category requires a board. Each LEVEL leaf owns one curriculum. Counts whose source module does not exist yet are null, never estimated.",
+        "x-required-role": "admin; catalogue.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Catalogue node detail panel.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getCatalogueNodeAdminResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "type": "CATEGORY",
+                    "name": "Mathematics",
+                    "slug": "Example value",
+                    "status": "DRAFT",
+                    "sortOrder": 0,
+                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "boardId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "subjectId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "levelId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "bookingEnabled": true,
+                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "childCount": 0,
+                    "counts": {
+                      "subsections": 0,
+                      "boards": 0,
+                      "subjects": 0,
+                      "levels": 0
+                    },
+                    "rootId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "path": [],
+                    "libraryResources": 0,
+                    "tutorsMapped": 0,
+                    "sessionsThisMonth": 0,
+                    "sessionPricePaise": 0,
+                    "createdAt": "2026-10-21T09:00:00Z",
+                    "updatedAt": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "nodeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      },
+      "put": {
+        "operationId": "updateCatalogueNode",
+        "tags": [
+          "Catalogue"
+        ],
+        "summary": "Edit a catalogue node",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Categories & Content tree (ADR 0003): CATEGORY > SUBSECTION > BOARD > SUBJECT > LEVEL; SUBSECTION and BOARD may be skipped; BOARD only where the category requires a board. Each LEVEL leaf owns one curriculum. Changes name, slug, order, DRAFT/PUBLISHED status or the category booking flag. Setting a status on an archived node restores it; its parent must not be archived. Curricula below follow the published state. Audit old/new values.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Edit a catalogue node.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/updateCatalogueNodeResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "type": "CATEGORY",
+                    "name": "Mathematics",
+                    "slug": "Example value",
+                    "status": "DRAFT",
+                    "sortOrder": 0,
+                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "boardId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "subjectId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "levelId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "bookingEnabled": true,
+                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "childCount": 0,
+                    "counts": {
+                      "subsections": 0,
+                      "boards": 0,
+                      "subjects": 0,
+                      "levels": 0
+                    },
+                    "rootId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "path": [],
+                    "libraryResources": 0,
+                    "tutorsMapped": 0,
+                    "sessionsThisMonth": 0,
+                    "sessionPricePaise": 0,
+                    "createdAt": "2026-10-21T09:00:00Z",
+                    "updatedAt": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "nodeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodeUpdate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/catalogue/paths": {
+      "post": {
+        "operationId": "createCataloguePath",
+        "tags": [
+          "Catalogue"
+        ],
+        "summary": "Add a whole path ending in a level",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Categories & Content tree (ADR 0003): CATEGORY > SUBSECTION > BOARD > SUBJECT > LEVEL; SUBSECTION and BOARD may be skipped; BOARD only where the category requires a board. Each LEVEL leaf owns one curriculum. Screen 28a. One transaction reuses existing board and subject nodes under the chosen parent and creates the missing ones, then the leaf and its curriculum. Existing path 409; the same combination under another subsection 409 (known limitation pending D11). Inactive or unknown references, a level of another category, or a board rule violation 422. New nodes start as DRAFT unless status is given. Audit each created node.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Add a whole path ending in a level.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/createCataloguePathResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "leaf": {
+                      "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                      "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                      "type": "CATEGORY",
+                      "name": "Mathematics",
+                      "slug": "Example value",
+                      "status": "DRAFT",
+                      "sortOrder": 0,
+                      "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                      "boardId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                      "subjectId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                      "levelId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                      "bookingEnabled": true,
+                      "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                      "childCount": 0,
+                      "counts": {
+                        "subsections": 0,
+                        "boards": 0,
+                        "subjects": 0,
+                        "levels": 0
+                      },
+                      "rootId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                      "path": [],
+                      "libraryResources": 0,
+                      "tutorsMapped": 0,
+                      "sessionsThisMonth": 0,
+                      "sessionPricePaise": 0,
+                      "createdAt": "2026-10-21T09:00:00Z",
+                      "updatedAt": "2026-10-21T09:00:00Z"
+                    },
+                    "createdNodeIds": []
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PathWrite"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/catalogue/nodes": {
+      "post": {
+        "operationId": "createCatalogueNode",
+        "tags": [
+          "Catalogue"
+        ],
+        "summary": "Create one catalogue node",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Categories & Content tree (ADR 0003): CATEGORY > SUBSECTION > BOARD > SUBJECT > LEVEL; SUBSECTION and BOARD may be skipped; BOARD only where the category requires a board. Each LEVEL leaf owns one curriculum. CATEGORY nodes are fixed (D8). Wrong parent type, archived parent or invalid reference 422; duplicate sibling slug or master value 409. Audit create.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Create one catalogue node.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/createCatalogueNodeResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "type": "CATEGORY",
+                    "name": "Mathematics",
+                    "slug": "Example value",
+                    "status": "DRAFT",
+                    "sortOrder": 0,
+                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "boardId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "subjectId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "levelId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "bookingEnabled": true,
+                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "childCount": 0,
+                    "counts": {
+                      "subsections": 0,
+                      "boards": 0,
+                      "subjects": 0,
+                      "levels": 0
+                    },
+                    "rootId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "path": [],
+                    "libraryResources": 0,
+                    "tutorsMapped": 0,
+                    "sessionsThisMonth": 0,
+                    "sessionPricePaise": 0,
+                    "createdAt": "2026-10-21T09:00:00Z",
+                    "updatedAt": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodeCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/catalogue/nodes/reorder": {
+      "put": {
+        "operationId": "reorderCatalogueNodes",
+        "tags": [
+          "Catalogue"
+        ],
+        "summary": "Set the order of every child of a parent",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Categories & Content tree (ADR 0003): CATEGORY > SUBSECTION > BOARD > SUBJECT > LEVEL; SUBSECTION and BOARD may be skipped; BOARD only where the category requires a board. Each LEVEL leaf owns one curriculum. orderedIds must list every child exactly once, otherwise 422. Audit old and new order.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Set the order of every child of a parent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/reorderCatalogueNodesResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "orderedIds": []
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodeReorder"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/catalogue/nodes/{nodeId}/move": {
+      "put": {
+        "operationId": "moveCatalogueNode",
+        "tags": [
+          "Catalogue"
+        ],
+        "summary": "Move a node under another parent",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Categories & Content tree (ADR 0003): CATEGORY > SUBSECTION > BOARD > SUBJECT > LEVEL; SUBSECTION and BOARD may be skipped; BOARD only where the category requires a board. Each LEVEL leaf owns one curriculum. Same category only. Cycle, wrong parent type or archived parent 422. 409 while any curriculum in the subtree is used by students, tutors or library items (D16), or when the new parent already has a matching child. Curricula follow the new path. Audit old/new parent.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Move a node under another parent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/moveCatalogueNodeResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "type": "CATEGORY",
+                    "name": "Mathematics",
+                    "slug": "Example value",
+                    "status": "DRAFT",
+                    "sortOrder": 0,
+                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "boardId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "subjectId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "levelId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "bookingEnabled": true,
+                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "childCount": 0,
+                    "counts": {
+                      "subsections": 0,
+                      "boards": 0,
+                      "subjects": 0,
+                      "levels": 0
+                    },
+                    "rootId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "path": [],
+                    "libraryResources": 0,
+                    "tutorsMapped": 0,
+                    "sessionsThisMonth": 0,
+                    "sessionPricePaise": 0,
+                    "createdAt": "2026-10-21T09:00:00Z",
+                    "updatedAt": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "nodeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodeMove"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/catalogue/nodes/{nodeId}/archive": {
+      "put": {
+        "operationId": "archiveCatalogueNode",
+        "tags": [
+          "Catalogue"
+        ],
+        "summary": "Archive a catalogue node",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Categories & Content tree (ADR 0003): CATEGORY > SUBSECTION > BOARD > SUBJECT > LEVEL; SUBSECTION and BOARD may be skipped; BOARD only where the category requires a board. Each LEVEL leaf owns one curriculum. Soft archive only. Blocked with 409 while a child is not archived (D3). Category tabs cannot be archived (422). The leaf curriculum becomes inactive. Audit.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archive a catalogue node.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/archiveCatalogueNodeResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "type": "CATEGORY",
+                    "name": "Mathematics",
+                    "slug": "Example value",
+                    "status": "DRAFT",
+                    "sortOrder": 0,
+                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "boardId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "subjectId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "levelId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "bookingEnabled": true,
+                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "childCount": 0,
+                    "counts": {
+                      "subsections": 0,
+                      "boards": 0,
+                      "subjects": 0,
+                      "levels": 0
+                    },
+                    "rootId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "path": [],
+                    "libraryResources": 0,
+                    "tutorsMapped": 0,
+                    "sessionsThisMonth": 0,
+                    "sessionPricePaise": 0,
+                    "createdAt": "2026-10-21T09:00:00Z",
+                    "updatedAt": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "nodeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ]
+      }
+    },
     "/admin/faculty/{facultyId}/assignments": {
       "get": {
         "operationId": "listFacultyAssignments",
@@ -5894,7 +6732,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -6197,7 +7035,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -6735,7 +7573,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -7030,7 +7868,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -7409,7 +8247,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -7735,7 +8573,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -9475,13 +10313,20 @@
           },
           "isActive": {
             "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "Dropdown order; ties sort by name."
           }
         },
         "required": [
           "id",
           "code",
           "name",
-          "isActive"
+          "isActive",
+          "sortOrder"
         ]
       },
       "SubjectWrite": {
@@ -9531,13 +10376,20 @@
           },
           "isActive": {
             "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "Dropdown order; ties sort by name."
           }
         },
         "required": [
           "id",
           "code",
           "name",
-          "isActive"
+          "isActive",
+          "sortOrder"
         ]
       },
       "LevelWrite": {
@@ -9587,62 +10439,28 @@
           },
           "isActive": {
             "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "Dropdown order; ties sort by name."
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true,
+            "description": "Optional category scope; dropdowns show only that category's levels."
           }
         },
         "required": [
           "id",
           "code",
           "name",
-          "isActive"
-        ]
-      },
-      "CurriculumWrite": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "categoryId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-          },
-          "boardId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-            "nullable": true
-          },
-          "subjectId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-          },
-          "levelId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-          },
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          },
-          "syllabus": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 20000
-          },
-          "isActive": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "categoryId",
-          "boardId",
-          "subjectId",
-          "levelId",
-          "name",
-          "syllabus",
-          "isActive"
+          "isActive",
+          "sortOrder",
+          "categoryId"
         ]
       },
       "Curriculum": {
@@ -9675,15 +10493,24 @@
             "format": "uuid",
             "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
           },
+          "nodeId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true,
+            "description": "LEVEL leaf in the catalogue tree that owns this offering."
+          },
           "name": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 200
+            "maxLength": 200,
+            "description": "Display label composed from the board, subject and level names, e.g. \"CBSE \u00b7 Physics \u00b7 Class 11\"."
           },
           "syllabus": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 20000
+            "maxLength": 20000,
+            "nullable": true
           },
           "isActive": {
             "type": "boolean"
@@ -9695,9 +10522,570 @@
           "boardId",
           "subjectId",
           "levelId",
+          "nodeId",
           "name",
           "syllabus",
           "isActive"
+        ]
+      },
+      "NodeCounts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "subsections": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "boards": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "subjects": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "levels": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "subsections",
+          "boards",
+          "subjects",
+          "levels"
+        ]
+      },
+      "TreeNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "CATEGORY",
+              "SUBSECTION",
+              "BOARD",
+              "SUBJECT",
+              "LEVEL"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "ARCHIVED"
+            ]
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          },
+          "boardId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          },
+          "subjectId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          },
+          "levelId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          },
+          "bookingEnabled": {
+            "type": "boolean",
+            "description": "Book-a-session option; meaningful on CATEGORY nodes."
+          },
+          "curriculumId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true,
+            "description": "Set on LEVEL leaves."
+          },
+          "childCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "counts": {
+            "$ref": "#/components/schemas/NodeCounts"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TreeNode"
+            },
+            "maxItems": 500
+          }
+        },
+        "required": [
+          "id",
+          "parentId",
+          "type",
+          "name",
+          "slug",
+          "status",
+          "sortOrder",
+          "categoryId",
+          "boardId",
+          "subjectId",
+          "levelId",
+          "bookingEnabled",
+          "curriculumId",
+          "childCount",
+          "counts",
+          "children"
+        ]
+      },
+      "NodeDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "CATEGORY",
+              "SUBSECTION",
+              "BOARD",
+              "SUBJECT",
+              "LEVEL"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "ARCHIVED"
+            ]
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          },
+          "boardId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          },
+          "subjectId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          },
+          "levelId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          },
+          "bookingEnabled": {
+            "type": "boolean",
+            "description": "Book-a-session option; meaningful on CATEGORY nodes."
+          },
+          "curriculumId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true,
+            "description": "Set on LEVEL leaves."
+          },
+          "childCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "counts": {
+            "$ref": "#/components/schemas/NodeCounts"
+          },
+          "rootId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "CATEGORY",
+                    "SUBSECTION",
+                    "BOARD",
+                    "SUBJECT",
+                    "LEVEL"
+                  ]
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "id",
+                "type",
+                "name"
+              ]
+            },
+            "maxItems": 5
+          },
+          "libraryResources": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "nullable": true,
+            "description": "Null while the library is on hold."
+          },
+          "tutorsMapped": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "nullable": true,
+            "description": "Null until faculty assignments exist (LMS-88)."
+          },
+          "sessionsThisMonth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "nullable": true,
+            "description": "Null until bookings exist (M05)."
+          },
+          "sessionPricePaise": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "nullable": true,
+            "description": "Default session price for the leaf; null until pricing (LMS-58)."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          }
+        },
+        "required": [
+          "id",
+          "parentId",
+          "type",
+          "name",
+          "slug",
+          "status",
+          "sortOrder",
+          "categoryId",
+          "boardId",
+          "subjectId",
+          "levelId",
+          "bookingEnabled",
+          "curriculumId",
+          "childCount",
+          "counts",
+          "rootId",
+          "path",
+          "libraryResources",
+          "tutorsMapped",
+          "sessionsThisMonth",
+          "sessionPricePaise",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PathWrite": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "subsectionNodeId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "boardId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "description": "Required when the category requires a board (School); otherwise not allowed."
+          },
+          "subjectId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "levelId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED"
+            ],
+            "description": "Archive has its own operation.",
+            "default": "DRAFT"
+          }
+        },
+        "required": [
+          "categoryId",
+          "subjectId",
+          "levelId"
+        ]
+      },
+      "PathCreated": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "leaf": {
+            "$ref": "#/components/schemas/NodeDetail"
+          },
+          "createdNodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            },
+            "maxItems": 4
+          }
+        },
+        "required": [
+          "leaf",
+          "createdNodeIds"
+        ]
+      },
+      "NodeCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "SUBSECTION",
+              "BOARD",
+              "SUBJECT",
+              "LEVEL"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Required for SUBSECTION; otherwise defaults to the master name."
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "boardId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "description": "BOARD nodes only."
+          },
+          "subjectId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "description": "SUBJECT nodes only."
+          },
+          "levelId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "description": "LEVEL nodes only."
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED"
+            ],
+            "description": "Archive has its own operation.",
+            "default": "DRAFT"
+          }
+        },
+        "required": [
+          "parentId",
+          "type"
+        ]
+      },
+      "NodeUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED"
+            ],
+            "description": "Archive has its own operation."
+          },
+          "bookingEnabled": {
+            "type": "boolean",
+            "description": "CATEGORY nodes only."
+          }
+        },
+        "minProperties": 1
+      },
+      "NodeMove": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          }
+        },
+        "required": [
+          "parentId"
+        ]
+      },
+      "NodeReorder": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "orderedIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "Every child of the parent, exactly once."
+          }
+        },
+        "required": [
+          "parentId",
+          "orderedIds"
         ]
       },
       "AssignmentWrite": {
@@ -12028,56 +13416,6 @@
           "meta"
         ]
       },
-      "createCurriculumResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "enum": [
-              true
-            ]
-          },
-          "message": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500
-          },
-          "data": {
-            "$ref": "#/components/schemas/Curriculum"
-          }
-        },
-        "required": [
-          "success",
-          "message",
-          "data"
-        ]
-      },
-      "replaceCurriculumResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "enum": [
-              true
-            ]
-          },
-          "message": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500
-          },
-          "data": {
-            "$ref": "#/components/schemas/Curriculum"
-          }
-        },
-        "required": [
-          "success",
-          "message",
-          "data"
-        ]
-      },
       "listTeachingLanguagesResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -12186,6 +13524,277 @@
           },
           "data": {
             "$ref": "#/components/schemas/TeachingLanguage"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getCatalogueTreeResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/TreeNode"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getCatalogueNodeResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/NodeDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getCatalogueTreeAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/TreeNode"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getCatalogueNodeAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/NodeDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "createCataloguePathResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/PathCreated"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "createCatalogueNodeResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/NodeDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "reorderCatalogueNodesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "parentId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+              },
+              "orderedIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "maxItems": 500
+              }
+            },
+            "required": [
+              "parentId",
+              "orderedIds"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "updateCatalogueNodeResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/NodeDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "moveCatalogueNodeResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/NodeDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "archiveCatalogueNodeResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/NodeDetail"
           }
         },
         "required": [
