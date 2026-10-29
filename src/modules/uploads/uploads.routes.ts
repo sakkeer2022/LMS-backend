@@ -11,7 +11,7 @@ export const uploadsRouter = Router();
  * /uploads:
  *   post:
  *     summary: Quarantine a file and enqueue the existing scan workflow
- *     description: Requires uploads:create and signed CSRF cookie plus x-csrf-token. Acceptance is not scan completion. No public download is created.
+ *     description: Requires uploads.create and signed CSRF cookie plus x-csrf-token. Acceptance is not scan completion. No public download is created.
  *     tags: [Uploads]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
@@ -37,7 +37,7 @@ export const uploadsRouter = Router();
  *       401:
  *         description: Authentication required
  *       403:
- *         description: Missing uploads:create permission or invalid CSRF token
+ *         description: Missing uploads.create permission or invalid CSRF token
  *       422:
  *         description: Unexpected metadata field
  *       500:
@@ -46,7 +46,7 @@ export const uploadsRouter = Router();
 uploadsRouter.post(
   '/',
   authenticate,
-  requirePermission('uploads:create'),
+  requirePermission('uploads.create'),
   singleUpload,
   (req, _res, next) => {
     try {

@@ -3,6 +3,7 @@ import { verifyAccessToken, type TokenPayload } from '@core/security/jwt';
 import { UnauthorizedError, ForbiddenError } from '@core/errors/index';
 import { redisClient } from '@infrastructure/redis/connection';
 import { evaluatePolicy, type PolicyRule } from '../core/security/policy.js';
+import { hasPermission } from '../core/security/rbac.js';
 
 // Extend Express Request with the decoded JWT payload
 declare global {
@@ -80,23 +81,7 @@ export function requirePermission(
       return next(new ForbiddenError('Access denied'));
     }
 
-    const userPermissions = user.permissions ?? [];
-
-    const hasBasePermission = userPermissions.some((userPerm) => {
-      // Global admin wildcard
-      if (userPerm === '*' || userPerm === 'admin.*') return true;
-      // Exact match
-      if (userPerm === requiredPerm) return true;
-
-      // Resource wildcard match (e.g. user.* matches user.read)
-      const [reqResource] = requiredPerm.split(/[.:]/);
-      const [uResource, uAction] = userPerm.split(/[.:]/);
-      if (uResource === reqResource && (uAction === '*' || uAction === 'manage')) return true;
-
-      return false;
-    });
-
-    if (!hasBasePermission) {
+    if (!hasPermission(user.permissions ?? [], requiredPerm)) {
       return next(new ForbiddenError(`Requires permission: ${requiredPerm}`));
     }
 
