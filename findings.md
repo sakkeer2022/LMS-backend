@@ -19,6 +19,8 @@
 | Lockout and expiry values | Removed from the contract and docs as requirements; they are configuration values. The lockout and token expiry features themselves are unchanged |
 | Scalability without UI changes | Backend scalability changes must not change what the UI shows or collects; anything that would is raised in `docs/PENDING_DECISIONS.md` (rule added to CLAUDE.md, AGENTS.md, GEMINI.md and the PR checklist) |
 | Pending decisions | `docs/PENDING_DECISIONS.md` lists every open question by owner (client, product and UI, team) with the working assumption |
+| Approvals | `nodemailer` and `pdf-lib` approved as dependencies (LMS-97, LMS-98) |
+| No tenancy | No tenant parameter or invented tenant claims in tokens or APIs. The admin frontend's `tenantIds` gate must be removed or resolved through review during frontend integration |
 
 ---
 

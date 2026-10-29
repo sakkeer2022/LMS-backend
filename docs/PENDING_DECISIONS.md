@@ -35,28 +35,29 @@ Evidence references: SOW = Software Development Agreement, Annexure 1 (the signe
 
 ## Team (tech lead and frontend)
 
-| ID  | Question                                                                                 | Affects                 | Working assumption                                       | Status  |
-| --- | ---------------------------------------------------------------------------------------- | ----------------------- | -------------------------------------------------------- | ------- |
-| T1  | Production email provider (Gmail SMTP for development)                                   | LMS-97, LMS-79          | SMTP transport; provider set in configuration            | Pending |
-| T2  | Approve `nodemailer` (email) and `pdf-lib` (consent PDF)                                 | LMS-97, LMS-98          | Not installed yet                                        | Pending |
-| T3  | Frontend `tenantIds` login claim: the backend has no tenants                             | LMS-100, admin frontend | Remove the requirement from the frontend                 | Pending |
-| T4  | Keep, document or remove the 39 template routes not in the contract                      | Contract, LMS-100       | Kept, listed in `tests/unit/api-contract-routes.test.ts` | Pending |
-| T5  | Should `npm audit` (high severity) fail the build?                                       | CI                      | Advisory                                                 | Pending |
-| T6  | Who owns the frontend parts of LMS-41 (settings screen, shared UI components, admin CI)? | LMS-40 UI work          | Unassigned                                               | Pending |
-| T7  | Restrict who can grant system roles (an admin can promote itself to `super_admin`)       | RBAC                    | Documented risk                                          | Pending |
-| T8  | Align `GET /audit` with the contract (it returns more fields than designed)              | LMS-41                  | Listed as a known contract mismatch                      | Pending |
+| ID  | Question                                                                                 | Affects           | Working assumption                                       | Status  |
+| --- | ---------------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------- | ------- |
+| T1  | Production email provider (Gmail SMTP for development)                                   | LMS-97, LMS-79    | SMTP transport; provider set in configuration            | Pending |
+| T4  | Keep, document or remove the 39 template routes not in the contract                      | Contract, LMS-100 | Kept, listed in `tests/unit/api-contract-routes.test.ts` | Pending |
+| T5  | Should `npm audit` (high severity) fail the build?                                       | CI                | Advisory                                                 | Pending |
+| T6  | Who owns the frontend parts of LMS-41 (settings screen, shared UI components, admin CI)? | LMS-40 UI work    | Unassigned                                               | Pending |
+| T7  | Restrict who can grant system roles (an admin can promote itself to `super_admin`)       | RBAC              | Documented risk                                          | Pending |
+| T8  | Align `GET /audit` with the contract (it returns more fields than designed)              | LMS-41            | Listed as a known contract mismatch                      | Pending |
 
 ## Decided
 
-| Date       | Decision                                                                                                                                     | By   |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 2026-10-29 | Guardian identity risk R4 accepted (written client record still pending, C9)                                                                 | Team |
-| 2026-10-29 | Development uses AI-generated placeholder policies; production uses client documents                                                         | Team |
-| 2026-10-29 | Password rule for every role: at least 8 characters with a number. The "12-character" rule came from template code, not the client documents | Team |
-| 2026-10-29 | Email: one interface with the transport set by configuration; Gmail SMTP in development                                                      | Team |
-| 2026-10-29 | Backups (LMS-92) and deployment (LMS-94) parked until hosting is decided                                                                     | Team |
-| 2026-10-29 | Phase 1 serves India and the UAE; guardian consent required under 18 in both (client confirmation C8)                                        | Team |
-| 2026-10-29 | Country is derived from the mobile number's country code for now; IP-based or form capture may follow                                        | Team |
-| 2026-10-29 | Library kept as designed (admin-only uploads, PDF/JPEG/PNG, logged-in students) until the client answers C1                                  | Team |
-| 2026-10-29 | Lockout and expiry values are configuration, not documented as requirements                                                                  | Team |
-| 2026-10-29 | Scalability changes must not change what the UI shows or collects                                                                            | Team |
+| Date       | Decision                                                                                                                                                           | By   |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 2026-10-29 | Guardian identity risk R4 accepted (written client record still pending, C9)                                                                                       | Team |
+| 2026-10-29 | Development uses AI-generated placeholder policies; production uses client documents                                                                               | Team |
+| 2026-10-29 | Password rule for every role: at least 8 characters with a number. The "12-character" rule came from template code, not the client documents                       | Team |
+| 2026-10-29 | Email: one interface with the transport set by configuration; Gmail SMTP in development                                                                            | Team |
+| 2026-10-29 | Backups (LMS-92) and deployment (LMS-94) parked until hosting is decided                                                                                           | Team |
+| 2026-10-29 | Phase 1 serves India and the UAE; guardian consent required under 18 in both (client confirmation C8)                                                              | Team |
+| 2026-10-29 | Country is derived from the mobile number's country code for now; IP-based or form capture may follow                                                              | Team |
+| 2026-10-29 | Library kept as designed (admin-only uploads, PDF/JPEG/PNG, logged-in students) until the client answers C1                                                        | Team |
+| 2026-10-29 | Lockout and expiry values are configuration, not documented as requirements                                                                                        | Team |
+| 2026-10-29 | Scalability changes must not change what the UI shows or collects                                                                                                  | Team |
+| 2026-10-29 | `nodemailer` (email) and `pdf-lib` (consent PDF) approved (was T2)                                                                                                 | Team |
+| 2026-10-29 | No tenant parameter or invented tenant claims in the backend. Frontend integration must remove or resolve its unsupported `tenantIds` gate through review (was T3) | Team |
+| 2026-10-29 | The pending decisions list was shared with the manager                                                                                                             | Team |
