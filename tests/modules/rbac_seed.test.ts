@@ -5,32 +5,10 @@ import { getCsrfData } from '../helpers/csrf.js';
 import { prisma } from '@infrastructure/database/index.js';
 import { seedRbac } from '../../prisma/seed-rbac.js';
 import { PERMISSIONS, SYSTEM_ROLES } from '../../src/core/security/rbac.js';
+import { loginWithRole } from '../helpers/users.js';
 
-const PASSWORD = 'Password123!';
-
-/** Registers a user, gives them one seeded role and returns a fresh access token. */
 async function tokenForRole(roleName: string, email: string): Promise<string> {
-  const { csrfToken, csrfCookie } = await getCsrfData();
-  await request(app)
-    .post('/api/v1/auth/register')
-    .set('Cookie', csrfCookie)
-    .set('x-csrf-token', csrfToken)
-    .send({ email, password: PASSWORD, fullName: `${roleName} user` });
-
-  const user = await prisma.user.findFirstOrThrow({ where: { email } });
-  const role = await prisma.role.findUniqueOrThrow({ where: { name: roleName } });
-  await prisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
-
-  const loginRes = await request(app)
-    .post('/api/v1/auth/login')
-    .set('Cookie', csrfCookie)
-    .set('x-csrf-token', csrfToken)
-    .send({ email, password: PASSWORD });
-
-  const cookie = (loginRes.headers['set-cookie'] as unknown as string[]).find((c) =>
-    c.startsWith('accessToken=')
-  );
-  return cookie!.split(';')[0]!.split('=')[1]!;
+  return (await loginWithRole(roleName, email)).token;
 }
 
 // One read route per guarded module
@@ -40,6 +18,7 @@ const ADMIN_ROUTES = [
   '/api/v1/permissions',
   '/api/v1/audit',
   '/api/v1/admin/stats',
+  '/api/v1/admin/settings',
   '/api/v1/notifications',
 ];
 
