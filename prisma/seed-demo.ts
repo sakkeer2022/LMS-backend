@@ -1,23 +1,68 @@
 /**
- * Demo catalogue paths for local development and demos (LMS-54). Never run in
+ * Demo catalogue paths and default prices for local development and demos (LMS-54, LMS-58). Never run in
  * production. Requires the reference seed (`npx prisma db seed`) first.
  *
  * Usage: npm run db:seed:demo
  */
 import { prisma } from '../src/infrastructure/database/connection.js';
 import { createPath } from '../src/modules/catalogue/catalogue.mutations.js';
+import { createPriceRule } from '../src/modules/pricing/pricing.service.js';
+import { redisClient } from '../src/infrastructure/redis/connection.js';
 
-const PATHS: { category: string; subsection?: string; board?: string; subject: string; level: string }[] = [
-  { category: 'school', subsection: 'k-12', board: 'cbse', subject: 'physics', level: 'class-11' },
-  { category: 'school', subsection: 'k-12', board: 'cbse', subject: 'physics', level: 'class-12' },
-  { category: 'school', subsection: 'k-12', board: 'cbse', subject: 'chemistry', level: 'class-11' },
-  { category: 'school', subsection: 'k-12', board: 'cbse', subject: 'mathematics', level: 'class-10' },
-  { category: 'school', subsection: 'k-12', board: 'icse', subject: 'physics', level: 'class-10' },
+/** `pricePaise` adds a default (all tutors) price rule; paths without one show "Not configured". */
+const PATHS: {
+  category: string;
+  subsection?: string;
+  board?: string;
+  subject: string;
+  level: string;
+  pricePaise?: number;
+}[] = [
+  {
+    category: 'school',
+    subsection: 'k-12',
+    board: 'cbse',
+    subject: 'physics',
+    level: 'class-11',
+    pricePaise: 120000,
+  },
+  {
+    category: 'school',
+    subsection: 'k-12',
+    board: 'cbse',
+    subject: 'physics',
+    level: 'class-12',
+    pricePaise: 145000,
+  },
+  {
+    category: 'school',
+    subsection: 'k-12',
+    board: 'cbse',
+    subject: 'chemistry',
+    level: 'class-11',
+    pricePaise: 110000,
+  },
+  {
+    category: 'school',
+    subsection: 'k-12',
+    board: 'cbse',
+    subject: 'mathematics',
+    level: 'class-10',
+    pricePaise: 99950,
+  },
+  {
+    category: 'school',
+    subsection: 'k-12',
+    board: 'icse',
+    subject: 'physics',
+    level: 'class-10',
+    pricePaise: 105000,
+  },
   { category: 'school', subsection: 'k-12', board: 'icse', subject: 'english', level: 'class-9' },
-  { category: 'university', subject: 'mathematics', level: 'year-1' },
-  { category: 'jee-neet', subject: 'physics', level: 'jee-main' },
+  { category: 'university', subject: 'mathematics', level: 'year-1', pricePaise: 180000 },
+  { category: 'jee-neet', subject: 'physics', level: 'jee-main', pricePaise: 250000 },
   { category: 'jee-neet', subject: 'chemistry', level: 'neet' },
-  { category: 'jee-neet', subject: 'biology', level: 'neet' },
+  { category: 'jee-neet', subject: 'biology', level: 'neet', pricePaise: 220000 },
   { category: 'research-skill', subject: 'computer-science', level: 'beginner' },
 ];
 
@@ -28,15 +73,23 @@ async function main(): Promise<void> {
 
   for (const p of PATHS) {
     const category = await prisma.category.findUniqueOrThrow({ where: { code: p.category } });
-    const root = await prisma.catalogueNode.findUniqueOrThrow({ where: { categoryId: category.id } });
+    const root = await prisma.catalogueNode.findUniqueOrThrow({
+      where: { categoryId: category.id },
+    });
     const subsection = p.subsection
-      ? await prisma.catalogueNode.findFirstOrThrow({ where: { parentId: root.id, slug: p.subsection } })
+      ? await prisma.catalogueNode.findFirstOrThrow({
+          where: { parentId: root.id, slug: p.subsection },
+        })
       : null;
-    const board = p.board ? await prisma.board.findUniqueOrThrow({ where: { code: p.board } }) : null;
+    const board = p.board
+      ? await prisma.board.findUniqueOrThrow({ where: { code: p.board } })
+      : null;
     const subject = await prisma.subject.findUniqueOrThrow({ where: { code: p.subject } });
     const level = await prisma.level.findUniqueOrThrow({ where: { code: p.level } });
 
-    const label = [p.category, p.subsection, p.board, p.subject, p.level].filter(Boolean).join(' › ');
+    const label = [p.category, p.subsection, p.board, p.subject, p.level]
+      .filter(Boolean)
+      .join(' › ');
     try {
       await createPath(
         {
@@ -54,15 +107,45 @@ async function main(): Promise<void> {
       // Re-runs hit 409 for paths that already exist
       console.log(`Skipped ${label}: ${err instanceof Error ? err.message : String(err)}`);
     }
+
+    if (p.pricePaise) {
+      const curriculum = await prisma.curriculum.findFirstOrThrow({
+        where: {
+          categoryId: category.id,
+          boardId: board?.id ?? null,
+          subjectId: subject.id,
+          levelId: level.id,
+        },
+      });
+      try {
+        await createPriceRule(
+          {
+            curriculumId: curriculum.id,
+            facultyId: null,
+            sessionPricePaise: p.pricePaise,
+            isActive: true,
+          },
+          { userId: null }
+        );
+        console.log(`Priced ${label}`);
+      } catch (err) {
+        // Re-runs hit 409 for the existing default rule
+        console.log(`Skipped price ${label}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
   }
 }
 
+// Importing the catalogue module opens a Redis connection; close it so the script exits
+async function disconnect(): Promise<void> {
+  await prisma.$disconnect();
+  await redisClient?.quit();
+}
+
 main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
+  .then(disconnect)
   .catch(async (e) => {
     console.error(e);
-    await prisma.$disconnect();
+    await disconnect();
     process.exit(1);
   });
