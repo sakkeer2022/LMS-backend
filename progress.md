@@ -1,5 +1,24 @@
 # Progress Log
 
+## 2026-10-29 — Permission naming and portal roles (LMS-96)
+
+- Fixed the seed/guard mismatch: seeded admins were denied by every guard (`users:manage` vs `user.read`).
+- `src/core/security/rbac.ts` is the single list of permission names (`resource.action`) and system roles; `prisma/seed-rbac.ts` seeds from it and `prisma/seed.ts` calls it.
+- Roles seeded: `super_admin` (`*`), `admin` (all but feature flags), `faculty` and `student` (no permissions yet). The template `viewer` role is no longer seeded.
+- Guards `feature_flags:*` and `uploads:create` renamed to dotted names; `requirePermission` uses the shared `hasPermission` matcher.
+- User role changes write SECURITY audit entries (`user.roles_assigned`, `user.roles_removed`, `user.roles_replaced`) with the actor and roles before and after.
+- Portal guard deferred to LMS-100; `tenantIds` token claim recorded as an open frontend decision (`src/docs/RBAC_RULES.md`).
+- **After pulling, re-run `npx prisma db seed`** on dev databases.
+
+### Test Results
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | ✅ Pass |
+| `npm run lint` | ✅ 0 errors, 33 warnings (pre-existing) |
+| `npm run test:unit` | ✅ 132 passed (13 files), including `tests/unit/rbac.test.ts` (guard coverage) |
+| `npm run test:integration` (amentorz_test) | ✅ 80 passed (13 files), including `tests/modules/rbac_seed.test.ts`. One earlier run failed once in `auth.test.ts` ("should fail to register with existing email") and passed in 5 re-runs; existing flake, not related |
+
 ## 2026-10-28 — Project setup and team conventions (LMS-52)
 
 - Rebuilt the unpushed local history into ticket-based commits on `feature/LMS-52-project-setup`; the onboarding schema and contract work moved to `feature/LMS-38-student-registration`.

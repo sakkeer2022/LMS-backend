@@ -267,3 +267,4 @@ All API responses follow the same envelope:
 | Accept a generated migration that recreates `curricula_..._key` | Keep the hand-written `NULLS NOT DISTINCT` index (see `.agents/context.md` gotcha 7) |
 | Import another module's controller, dto or internal helpers | Import only through that module's `index.ts` (section 8) |
 | Add `Co-Authored-By` or other AI attribution to commits | Use the commit format in `src/docs/CONTRIBUTING.md` (section 9) |
+| Invent a permission name in a route guard | Add it to `src/core/security/rbac.ts` first (`resource.action`); `tests/unit/rbac.test.ts` enforces this |

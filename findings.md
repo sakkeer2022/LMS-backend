@@ -1,5 +1,21 @@
 # Findings & Decisions
 
+## 2026-10-29 — Permission naming and portal roles (LMS-96)
+
+| Finding / Decision | Detail |
+|---|---|
+| Seeded admin failed every guard | The seed created `users:manage` and similar names while guards check `user.read`. The wildcard match compares `users` with `user`, so seeded admins were denied everywhere |
+| One catalogue for names and roles | `src/core/security/rbac.ts` lists permissions and system roles; the seed uses it, and `tests/unit/rbac.test.ts` fails when a guard name is not listed or a seeded admin would be denied |
+| Naming: `resource.action` | The two colon guards (`feature_flags:*`, `uploads:create`) became dotted. Resource names were not renamed (singular `user`, `role`, `permission` stay) |
+| Roles | `super_admin` (`*`), `admin` (all but feature flags), `faculty` and `student` (no permissions yet). The template `viewer` role is no longer seeded |
+| `admin.*` is a global wildcard | The matcher treats it like `*`; it is never seeded |
+| Known escalation path | `admin` can assign roles and role permissions, so it can grant itself `super_admin`. Accepted for now; a separate ticket can restrict it |
+| Role changes audited | `user.roles_assigned`, `user.roles_removed` and `user.roles_replaced` audit entries (severity SECURITY) record the actor and the role names before and after, written after the commit |
+| Portal guard deferred | Permission guards already block students and faculty from admin routes; a role-based portal guard comes with the first portal-only route (LMS-100) |
+| `tenantIds` claim | Open frontend decision; the backend has no tenants and does not issue it |
+
+---
+
 ## 2026-10-27 — Student onboarding schema decisions
 
 | Finding / Decision | Detail |
