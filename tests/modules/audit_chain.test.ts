@@ -28,7 +28,7 @@ describe('Audit Cryptographic Hash Chain Validation', () => {
     });
 
     const logs = await prisma.auditLog.findMany({
-      orderBy: { createdAt: 'asc' },
+      orderBy: { sequence: 'asc' },
     });
 
     expect(logs.length).toBe(2);
@@ -73,13 +73,36 @@ describe('Audit Cryptographic Hash Chain Validation', () => {
     expect(verification.brokenAt).toBeUndefined();
   });
 
+  it('keeps the chain valid when many records share a millisecond', async () => {
+    for (let i = 0; i < 100; i++) {
+      await logAction({ action: `burst.${i}`, entity: 'users' });
+    }
+
+    const logs = await prisma.auditLog.findMany({ orderBy: { sequence: 'asc' } });
+    for (let i = 1; i < logs.length; i++) {
+      expect(logs[i].previousHash).toBe(logs[i - 1].hash);
+    }
+    expect(await verifyAuditChain()).toEqual({ isValid: true });
+  });
+
+  it('keeps the chain valid under concurrent writes', async () => {
+    await Promise.all(
+      Array.from({ length: 50 }, (_, i) => logAction({ action: `parallel.${i}`, entity: 'users' }))
+    );
+
+    const logs = await prisma.auditLog.findMany({ orderBy: { sequence: 'asc' } });
+    expect(logs).toHaveLength(50);
+    expect(new Set(logs.map((l) => l.previousHash)).size).toBe(50);
+    expect(await verifyAuditChain()).toEqual({ isValid: true });
+  });
+
   it('should fail validation if a middle record is tampered with', async () => {
     await logAction({ action: 'log.1', entity: 'users' });
     await logAction({ action: 'log.2', entity: 'users' });
     await logAction({ action: 'log.3', entity: 'users' });
 
     const logs = await prisma.auditLog.findMany({
-      orderBy: { createdAt: 'asc' },
+      orderBy: { sequence: 'asc' },
     });
 
     // Tamper with log.2 by modifying the action field
@@ -99,7 +122,7 @@ describe('Audit Cryptographic Hash Chain Validation', () => {
     await logAction({ action: 'log.3', entity: 'users' });
 
     const logs = await prisma.auditLog.findMany({
-      orderBy: { createdAt: 'asc' },
+      orderBy: { sequence: 'asc' },
     });
 
     // Delete log.2 from the database
