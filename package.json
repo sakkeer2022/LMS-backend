@@ -21,6 +21,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:seed:demo": "tsx prisma/seed-demo.ts",
+    "db:seed:users": "tsx prisma/seed-dev-users.ts",
     "prepare": "husky",
     "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit",
