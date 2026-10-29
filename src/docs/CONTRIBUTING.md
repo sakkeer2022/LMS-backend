@@ -83,6 +83,7 @@ Before asking for review, check every item:
 - [ ] Schema changes come with exactly one reviewed migration, and the docs in `docs/database/` are updated.
 - [ ] Contract changes are made in `docs/build-contract-draft.py` and regenerated; `npm run contract:validate` passes.
 - [ ] Every new route is in the contract. `tests/unit/api-contract-routes.test.ts` fails on a route that is neither in `docs/openapi.yaml` nor in its known-undocumented list.
+- [ ] Integration tests for each new endpoint call `expectContractResponse` (`tests/helpers/contract.ts`) on success and error responses, so the response bodies are proven to match the contract schemas.
 - [ ] `npm run lint`, `npm run typecheck` and `npm run build` pass.
 - [ ] `progress.md` is updated, and `findings.md` too if a decision was made.
 - [ ] No secrets, `.env` files, build output or uploaded files are committed.

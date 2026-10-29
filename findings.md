@@ -7,7 +7,9 @@
 | Check | `tests/unit/api-contract-routes.test.ts` lists every route the API serves (from `featureRouters` in `src/routes/index.ts`) and compares method and path with `docs/openapi.yaml`. It runs with the unit tests, so CI fails on drift |
 | Express 5 | A mounted router does not keep its mount path, so `src/routes/index.ts` now declares its mounts as an exported `featureRouters` list and mounts them in a loop |
 | Template routes | 39 routes are not in the Sprint 1 contract (RBAC/user administration, feature flags, notifications, admin dashboard, uploads, `POST /auth/login`, `GET /audit/{id}`, `GET /`). They are listed as known undocumented with a reason, pending the legacy-routes decision; the test fails when an entry goes stale |
-| Not covered yet | Request/response shapes are not compared. Validating responses against the contract schemas needs `ajv` as a direct dependency (approval needed). `/api/docs` switches to the approved contract once Sprint 1 endpoints exist |
+| Response shapes | `tests/helpers/contract.ts` validates response bodies against the contract schema for the operation and status (Ajv 8 with `ajv-formats`, strict mode off for OpenAPI 3.0 keywords; added as dev dependencies with approval). `tests/modules/contract_responses.test.ts` covers the implemented contract routes |
+| Known mismatches | `GET /auth/me`, `GET /auth/sessions` and `POST /auth/refresh` (template versions, rewritten in LMS-100) and `GET /audit`. The audit list returns `correlationId`, `ipAddress`, `userAgent` and `deviceFingerprint`, which the contract's redacted projection excludes, and lacks the contract's filters and date window: needs its own ticket. The test fails when a mismatch is fixed, so the list stays current |
+| Still open in LMS-93 | Serving the approved contract at `/api/docs` once Sprint 1 endpoints exist |
 
 ---
 
