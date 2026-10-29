@@ -17,15 +17,24 @@ export const router = Router();
 router.use(auditLogMiddleware);
 
 // ── Feature routers ───────────────────────────────────────────
-router.use('/auth', authRouter);
-router.use('/roles', rolesRouter);
-router.use('/permissions', permissionsRouter);
-router.use('/users', usersRouter);
-router.use('/audit', auditRouter);
-router.use('/feature-flags', featureFlagsRouter);
-router.use('/notifications', notificationsRouter);
-router.use('/admin', adminRouter);
-router.use('/uploads', uploadsRouter);
+// Mount path of every feature router, in mount order (a more specific path must
+// come before a shorter prefix). tests/unit/api-contract-routes.test.ts reads
+// this list to check every implemented route against docs/openapi.yaml.
+export const featureRouters: ReadonlyArray<readonly [path: string, router: Router]> = [
+  ['/auth', authRouter],
+  ['/roles', rolesRouter],
+  ['/permissions', permissionsRouter],
+  ['/users', usersRouter],
+  ['/audit', auditRouter],
+  ['/feature-flags', featureFlagsRouter],
+  ['/notifications', notificationsRouter],
+  ['/admin', adminRouter],
+  ['/uploads', uploadsRouter],
+];
+
+for (const [path, featureRouter] of featureRouters) {
+  router.use(path, featureRouter);
+}
 
 // ── API info ──────────────────────────────────────────────────
 router.get('/', (_req, res) => {
