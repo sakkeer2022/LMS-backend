@@ -1,5 +1,16 @@
 # Findings & Decisions
 
+## 2026-10-29 — API route/contract drift check (LMS-93)
+
+| Finding / Decision | Detail |
+|---|---|
+| Check | `tests/unit/api-contract-routes.test.ts` lists every route the API serves (from `featureRouters` in `src/routes/index.ts`) and compares method and path with `docs/openapi.yaml`. It runs with the unit tests, so CI fails on drift |
+| Express 5 | A mounted router does not keep its mount path, so `src/routes/index.ts` now declares its mounts as an exported `featureRouters` list and mounts them in a loop |
+| Template routes | 39 routes are not in the Sprint 1 contract (RBAC/user administration, feature flags, notifications, admin dashboard, uploads, `POST /auth/login`, `GET /audit/{id}`, `GET /`). They are listed as known undocumented with a reason, pending the legacy-routes decision; the test fails when an entry goes stale |
+| Not covered yet | Request/response shapes are not compared. Validating responses against the contract schemas needs `ajv` as a direct dependency (approval needed). `/api/docs` switches to the approved contract once Sprint 1 endpoints exist |
+
+---
+
 ## 2026-10-27 — Student onboarding schema decisions
 
 | Finding / Decision | Detail |

@@ -1,5 +1,12 @@
 # Progress Log
 
+## 2026-10-29 — API route/contract drift check (LMS-93, first part)
+
+- `tests/unit/api-contract-routes.test.ts`: every implemented route must be in `docs/openapi.yaml` or in a known-undocumented list with a reason; stale list entries also fail. Runs in `npm run test:unit`, so Bitbucket Pipelines enforces it.
+- `src/routes/index.ts` declares its mounts in an exported `featureRouters` list (Express 5 does not expose mount paths).
+- Proven to catch drift: a temporary undocumented route failed the test.
+- LMS-93 stays open for response-schema validation (needs `ajv` approval) and serving the approved contract at `/api/docs`.
+
 ## 2026-10-28 — Project setup and team conventions (LMS-52)
 
 - Rebuilt the unpushed local history into ticket-based commits on `feature/LMS-52-project-setup`; the onboarding schema and contract work moved to `feature/LMS-38-student-registration`.
