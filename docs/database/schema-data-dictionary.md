@@ -67,7 +67,7 @@
 | `LibraryMaterialAudience` | `STUDENT`, `FACULTY`, `ALL` | Access control target for published study resources. |
 | `LibraryModerationStatus` | `PENDING`, `APPROVED`, `REJECTED`, `WITHDRAWN` | State machine governing administrative review of study resources. |
 | `GuardianRelationship` | `FATHER`, `MOTHER`, `LEGAL_GUARDIAN`, `GRANDPARENT`, `SIBLING`, `OTHER` | Onboarding step 3 relationship dropdown. Final option list pending from the UI owner. |
-| `PolicyType` | `TERMS_OF_USE`, `PRIVACY_POLICY`, `CHILD_SAFETY_POLICY`, `STUDENT_TERMS` | Client-supplied legal texts accepted in onboarding step 4 and signed in the consent modal. |
+| `PolicyType` | `TERMS_OF_USE`, `PRIVACY_POLICY`, `CHILD_SAFETY_POLICY`, `STUDENT_TERMS` | Client-supplied legal texts accepted in onboarding step 4 and signed in the consent modal. SOW A1.8 also lists a data protection policy and a refund and cancellation policy; adding them is pending (`docs/PENDING_DECISIONS.md`). |
 | `SignatureMode` | `DRAW`, `TYPE` | How the guardian signed the Student Terms (canvas drawing or typed name). |
 
 ---
@@ -286,7 +286,7 @@
 | `guardian_mobile_number` | `VARCHAR(16)` | Yes | `NULL` | Guardian E.164 mobile; required under 18 | Application |
 | `guardian_email` | `VARCHAR(255)` | Yes | `NULL` | Guardian email; required under 18, must differ from the student email | Application |
 | `guardian_receives_reports` | `BOOLEAN` | No | `false` | "Also send progress reports and payment receipts to the guardian" | Database |
-| `country` | `VARCHAR(2)` | No | `'IN'` | ISO country for revenue reports; derived from the mobile country code (no UI field) | Application |
+| `country` | `VARCHAR(2)` | No | `'IN'` | ISO country for revenue reports; derived from the mobile number's country code for now (decided 2026-10-29), IP-based or form capture may follow. The SOW also reports by region, which is not stored yet (`src/docs/REGIONS.md`) | Application |
 | `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Profile creation timestamp | Database |
 | `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
 
@@ -372,7 +372,7 @@
 ---
 
 ### 3.6 `guardian_consents`
-- **Purpose:** Parent/guardian signature on the Student Terms, made in the date-of-birth popup **before the account exists**. Signing stores the flattened signed PDF and returns a single-use consent token (only its hash is stored). `POST /auth/register` links the row to the profile. Unlinked rows past `expires_at` are purged together with their PDFs. Not a cryptographic or identity-verified signature (project plan R4 remains open).
+- **Purpose:** Parent/guardian signature on the Student Terms, made in the date-of-birth popup **before the account exists**. Signing stores the flattened signed PDF and returns a single-use consent token (only its hash is stored). `POST /auth/register` links the row to the profile. Unlinked rows past `expires_at` are purged together with their PDFs. Not a cryptographic or identity-verified signature (project plan R4 accepted on 2026-10-29; written acceptance to be filed).
 - **Physical Table:** `guardian_consents`
 
 | Column | Type | Nullable | Default | Description & Constraints | Enforcement |
@@ -583,7 +583,7 @@
 ---
 
 ### 5.2 `boards`
-- **Purpose:** Educational boards (NCERT/CBSE, ICSE, State Boards, IB, Cambridge).
+- **Purpose:** Educational boards. The SOW names NCERT, ICSE and State Board; others (for example IB or Cambridge, common in UAE schools) are admin-configured data, not fixed by the schema.
 - **Physical Table:** `boards`
 
 | Column | Type | Nullable | Default | Description & Constraints | Enforcement |
