@@ -102,10 +102,10 @@ The table below delineates the concrete **Foreign-Key Relationships** versus **C
 
 ## 3. Boundary Distinctions & Client Scope Rules
 
-The implemented schema strictly enforces the contractual boundaries agreed in the **Software Development Agreement (Annexure 1 SOW v2.0)**:
+The implemented schema enforces the boundaries agreed in the **Software Development Agreement (Annexure 1 SOW v2.0)** and, where marked, the **draft project plan** (not yet approved):
 
 ### 3.1 Single Identity Model Across Three Portals
-- **Contractual Rule:** One shared backend and single database serve all portals.
+- **Rule (draft project plan M14):** One shared backend and single database serve all portals. The SOW asks for a modular, API-first backend.
 - **Implementation:** Table `users` serves as the global identity anchor. Roles (`student`, `faculty`, `admin`) govern portal authorization. Refresh tokens track `portal` origin and `family_id` to prevent cross-portal token substitution.
 
 ### 3.2 No Parent Profiles / Accounts in Phase 1
@@ -113,7 +113,7 @@ The implemented schema strictly enforces the contractual boundaries agreed in th
 - **Implementation:** `student_profiles` stores `guardian_name`, `guardian_email`, `guardian_phone`, `is_under_18`, `guardian_consent_signed`, and `guardian_consent_signed_at`. No separate parent user or parent portal table exists.
 
 ### 3.3 Single-Session INR Pricing (No Packages)
-- **Contractual Rule:** M03 confirmed rule: prepaid packages and bundles are deferred from Phase 1. Pricing is single-session only, strictly denominated in INR.
+- **Rule (draft project plan M03):** prepaid packages and bundles are deferred from Phase 1; pricing is single-session only, in INR (INR only is also in SOW A1.7.11). SOW A1.7.2 allows packages where applicable, so client confirmation is pending (`docs/PENDING_DECISIONS.md`).
 - **Implementation:** `session_prices` stores `price_paise` (integer paise, e.g. 75000 = ₹750.00), `currency = "INR"`, and `duration_minutes = 60`. No package, credit-pack, or subscription tables exist.
 
 ### 3.4 Tutor Incentive Model (50-Point / 30-Session Threshold)

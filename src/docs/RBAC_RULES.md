@@ -39,12 +39,13 @@
 | `student`     | Student | None yet. Student endpoints (LMS-38, LMS-42) add theirs |
 
 - The template `viewer` role is no longer seeded. Existing databases keep it until it is deleted.
-- **Known escalation path:** `admin` holds `user.assign_role` and `role.assign_permission`, so an admin can grant itself `super_admin` or extra permissions. Accepted for now. Restricting who may grant system roles is a separate ticket.
+- `super_admin` is an internal operator role, not a client role. The SOW (A1.5) defines three roles (student, faculty and admin) and puts new user roles under change control, so `super_admin` is never offered in the product or the API contract.
+- **Known escalation path:** `admin` holds `user.assign_role` and `role.assign_permission`, so an admin can grant itself `super_admin` or extra permissions. Accepted for now. Restricting who may grant system roles is tracked in LMS-104.
 - **Portal guard:** routes are protected by permissions, which already blocks students and faculty from admin routes. A role-based portal guard for portal-only routes (for example student-only endpoints) is added with the first such route in LMS-100.
 
 ## Access Token Claims [Implemented]
 
-The access token carries `sub` (user id), `email`, `roles` (role names), `permissions` (resolved through role inheritance), `policies` (ABAC rules) and `jti`. **Open decision:** the admin frontend currently expects a `tenantIds` claim that the backend does not issue. The backend has no tenants (single shared database), so either the frontend drops the requirement or a claim is agreed. Agree this with the frontend owner before LMS-100.
+The access token carries `sub` (user id), `email`, `roles` (role names), `permissions` (resolved through role inheritance), `policies` (ABAC rules) and `jti`. **Decided (2026-10-29):** no tenant parameter and no invented tenant claims. The admin frontend currently expects a `tenantIds` claim; that gate must be removed or resolved through review during frontend integration. The backend has a single shared database with no tenants.
 
 ## Future Extensibility [Planned]
 

@@ -38,8 +38,9 @@ Open `.env` and verify the configuration:
 - `TEST_DATABASE_URL` — Dedicated, disposable test database:
 `postgresql://postgres:password@localhost:5432/amentorz_test?schema=public`
 - `JWT_SECRET`, `JWT_REFRESH_SECRET`, `COOKIE_SECRET` — Replace with 32+ character secrets (generate via `openssl rand -hex 32`)
-- `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` — Approved payment gateway credentials (`rzp_test_*` for local development)
+- `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` — Payment gateway credentials (`rzp_test_*` for local development). Razorpay is the leading candidate; the final gateway is still to be confirmed (`docs/PENDING_DECISIONS.md`)
 - `METRICS_TOKEN` — Bearer token for `GET /metrics`; optional locally, **required (32+ characters) in production**
+- `ALLOWED_ORIGINS` — Comma-separated browser origins allowed to call the API with cookies; empty locally allows only `http://localhost:3001`, **required in production**
 
 ### B. Install Dependencies
 
