@@ -1,6 +1,6 @@
 # Findings & Decisions
 
-## 2026-10-29 — Audit hash chain breaks on same-millisecond writes (existing bug, needs a ticket)
+## 2026-10-29 — Audit hash chain breaks on same-millisecond writes (existing bug, LMS-102)
 
 | Finding / Decision | Detail |
 |---|---|
@@ -8,7 +8,7 @@
 | Cause | `logAction` links each record to the latest one found by `createdAt DESC, id DESC`, and `verifyAuditChain` walks `createdAt ASC, id ASC`. `createdAt` has millisecond precision and `id` is a random UUID, so records written in the same millisecond are linked and verified in different orders. Concurrent writes (the audit middleware is fire-and-forget) can also read the same "latest" record and fork the chain |
 | Evidence | Probe on development: 3 sequential writes, 200 times. Same millisecond in 153 of 200; an untampered chain reported as broken in 78 of 200 |
 | Impact | `npm run audit:verify` can report tampering that did not happen, which undermines the LMS-41 audit baseline |
-| Proposed fix | Separate ticket: add a monotonic sequence column (for example `BIGSERIAL`) used for both linking and verification, and serialise chain writes (for example a Postgres advisory lock in `logAction`). Needs a migration |
+| Proposed fix | LMS-102: add a monotonic sequence column (for example `BIGSERIAL`) used for both linking and verification, and serialise chain writes (for example a Postgres advisory lock in `logAction`). Needs a migration |
 
 ---
 
