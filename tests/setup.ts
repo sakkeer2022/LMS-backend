@@ -59,12 +59,20 @@ beforeAll(async () => {
     WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'
   `;
   tablesToTruncate = rows.map((row) => row.tablename);
+
+  // Also clean before the test file's own beforeAll hooks run, so data left by
+  // the previous file (for example seeded permissions) never leaks into this one.
+  await truncateAllTables();
 });
 
 const DEADLOCK_SQLSTATE = '40P01';
 const MAX_TRUNCATE_ATTEMPTS = 5;
 
 beforeEach(async () => {
+  await truncateAllTables();
+});
+
+async function truncateAllTables(): Promise<void> {
   // Clean test state without dropping DB structure; errors must fail the test run
   if (tablesToTruncate.length === 0) return;
   const tableList = tablesToTruncate.map((table) => `"${table}"`).join(', ');
@@ -78,10 +86,11 @@ beforeEach(async () => {
     } catch (err) {
       const isDeadlock = err instanceof Error && err.message.includes(DEADLOCK_SQLSTATE);
       if (!isDeadlock || attempt >= MAX_TRUNCATE_ATTEMPTS) throw err;
+      console.warn(`[TEST SETUP] TRUNCATE deadlock, retry ${attempt} at ${new Date().toISOString()}`);
       await new Promise((resolve) => setTimeout(resolve, 50 * attempt));
     }
   }
-});
+}
 
 afterAll(async () => {
   await disconnectDatabase();

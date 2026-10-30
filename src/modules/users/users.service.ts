@@ -5,6 +5,8 @@ import { buildPaginationMeta, type PaginatedResult } from '@shared/types/paginat
 import type { CreateUserInput, UpdateUserInput, AssignRolesInput } from './users.dto.js';
 import type { PaginationQueryInput } from '@modules/roles/roles.dto.js';
 import type { Prisma } from '@prisma/client';
+import { logAction, type AuditContext } from '@modules/audit/audit.service.js';
+import { logger } from '@core/logger/index';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -154,12 +156,49 @@ export async function deleteUser(id: string): Promise<void> {
 
 // ── Role Management ───────────────────────────────────────────────
 
-export async function assignRoles(userId: string, dto: AssignRolesInput): Promise<UserDetail> {
-  return prisma.$transaction(async (tx) => {
+async function currentRoleNames(tx: Prisma.TransactionClient, userId: string): Promise<string[]> {
+  const rows = await tx.userRole.findMany({
+    where: { userId },
+    select: { role: { select: { name: true } } },
+  });
+  return rows.map((r) => r.role.name).sort();
+}
+
+// Role changes are security-relevant (LMS-38): record who changed what, after the commit.
+async function recordRoleChange(
+  action: string,
+  userId: string,
+  previousRoles: string[],
+  user: UserDetail,
+  audit?: AuditContext
+): Promise<void> {
+  try {
+    await logAction({
+      ...audit,
+      severity: 'SECURITY',
+      entity: 'user',
+      action,
+      resourceId: userId,
+      previousValue: { roles: previousRoles },
+      newValue: { roles: user.roles.map((r) => r.name).sort() },
+    });
+  } catch (err) {
+    logger.error({ err, userId, action }, 'Failed to write role change audit log');
+  }
+}
+
+export async function assignRoles(
+  userId: string,
+  dto: AssignRolesInput,
+  audit?: AuditContext
+): Promise<UserDetail> {
+  let previousRoles: string[] = [];
+  const result = await prisma.$transaction(async (tx) => {
     const user = await tx.user.findFirst({
       where: { id: userId, deletedAt: null },
     });
     if (!user) throw new NotFoundError('User');
+    previousRoles = await currentRoleNames(tx, userId);
 
     const roles = await tx.role.findMany({
       where: { id: { in: dto.roleIds }, deletedAt: null },
@@ -206,14 +245,23 @@ export async function assignRoles(userId: string, dto: AssignRolesInput): Promis
       updatedAt: updatedUser.updatedAt,
     };
   });
+
+  await recordRoleChange('user.roles_assigned', userId, previousRoles, result, audit);
+  return result;
 }
 
-export async function removeRoles(userId: string, dto: AssignRolesInput): Promise<UserDetail> {
-  return prisma.$transaction(async (tx) => {
+export async function removeRoles(
+  userId: string,
+  dto: AssignRolesInput,
+  audit?: AuditContext
+): Promise<UserDetail> {
+  let previousRoles: string[] = [];
+  const result = await prisma.$transaction(async (tx) => {
     const user = await tx.user.findFirst({
       where: { id: userId, deletedAt: null },
     });
     if (!user) throw new NotFoundError('User');
+    previousRoles = await currentRoleNames(tx, userId);
 
     await tx.userRole.deleteMany({
       where: {
@@ -248,14 +296,23 @@ export async function removeRoles(userId: string, dto: AssignRolesInput): Promis
       updatedAt: updatedUser.updatedAt,
     };
   });
+
+  await recordRoleChange('user.roles_removed', userId, previousRoles, result, audit);
+  return result;
 }
 
-export async function setRoles(userId: string, dto: AssignRolesInput): Promise<UserDetail> {
-  return prisma.$transaction(async (tx) => {
+export async function setRoles(
+  userId: string,
+  dto: AssignRolesInput,
+  audit?: AuditContext
+): Promise<UserDetail> {
+  let previousRoles: string[] = [];
+  const result = await prisma.$transaction(async (tx) => {
     const user = await tx.user.findFirst({
       where: { id: userId, deletedAt: null },
     });
     if (!user) throw new NotFoundError('User');
+    previousRoles = await currentRoleNames(tx, userId);
 
     const roles = await tx.role.findMany({
       where: { id: { in: dto.roleIds }, deletedAt: null },
@@ -304,4 +361,7 @@ export async function setRoles(userId: string, dto: AssignRolesInput): Promise<U
       updatedAt: updatedUser.updatedAt,
     };
   });
+
+  await recordRoleChange('user.roles_replaced', userId, previousRoles, result, audit);
+  return result;
 }

@@ -1,5 +1,31 @@
 # Progress Log
 
+## 2026-10-29 — Permission naming and portal roles (LMS-96)
+
+- Fixed the seed/guard mismatch: seeded admins were denied by every guard (`users:manage` vs `user.read`).
+- `src/core/security/rbac.ts` is the single list of permission names (`resource.action`) and system roles; `prisma/seed-rbac.ts` seeds from it and `prisma/seed.ts` calls it.
+- Roles seeded: `super_admin` (`*`), `admin` (all but feature flags), `faculty` and `student` (no permissions yet). The template `viewer` role is no longer seeded.
+- Guards `feature_flags:*` and `uploads:create` renamed to dotted names; `requirePermission` uses the shared `hasPermission` matcher.
+- User role changes write SECURITY audit entries (`user.roles_assigned`, `user.roles_removed`, `user.roles_replaced`) with the actor and roles before and after.
+- Portal guard deferred to LMS-100; `tenantIds` token claim recorded as an open frontend decision (`src/docs/RBAC_RULES.md`).
+- **After pulling, re-run `npx prisma db seed`** on dev databases.
+
+### Test Results
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | ✅ Pass |
+| `npm run lint` | ✅ 0 errors, 33 warnings (pre-existing) |
+| `npm run test:unit` | ✅ 132 passed (13 files), including `tests/unit/rbac.test.ts` (guard coverage) |
+| `npm run test:integration` (amentorz_test) | ✅ 80 passed (13 files), including `tests/modules/rbac_seed.test.ts`. Intermittent failures found and fixed (see below) |
+
+### Intermittent integration test failures (found while testing LMS-96 and LMS-90)
+
+- **Port clashes:** supertest started a server per request on all interfaces; macOS sometimes handed out a port another local app held on 127.0.0.1, so the request reached that app (`socket hang up`, `Client sent an HTTP request to an HTTPS server`). Fixed: one test server per file bound to 127.0.0.1 (`tests/helpers/app.ts`).
+- **Data leaking between files:** `upload.test.ts` creates `uploads.create` in `beforeAll`, which ran before the tables were emptied; when a file that seeds RBAC ran first, the name already existed. Fixed: `tests/setup.ts` also truncates at the start of each file.
+- Measured: development 0 of 12 full runs failed; this work before the fixes 5 of 12; after both fixes 1 of 12, and that one was the audit-chain bug below.
+- **Open, existing bug:** see the audit hash chain entry in `findings.md` (2026-10-29). It makes `audit_chain.test.ts` fail occasionally on every branch.
+
 ## 2026-10-29 — Security baseline gaps closed (LMS-91)
 
 - JWT access and refresh tokens are signed and verified with HS256 only (`src/core/security/jwt.ts`).

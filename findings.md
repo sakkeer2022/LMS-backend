@@ -1,5 +1,33 @@
 # Findings & Decisions
 
+## 2026-10-29 — Audit hash chain breaks on same-millisecond writes (existing bug, LMS-102)
+
+| Finding / Decision | Detail |
+|---|---|
+| Symptom | `audit_chain.test.ts` ("middle record is tampered with") fails occasionally on every branch |
+| Cause | `logAction` links each record to the latest one found by `createdAt DESC, id DESC`, and `verifyAuditChain` walks `createdAt ASC, id ASC`. `createdAt` has millisecond precision and `id` is a random UUID, so records written in the same millisecond are linked and verified in different orders. Concurrent writes (the audit middleware is fire-and-forget) can also read the same "latest" record and fork the chain |
+| Evidence | Probe on development: 3 sequential writes, 200 times. Same millisecond in 153 of 200; an untampered chain reported as broken in 78 of 200 |
+| Impact | `npm run audit:verify` can report tampering that did not happen, which undermines the LMS-41 audit baseline |
+| Proposed fix | LMS-102: add a monotonic sequence column (for example `BIGSERIAL`) used for both linking and verification, and serialise chain writes (for example a Postgres advisory lock in `logAction`). Needs a migration |
+
+---
+
+## 2026-10-29 — Permission naming and portal roles (LMS-96)
+
+| Finding / Decision | Detail |
+|---|---|
+| Seeded admin failed every guard | The seed created `users:manage` and similar names while guards check `user.read`. The wildcard match compares `users` with `user`, so seeded admins were denied everywhere |
+| One catalogue for names and roles | `src/core/security/rbac.ts` lists permissions and system roles; the seed uses it, and `tests/unit/rbac.test.ts` fails when a guard name is not listed or a seeded admin would be denied |
+| Naming: `resource.action` | The two colon guards (`feature_flags:*`, `uploads:create`) became dotted. Resource names were not renamed (singular `user`, `role`, `permission` stay) |
+| Roles | `super_admin` (`*`), `admin` (all but feature flags), `faculty` and `student` (no permissions yet). The template `viewer` role is no longer seeded |
+| `admin.*` is a global wildcard | The matcher treats it like `*`; it is never seeded |
+| Known escalation path | `admin` can assign roles and role permissions, so it can grant itself `super_admin`. Accepted for now; LMS-104 restricts it |
+| Role changes audited | `user.roles_assigned`, `user.roles_removed` and `user.roles_replaced` audit entries (severity SECURITY) record the actor and the role names before and after, written after the commit |
+| Portal guard deferred | Permission guards already block students and faculty from admin routes; a role-based portal guard comes with the first portal-only route (LMS-100) |
+| `tenantIds` claim | Decided 2026-10-29: no tenant parameter or invented tenant claims; the frontend's tenancy gate is resolved through review during frontend integration |
+
+---
+
 ## 2026-10-29 — Security baseline decisions (LMS-91)
 
 | Finding / Decision | Detail |
