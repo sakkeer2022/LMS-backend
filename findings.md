@@ -21,10 +21,10 @@
 | Naming: `resource.action` | The two colon guards (`feature_flags:*`, `uploads:create`) became dotted. Resource names were not renamed (singular `user`, `role`, `permission` stay) |
 | Roles | `super_admin` (`*`), `admin` (all but feature flags), `faculty` and `student` (no permissions yet). The template `viewer` role is no longer seeded |
 | `admin.*` is a global wildcard | The matcher treats it like `*`; it is never seeded |
-| Known escalation path | `admin` can assign roles and role permissions, so it can grant itself `super_admin`. Accepted for now; a separate ticket can restrict it |
+| Known escalation path | `admin` can assign roles and role permissions, so it can grant itself `super_admin`. Accepted for now; LMS-104 restricts it |
 | Role changes audited | `user.roles_assigned`, `user.roles_removed` and `user.roles_replaced` audit entries (severity SECURITY) record the actor and the role names before and after, written after the commit |
 | Portal guard deferred | Permission guards already block students and faculty from admin routes; a role-based portal guard comes with the first portal-only route (LMS-100) |
-| `tenantIds` claim | Open frontend decision; the backend has no tenants and does not issue it |
+| `tenantIds` claim | Decided 2026-10-29: no tenant parameter or invented tenant claims; the frontend's tenancy gate is resolved through review during frontend integration |
 
 ---
 
