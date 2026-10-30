@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { envSchema } from '../../src/config/index.js';
+import {
+  envSchema,
+  resolveAllowedOrigins,
+  DEFAULT_DEV_ALLOWED_ORIGINS,
+} from '../../src/config/index.js';
 
 describe('Configuration Schema & Razorpay Validation Unit Tests', () => {
   const baseValidDevEnv = {
@@ -113,5 +117,35 @@ describe('Configuration Schema & Razorpay Validation Unit Tests', () => {
       const issues = result.error.issues.map((i) => i.message);
       expect(issues).toContain('METRICS_TOKEN must be at least 32 characters long in production');
     }
+  });
+
+  it('Production: rejects when ALLOWED_ORIGINS is missing', () => {
+    const result = envSchema.safeParse({ ...baseValidProdEnv, ALLOWED_ORIGINS: undefined });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issues = result.error.issues.map((i) => i.message);
+      expect(issues).toContain('ALLOWED_ORIGINS is required in production');
+    }
+  });
+});
+
+describe('resolveAllowedOrigins', () => {
+  it('splits and trims a comma-separated list', () => {
+    expect(
+      resolveAllowedOrigins(' https://a.example.com , https://b.example.com ', 'production')
+    ).toEqual(['https://a.example.com', 'https://b.example.com']);
+  });
+
+  it.each(['development', 'test'] as const)('falls back to the local frontend in %s', (nodeEnv) => {
+    expect(resolveAllowedOrigins(undefined, nodeEnv)).toEqual(DEFAULT_DEV_ALLOWED_ORIGINS);
+    expect(resolveAllowedOrigins('  ', nodeEnv)).toEqual(DEFAULT_DEV_ALLOWED_ORIGINS);
+  });
+
+  it('never falls back in production', () => {
+    expect(resolveAllowedOrigins(undefined, 'production')).toEqual([]);
+  });
+
+  it('never allows a wildcard by default', () => {
+    expect(DEFAULT_DEV_ALLOWED_ORIGINS).not.toContain('*');
   });
 });
