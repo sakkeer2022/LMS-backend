@@ -1,5 +1,21 @@
 # Progress Log
 
+## 2026-10-29 — Security baseline gaps closed (LMS-91)
+
+- JWT access and refresh tokens are signed and verified with HS256 only (`src/core/security/jwt.ts`).
+- CORS uses the `ALLOWED_ORIGINS` allowlist in every environment; outside production an empty value allows only `http://localhost:3001` (`resolveAllowedOrigins` in `src/config/index.ts`).
+- `src/docs/SECURITY.md` has a verification checklist mapping each baseline control to its test. Open rows: TLS and the Secure cookie (LMS-94), per-route rate limits (LMS-97, LMS-100), student data access (LMS-99, LMS-100).
+- New tests: `tests/unit/jwt.test.ts`, `tests/unit/cors.test.ts`, `resolveAllowedOrigins` cases in `tests/unit/config.test.ts`, HttpOnly and SameSite assertions in `tests/modules/auth.test.ts`.
+
+### Test Results
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | ✅ Pass |
+| `npm run lint` | ✅ 0 errors, 33 warnings (pre-existing) |
+| `npm run test:unit` | ✅ 129 passed (14 files) |
+| `npm run test:integration` (amentorz_test) | ✅ 73 passed (12 files) |
+
 ## 2026-10-29 — Regional and shared-component guidelines (LMS-41)
 
 - `src/docs/REGIONS.md`: India and UAE rules (country codes, E.164 mobiles, time zones, INR only, country-specific policies and consent, open regional decisions).

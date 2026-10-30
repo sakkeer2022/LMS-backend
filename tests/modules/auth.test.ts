@@ -73,6 +73,16 @@ describe('Auth API', () => {
 
     const cookies = res.headers['set-cookie'];
     expect(cookies.some((c: string) => c.includes('accessToken='))).toBe(true);
+
+    // Auth cookies are not readable by scripts and are never sent cross-site
+    const authCookies = (cookies as unknown as string[]).filter(
+      (c) => c.startsWith('accessToken=') || c.startsWith('refreshToken=')
+    );
+    expect(authCookies).toHaveLength(2);
+    for (const cookie of authCookies) {
+      expect(cookie).toMatch(/;\s*HttpOnly/i);
+      expect(cookie).toMatch(/;\s*SameSite=Strict/i);
+    }
   });
 
   it('should fail to login with wrong password', async () => {
