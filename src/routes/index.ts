@@ -5,7 +5,7 @@ import { rolesRouter } from '@modules/roles/roles.routes';
 import { permissionsRouter } from '@modules/permissions/permissions.routes';
 import { usersRouter } from '@modules/users/users.routes';
 import { auditRouter } from '@modules/audit/audit.routes';
-import { featureFlagsRouter } from '@modules/feature-flags/feature-flags.routes.js';
+import { featureFlagsRouter } from '@modules/feature-flags/index.js';
 import { notificationsRouter } from '@modules/notifications/notifications.routes.js';
 import { adminRouter } from '@modules/admin/admin.routes.js';
 import { uploadsRouter } from '@modules/uploads/uploads.routes.js';

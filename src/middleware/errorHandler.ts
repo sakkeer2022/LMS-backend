@@ -62,7 +62,9 @@ export function globalErrorHandler(
     const message =
       isSystemError && config.env === 'production' ? 'Internal server error' : err.message;
 
-    res.status(err.statusCode).json(errorResponse(message, undefined, err.traceId));
+    // Operational errors expose their code so clients can map them; system errors stay generic
+    const code = isSystemError ? undefined : err.code;
+    res.status(err.statusCode).json(errorResponse(message, undefined, err.traceId, code));
     return;
   }
 

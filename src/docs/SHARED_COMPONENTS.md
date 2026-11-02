@@ -17,6 +17,8 @@ Building blocks that more than one module uses. **Check this list before writing
 | Permission names and system roles | `src/core/security/rbac.ts`                        | The single list of permission names (`resource.action`) and seeded roles; add new permissions here |
 | Secure uploads                    | `src/middleware/upload.ts`                         | File size, type and magic-byte checks, quarantine                                                  |
 | Background jobs                   | `src/infrastructure/queue/`                        | BullMQ queue and worker                                                                            |
+| JSON cache                        | `src/infrastructure/cache/` (`appCache`)           | Redis-backed cache with an in-memory test double; fails open                                       |
+| Feature flag check                | `src/modules/feature-flags/index.ts` (`isFeatureEnabled`) | Gating a new code path; a missing flag is off                                               |
 | Test fixtures                     | `tests/helpers/`                                   | `app` and `getCsrfData`; more helpers listed below as their branches merge                         |
 
 ## Arriving with open branches
