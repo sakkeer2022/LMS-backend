@@ -146,7 +146,11 @@ const envSchema = z
 export { envSchema };
 
 // Local frontend origin(s) allowed when ALLOWED_ORIGINS is not set outside production.
-export const DEFAULT_DEV_ALLOWED_ORIGINS = ['http://localhost:3001'];
+export const DEFAULT_DEV_ALLOWED_ORIGINS = [
+  'http://localhost:3001', // admin
+  'http://localhost:3002', // student
+  'http://localhost:3003', // faculty
+];
 
 /** Parses ALLOWED_ORIGINS. Outside production an empty value falls back to the local frontend. */
 export function resolveAllowedOrigins(

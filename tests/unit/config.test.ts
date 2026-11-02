@@ -172,5 +172,10 @@ describe('resolveAllowedOrigins', () => {
 
   it('never allows a wildcard by default', () => {
     expect(DEFAULT_DEV_ALLOWED_ORIGINS).not.toContain('*');
+    expect(DEFAULT_DEV_ALLOWED_ORIGINS).toEqual([
+      'http://localhost:3001',
+      'http://localhost:3002',
+      'http://localhost:3003',
+    ]);
   });
 });
