@@ -52,10 +52,13 @@ const masterOrder = [
 export async function listCategories(
   query: MasterListQuery
 ): Promise<PaginatedResult<CategoryView>> {
-  // The frontline tabs (School, University, ...). Since ADR-0005 they sit at depth 1 of the
-  // category tree; this list keeps returning only them so existing callers see no change.
+  // The frontline tabs (School, University, ...): the categories the legacy tree
+  // (ADR-0003) has a root for. Since ADR-0005 they sit at depth 1 of the category tree,
+  // next to tiers admins add later; this list keeps returning only the tabs, so the
+  // existing callers (onboarding, pricing, the read-only legacy screen) see no change.
   const where: Prisma.CategoryWhereInput = {
     depth: 1,
+    node: { isNot: null },
     ...(query.isActive === undefined ? {} : { isActive: query.isActive }),
   };
   const [rows, total] = await Promise.all([
