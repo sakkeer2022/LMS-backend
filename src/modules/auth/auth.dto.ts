@@ -17,6 +17,7 @@ export const PortalLoginDto = z
   .object({
     email: z.string().trim().email().max(255).toLowerCase(),
     password: z.string().min(1, 'Password is required').max(1024),
+    rememberMe: z.boolean().optional().default(false),
   })
   .strict();
 

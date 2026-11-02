@@ -33,13 +33,18 @@ async function createUser(
   });
 }
 
-async function login(portal: Portal, email: string, password = TEST_PASSWORD) {
+async function login(
+  portal: Portal,
+  email: string,
+  password = TEST_PASSWORD,
+  extra: Record<string, unknown> = {}
+) {
   const { csrfToken, csrfCookie } = await getCsrfData();
   return request(app)
     .post(`/api/v1/auth/${portal}/login`)
     .set('Cookie', csrfCookie)
     .set('x-csrf-token', csrfToken)
-    .send({ email, password });
+    .send({ email, password, ...extra });
 }
 
 const cookiesOf = (res: request.Response): string[] =>
@@ -174,6 +179,57 @@ describe('Portal login', () => {
       (await post({ email: 'strict@example.com', password: TEST_PASSWORD, role: 'admin' })).status
     ).toBe(422);
     expect((await post({ email: 'strict@example.com' })).status).toBe(422);
+  });
+
+  describe('keep me signed in', () => {
+    const refreshCookieOf = (res: request.Response) =>
+      cookiesOf(res).find((c) => c.startsWith('refreshToken='))!;
+    const hours = (res: request.Response) =>
+      (new Date(res.body.data.sessionExpiresAt).getTime() - Date.now()) / 3_600_000;
+
+    it('gives a persistent cookie and the full refresh lifetime when ticked', async () => {
+      await createUser('keep@example.com', 'admin');
+      const res = await login('admin', 'keep@example.com', TEST_PASSWORD, { rememberMe: true });
+
+      expect(res.status).toBe(200);
+      expectContractResponse(res, 'post', '/auth/admin/login');
+      expect(refreshCookieOf(res)).toMatch(/Max-Age=\d+/i);
+      expect(hours(res)).toBeGreaterThan(24 * 6);
+    });
+
+    it('gives a browser-session cookie and a shorter session when unticked or omitted', async () => {
+      await createUser('nokeep@example.com', 'admin');
+      for (const extra of [{ rememberMe: false }, {}]) {
+        const res = await login('admin', 'nokeep@example.com', TEST_PASSWORD, extra);
+        expect(res.status).toBe(200);
+        expect(refreshCookieOf(res)).not.toMatch(/Max-Age|Expires=/i);
+        expect(hours(res)).toBeLessThanOrEqual(12.01);
+      }
+    });
+
+    it('keeps the choice across a refresh rotation', async () => {
+      await createUser('rotate@example.com', 'admin');
+      const { csrfToken, csrfCookie } = await getCsrfData();
+      for (const [rememberMe, persistent] of [
+        [true, true],
+        [false, false],
+      ] as const) {
+        const first = await login('admin', 'rotate@example.com', TEST_PASSWORD, { rememberMe });
+        const refreshed = await request(app)
+          .post('/api/v1/auth/refresh')
+          .set('Cookie', `${refreshCookieOf(first).split(';')[0]}; ${csrfCookie}`)
+          .set('x-csrf-token', csrfToken);
+        expect(refreshed.status).toBe(200);
+        expect(/Max-Age=\d+/i.test(refreshCookieOf(refreshed))).toBe(persistent);
+        expect(refreshed.body.data.sessionExpiresAt).toBe(first.body.data.sessionExpiresAt);
+      }
+    });
+
+    it('rejects a non-boolean value with 422', async () => {
+      await createUser('bad@example.com', 'admin');
+      const res = await login('admin', 'bad@example.com', TEST_PASSWORD, { rememberMe: 'yes' });
+      expect(res.status).toBe(422);
+    });
   });
 
   it('rejects a login without a CSRF token with 403', async () => {

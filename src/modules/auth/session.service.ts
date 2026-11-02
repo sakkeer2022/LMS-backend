@@ -21,6 +21,7 @@ const REAUTH_REQUIRED_MESSAGE = 'Session expired. Please log in again.';
 
 export interface RefreshResult {
   tokens: { accessToken: string; refreshToken: string; expiresIn: number };
+  remember: boolean;
   accessExpiresAt: Date;
   sessionExpiresAt: Date;
 }
@@ -102,6 +103,7 @@ export async function refresh(
       portal: stored.portal,
       familyId: stored.familyId ?? undefined,
       expiresAt: stored.expiresAt,
+      remember: payload.rm === true,
       reauthenticatedAt: stored.reauthenticatedAt,
     });
     return { kind: 'rotated', tokens };
@@ -130,6 +132,7 @@ export async function refresh(
   const { sessionExpiresAt, ...tokens } = outcome.tokens;
   return {
     tokens,
+    remember: payload.rm === true,
     accessExpiresAt: new Date(Date.now() + getAccessTokenTtlSeconds() * 1000),
     sessionExpiresAt,
   };

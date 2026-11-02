@@ -11,7 +11,10 @@ export function portalLogin(portal: Portal) {
       const dto = PortalLoginDto.parse(req.body);
       const result = await loginToPortal(portal, dto, getRequestContext(req));
 
-      setTokenCookies(res, result.tokens);
+      setTokenCookies(res, result.tokens, {
+        persistent: result.remember,
+        expiresAt: result.sessionExpiresAt,
+      });
       res.json(
         successResponse(
           {

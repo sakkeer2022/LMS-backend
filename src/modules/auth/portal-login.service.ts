@@ -13,6 +13,7 @@ import { loadContractUser, type ContractUser } from './contract-user.js';
 export interface PortalLoginResult {
   user: ContractUser;
   tokens: { accessToken: string; refreshToken: string; expiresIn: number };
+  remember: boolean;
   accessExpiresAt: Date;
   sessionExpiresAt: Date;
   requiresTermsAcceptance: boolean;
@@ -124,7 +125,10 @@ export async function loginToPortal(
         lockedUntil: null,
       },
     });
-    const tokens = await issueTokenPair(updated, context, tx, { portal });
+    const tokens = await issueTokenPair(updated, context, tx, {
+      portal,
+      remember: dto.rememberMe,
+    });
     return { tokens, contractUser: await loadContractUser(user.id, tx) };
   });
 
@@ -144,6 +148,7 @@ export async function loginToPortal(
   return {
     user: result.contractUser,
     tokens,
+    remember: dto.rememberMe,
     accessExpiresAt: new Date(Date.now() + tokens.expiresIn * 1000),
     sessionExpiresAt,
     // No terms or activation data exists yet: terms arrive with the faculty onboarding work

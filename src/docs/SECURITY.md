@@ -4,6 +4,7 @@
 
 - **Strategy**: JWT Access Tokens + Opaque/JWT Refresh Tokens.
 - **Token Rotation**: Refresh tokens are rotated upon use to prevent replay attacks.
+- **Keep me signed in**: portal login takes `rememberMe`. Ticked: persistent refresh cookie and `JWT_REFRESH_EXPIRES_IN`. Unticked (default): browser-session cookie and `JWT_SESSION_EXPIRES_IN`. The choice is a signed `rm` claim, so it survives rotation and cannot be changed by the client.
 - **Invalidation**: Refresh tokens are stored in the database (`refresh_tokens` table) to allow immediate revocation on logout or security breach.
 
 ## Authorization [Implemented]

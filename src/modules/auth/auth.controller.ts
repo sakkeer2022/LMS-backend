@@ -38,7 +38,10 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
     }
 
     const result = await SessionService.refresh(refreshToken, getRequestContext(req));
-    setTokenCookies(res, result.tokens);
+    setTokenCookies(res, result.tokens, {
+      persistent: result.remember,
+      expiresAt: result.sessionExpiresAt,
+    });
 
     res.set('Cache-Control', 'no-store');
     res.json(

@@ -24,6 +24,8 @@ export interface IssueOptions {
   familyId?: string;
   /** Absolute session deadline. Rotation passes the existing one so it does not slide. */
   expiresAt?: Date;
+  /** "Keep me signed in": a persistent cookie and the full refresh lifetime. Carried over on rotation. */
+  remember?: boolean;
   /** Carried over on rotation so a password confirmation survives a token refresh. */
   reauthenticatedAt?: Date | null;
 }
@@ -65,13 +67,14 @@ export async function issueTokenPair(
     policies,
     sid: familyId,
     ...(options.portal ? { portal: options.portal } : {}),
+    ...(options.remember ? { rm: true as const } : {}),
   };
   const accessToken = signAccessToken({ ...payload, jti: accessJti });
   const refreshToken = signRefreshToken({ ...payload, jti: refreshJti });
 
   const tokenHash = hashToken(refreshToken);
   // A rotated session keeps its original deadline: the absolute expiry never slides
-  const expiresAt = options.expiresAt ?? getRefreshTokenExpiryDate();
+  const expiresAt = options.expiresAt ?? getRefreshTokenExpiryDate(options.remember);
 
   const isMocked =
     typeof (prisma.refreshToken.create as unknown as { mock?: unknown }).mock !== 'undefined';

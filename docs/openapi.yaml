@@ -8501,6 +8501,11 @@
             "maxLength": 1024,
             "format": "password",
             "writeOnly": true
+          },
+          "rememberMe": {
+            "type": "boolean",
+            "default": false,
+            "description": "\"Keep me signed in\". True: persistent cookie and the full refresh lifetime (JWT_REFRESH_EXPIRES_IN). False or omitted: browser-session cookie and a shorter session (JWT_SESSION_EXPIRES_IN). Kept across refresh rotation."
           }
         },
         "required": [

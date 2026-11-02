@@ -30,6 +30,14 @@ const envSchema = z
         message: 'Invalid format for JWT_REFRESH_EXPIRES_IN. Must be parseable by ms (e.g., "7d")',
       }),
 
+    // Lifetime of a sign-in without "keep me signed in"; its cookie also ends with the browser session
+    JWT_SESSION_EXPIRES_IN: z
+      .string()
+      .default('12h')
+      .refine((val) => typeof ms(val as Parameters<typeof ms>[0]) === 'number', {
+        message: 'Invalid format for JWT_SESSION_EXPIRES_IN. Must be parseable by ms (e.g., "12h")',
+      }),
+
     LOG_LEVEL: z.string().default('info'),
 
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
@@ -189,6 +197,7 @@ export const config = {
     expiresIn: env.JWT_EXPIRES_IN,
     refreshSecret: env.JWT_REFRESH_SECRET,
     refreshExpiresIn: env.JWT_REFRESH_EXPIRES_IN,
+    sessionExpiresIn: env.JWT_SESSION_EXPIRES_IN,
   },
 
   log: {
