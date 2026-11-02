@@ -1,5 +1,24 @@
 # Progress Log
 
+## 2026-10-29 — Platform settings API (LMS-90)
+
+- New `settings` module: `GET /admin/settings`, `GET /admin/settings/{key}`, `PUT /admin/settings/{key}` per the contract, guarded by `configuration.read` and `configuration.manage` (added to `src/core/security/rbac.ts`, granted to admin).
+- Typed registry in code (`settings.registry.ts`, empty until the PO approves keys); values and revisions in the existing `system_settings` table, no migration. `getSetting(key)` exported from the module's `index.ts` for other modules.
+- Stale `expectedRevision` → 409; wrong type, bounds or allowed value → 422; every change audited (`setting.updated`) with actor, old and new value and reason.
+- Recent re-authentication for `PUT` (contract) is deferred to LMS-100.
+- `auditContextFrom(req)` in `src/middleware/audit.middleware.ts` is shared by the users and settings controllers.
+- `tests/helpers/users.ts` creates test users through Prisma and logs in through the real endpoint.
+
+### Test Results
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | ✅ Pass |
+| `npm run lint` | ✅ 0 errors, 33 warnings (pre-existing) |
+| `npm run test:unit` | ✅ 150 passed (14 files), including `tests/unit/settings.test.ts` |
+| New integration files (`settings.test.ts`, `rbac_seed.test.ts`) in isolation | ✅ 29 passed, 12 of 12 repeated runs |
+| Full `npm run test:integration` (102 tests) | ✅ 11 of 12 runs passed after the test fixes recorded under LMS-96; the one failure was the existing audit hash chain bug (`findings.md`) |
+
 ## 2026-10-29 — Audit hash chain fix (LMS-102)
 
 - Migration `20261029120000_audit_chain_sequence` adds `audit_logs.sequence` (BIGINT, unique), numbering existing rows by `created_at`, `id`. Applied to `amentorz_test`; no drift. **Run `npx prisma migrate deploy` on dev databases.**

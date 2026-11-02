@@ -9,6 +9,7 @@ import { featureFlagsRouter } from '@modules/feature-flags/feature-flags.routes.
 import { notificationsRouter } from '@modules/notifications/notifications.routes.js';
 import { adminRouter } from '@modules/admin/admin.routes.js';
 import { uploadsRouter } from '@modules/uploads/uploads.routes.js';
+import { settingsRouter } from '@modules/settings/index.js';
 import { auditLogMiddleware } from '@middleware/audit.middleware';
 
 export const router = Router();
@@ -24,6 +25,7 @@ router.use('/users', usersRouter);
 router.use('/audit', auditRouter);
 router.use('/feature-flags', featureFlagsRouter);
 router.use('/notifications', notificationsRouter);
+router.use('/admin/settings', settingsRouter);
 router.use('/admin', adminRouter);
 router.use('/uploads', uploadsRouter);
 

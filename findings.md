@@ -1,5 +1,20 @@
 # Findings & Decisions
 
+## 2026-10-29 — Platform settings API (LMS-90)
+
+| Finding / Decision | Detail |
+|---|---|
+| Registry in code, values in the database | `src/modules/settings/settings.registry.ts` defines each key's type, bounds, allowed values and default; `system_settings` (existing table, no migration) stores only the value and revision. Unregistered keys return 404 even if a row exists |
+| Registry starts empty | The initial keys are `DECISION REQUIRED` in the contract. Keys are added, once approved, in the PR of the feature that reads them. Tests use a mocked registry |
+| No cache | `getSetting(key)` reads the database each time, so changes apply without a restart and there is nothing to invalidate |
+| Defaults stored on first read | Reading or updating a registered key creates its row with the default (revision 1), so `expectedRevision` always has a value to compare |
+| Optimistic concurrency | `PUT` updates only where `revision = expectedRevision`; otherwise 409. Wrong type, bounds or allowed value is 422 |
+| Audit | `setting.updated` (SECURITY) with the actor, old and new value, revision and reason, written after the commit |
+| Re-authentication deferred | The contract requires recent re-authentication for `PUT`; `/auth/reauthenticate` comes with LMS-100, which adds the check |
+| Test fixtures | `tests/helpers/users.ts` creates users through Prisma (low bcrypt cost) and logs in through the real endpoint, instead of registering through the API |
+
+---
+
 ## 2026-10-29 — Audit hash chain breaks on same-millisecond writes (LMS-102, fixed)
 
 | Finding / Decision | Detail |
