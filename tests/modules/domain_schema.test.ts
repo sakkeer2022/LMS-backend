@@ -46,10 +46,12 @@ describe('Amentorz Domain Schema Integration', () => {
   describe('Student Onboarding Profile, Policies & Guardian Consent', () => {
     async function createLearningCatalogue() {
       const category = await prisma.category.create({
-        data: { code: 'SCHOOL', name: 'School', requiresBoard: true },
+        // A bookable top-level leaf of the category tree (ADR-0005)
+        data: { code: 'school', name: 'School', path: 'school', isBookable: true, requiresBoard: true },
       });
       const board = await prisma.board.create({ data: { code: 'CBSE', name: 'CBSE / NCERT' } });
       const level = await prisma.level.create({ data: { code: 'CLASS_10', name: 'Class 10' } });
+      await prisma.categoryLevel.create({ data: { categoryId: category.id, levelId: level.id } });
       const subject = await prisma.subject.create({ data: { code: 'MATHS', name: 'Mathematics' } });
       const curriculum = await prisma.curriculum.create({
         data: { categoryId: category.id, boardId: board.id, subjectId: subject.id, levelId: level.id },
@@ -126,12 +128,14 @@ describe('Amentorz Domain Schema Integration', () => {
     });
 
     it('rejects a second consent for the same student and policy version', async () => {
-      const { category, level, language, studentTerms } = await createLearningCatalogue();
+      const { category, board, level, language, studentTerms } = await createLearningCatalogue();
       const profile = await prisma.studentProfile.create({
         data: {
           userId: studentUserId,
           dateOfBirth: new Date('2012-05-15'),
           categoryId: category.id,
+          // School requires a board (enforced by student_profiles_category_check, ADR-0005)
+          boardId: board.id,
           levelId: level.id,
           teachingLanguageId: language.id,
         },
@@ -287,8 +291,10 @@ describe('Amentorz Domain Schema Integration', () => {
     it('creates Category, Board, Subject, Level, Curriculum and a tutor PriceRule (INR paise)', async () => {
       const category = await prisma.category.create({
         data: {
-          code: 'SCHOOL',
+          code: 'school',
           name: 'School Education',
+          path: 'school',
+          isBookable: true,
           requiresBoard: true,
           displayOrder: 1,
         },
@@ -315,6 +321,7 @@ describe('Amentorz Domain Schema Integration', () => {
           name: 'Grade 10',
         },
       });
+      await prisma.categoryLevel.create({ data: { categoryId: category.id, levelId: level.id } });
 
       const curriculum = await prisma.curriculum.create({
         data: {
@@ -358,8 +365,10 @@ describe('Amentorz Domain Schema Integration', () => {
     it('enforces non-School curriculum tuple uniqueness with NULL board', async () => {
       const category = await prisma.category.create({
         data: {
-          code: 'RESEARCH_SKILL',
+          code: 'research-skill',
           name: 'Research & Skill Learning',
+          path: 'research-skill',
+          isBookable: true,
           requiresBoard: false,
         },
       });
@@ -377,6 +386,7 @@ describe('Amentorz Domain Schema Integration', () => {
           name: 'Advanced Level',
         },
       });
+      await prisma.categoryLevel.create({ data: { categoryId: category.id, levelId: level.id } });
 
       // First curriculum with boardId: null
       const first = await prisma.curriculum.create({

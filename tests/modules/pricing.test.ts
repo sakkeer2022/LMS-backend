@@ -82,7 +82,7 @@ describe('Pricing API', () => {
       });
       expect(res.body.data).toMatchObject({
         facultyId: null,
-        categoryName: 'School',
+        categoryName: 'School › K-12',
         boardName: 'CBSE',
         subjectName: 'Physics',
         levelName: 'Class 11',
@@ -173,24 +173,13 @@ describe('Pricing API', () => {
       expect(res.body.data.sessionPricePaise).toBe(145000);
     });
 
-    it('blocks moving a catalogue node whose offerings have prices', async () => {
-      const icseBoard = await prisma.catalogueNode.findFirstOrThrow({ where: { type: 'BOARD', boardId: icsePhysics11.boardId } });
-      const chemistry = await prisma.subject.findUniqueOrThrow({ where: { code: 'chemistry' } });
-      const subject = await prisma.catalogueNode.create({
-        data: {
-          parentId: (await prisma.catalogueNode.findFirstOrThrow({ where: { type: 'BOARD', boardId: cbsePhysics11.boardId } })).id,
-          rootId: cbsePhysics11.leaf.rootId,
-          type: 'SUBJECT',
-          name: 'Chemistry',
-          slug: 'chemistry',
-          subjectId: chemistry.id,
-        },
-      });
-      expect(subject).toBeTruthy();
+    it('keeps price rules when the legacy tree is frozen (ADR-0005)', async () => {
+      // Offerings now hang off category-tree leaves, so moving a branch never changes a
+      // curriculum id; the legacy node move is read-only.
       const res = await send('put', `/api/v1/admin/catalogue/nodes/${cbsePhysics11.subjectNode.id}/move`).send({
-        parentId: icseBoard.id,
+        parentId: cbsePhysics11.leaf.rootId,
       });
-      expect(res.status).toBe(409);
+      expect([res.status, res.body.code]).toEqual([409, 'CATALOGUE_TREE_MIGRATED']);
     });
   });
 

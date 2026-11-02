@@ -3,6 +3,7 @@ import { prisma } from '@infrastructure/database/index';
 import { toPrismaPagination } from '@shared/validation/index';
 import { buildPaginationMeta, type PaginatedResult } from '@shared/types/pagination';
 import type { CurriculumListQuery, LevelListQuery, MasterListQuery } from './catalogue.dto.js';
+import { categoryScope } from './catalogue.service.js';
 
 /**
  * List-only reads of the master tables (categories, boards, subjects, levels)
@@ -35,7 +36,7 @@ export interface CurriculumView {
   categoryId: string;
   boardId: string | null;
   subjectId: string;
-  levelId: string;
+  levelId: string | null;
   nodeId: string | null;
   name: string;
   syllabus: string | null;
@@ -51,8 +52,12 @@ const masterOrder = [
 export async function listCategories(
   query: MasterListQuery
 ): Promise<PaginatedResult<CategoryView>> {
-  const where: Prisma.CategoryWhereInput =
-    query.isActive === undefined ? {} : { isActive: query.isActive };
+  // The frontline tabs (School, University, ...). Since ADR-0005 they sit at depth 1 of the
+  // category tree; this list keeps returning only them so existing callers see no change.
+  const where: Prisma.CategoryWhereInput = {
+    depth: 1,
+    ...(query.isActive === undefined ? {} : { isActive: query.isActive }),
+  };
   const [rows, total] = await Promise.all([
     prisma.category.findMany({
       where,
@@ -128,17 +133,21 @@ export async function listCurricula(
   query: CurriculumListQuery,
   options: { publicOnly: boolean }
 ): Promise<PaginatedResult<CurriculumView>> {
+  // A tab id (as before ADR-0005) matches the curricula of every leaf below it
+  const scope = query.categoryId ? await categoryScope(prisma, query.categoryId) : {};
   const where: Prisma.CurriculumWhereInput = {
-    ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+    ...scope,
     ...(query.boardId ? { boardId: query.boardId } : {}),
     ...(query.levelId ? { levelId: query.levelId } : {}),
     ...(options.publicOnly
       ? {
           isActive: true,
-          category: { isActive: true },
           subject: { isActive: true },
-          level: { isActive: true },
-          OR: [{ boardId: null }, { board: { isActive: true } }],
+          AND: [
+            { OR: [{ boardId: null }, { board: { isActive: true } }] },
+            { OR: [{ levelId: null }, { level: { isActive: true } }] },
+            { category: { isActive: true } },
+          ],
         }
       : query.isActive === undefined
         ? {}
@@ -186,7 +195,7 @@ function toCurriculumView(
     levelId: row.levelId,
     nodeId: row.nodeId,
     // Display label composed from the master names; curricula have no stored name
-    name: [row.board?.name, row.subject.name, row.level.name].filter(Boolean).join(' · '),
+    name: [row.board?.name, row.subject.name, row.level?.name].filter(Boolean).join(' · '),
     syllabus: row.syllabus,
     isActive: row.isActive,
   };

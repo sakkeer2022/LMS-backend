@@ -247,6 +247,22 @@ export async function curriculaInUse(db: Db, curriculumIds: string[]): Promise<s
   return [...new Set(ids)];
 }
 
+/**
+ * Curricula of a category and of every category below it (ADR-0005). Callers that still
+ * pass a frontline tab id get the curricula of its leaves, as before the tree existed.
+ */
+export async function categoryScope(
+  db: Db,
+  categoryId: string
+): Promise<Prisma.CurriculumWhereInput> {
+  const category = await db.category.findUnique({
+    where: { id: categoryId },
+    select: { path: true },
+  });
+  if (!category) return { categoryId };
+  return { category: { OR: [{ id: categoryId }, { path: { startsWith: `${category.path}/` } }] } };
+}
+
 /** Maps unique-constraint violations to a 409 with a clear message. */
 export function rethrowConflict(err: unknown, message: string, code: string): never {
   if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -289,38 +305,66 @@ export interface OfferingSummary {
   boardName: string | null;
   subjectId: string;
   subjectName: string;
-  levelId: string;
-  levelName: string;
+  levelId: string | null;
+  levelName: string | null;
   isActive: boolean;
 }
 
 const offeringInclude = {
-  category: { select: { name: true, isActive: true } },
+  category: { select: { name: true, path: true, depth: true, isActive: true } },
   board: { select: { name: true, isActive: true } },
   subject: { select: { name: true, isActive: true } },
   level: { select: { name: true, isActive: true } },
 } satisfies Prisma.CurriculumInclude;
 
-function toOffering(
-  row: Prisma.CurriculumGetPayload<{ include: typeof offeringInclude }>
-): OfferingSummary {
+type OfferingRow = Prisma.CurriculumGetPayload<{ include: typeof offeringInclude }>;
+
+/**
+ * Display label of each row's category: the names from the frontline tab down to the
+ * leaf, e.g. "School › K-12" (ADR-0005). The root ("Academic") is left out. One query.
+ */
+async function categoryLabels(db: Db, rows: OfferingRow[]): Promise<Map<string, string>> {
+  const prefixes = new Set<string>();
+  for (const row of rows) {
+    const parts = row.category.path.split('/');
+    for (let i = 2; i < parts.length; i += 1) prefixes.add(parts.slice(0, i).join('/'));
+  }
+  const ancestors = prefixes.size
+    ? await db.category.findMany({
+        where: { path: { in: [...prefixes] } },
+        select: { path: true, name: true },
+      })
+    : [];
+  const names = new Map(ancestors.map((a) => [a.path, a.name]));
+  const labels = new Map<string, string>();
+  for (const row of rows) {
+    const parts = row.category.path.split('/');
+    const chain = [];
+    for (let i = 2; i < parts.length; i += 1)
+      chain.push(names.get(parts.slice(0, i).join('/')) ?? parts[i - 1]);
+    labels.set(row.categoryId, [...chain, row.category.name].join(' › '));
+  }
+  return labels;
+}
+
+function toOffering(row: OfferingRow, labels: Map<string, string>): OfferingSummary {
   return {
     curriculumId: row.id,
     nodeId: row.nodeId,
     categoryId: row.categoryId,
-    categoryName: row.category.name,
+    categoryName: labels.get(row.categoryId) ?? row.category.name,
     boardId: row.boardId,
     boardName: row.board?.name ?? null,
     subjectId: row.subjectId,
     subjectName: row.subject.name,
     levelId: row.levelId,
-    levelName: row.level.name,
+    levelName: row.level?.name ?? null,
     // Bookable only while the curriculum and every master row it uses are active
     isActive:
       row.isActive &&
       row.category.isActive &&
       row.subject.isActive &&
-      row.level.isActive &&
+      (row.level === null || row.level.isActive) &&
       (row.board === null || row.board.isActive),
   };
 }
@@ -334,7 +378,8 @@ export async function getOfferings(
     where: { id: { in: curriculumIds } },
     include: offeringInclude,
   });
-  return new Map(rows.map((r) => [r.id, toOffering(r)]));
+  const labels = await categoryLabels(db, rows);
+  return new Map(rows.map((r) => [r.id, toOffering(r, labels)]));
 }
 
 /** Offerings matching a (category, subject, level) and optional board; several when the board is omitted. */
@@ -344,7 +389,7 @@ export async function findOfferings(
 ): Promise<OfferingSummary[]> {
   const rows = await db.curriculum.findMany({
     where: {
-      categoryId: filter.categoryId,
+      ...(await categoryScope(db, filter.categoryId)),
       subjectId: filter.subjectId,
       levelId: filter.levelId,
       ...(filter.boardId !== undefined ? { boardId: filter.boardId } : {}),
@@ -352,7 +397,8 @@ export async function findOfferings(
     include: offeringInclude,
     orderBy: { id: 'asc' },
   });
-  return rows.map(toOffering);
+  const labels = await categoryLabels(db, rows);
+  return rows.map((r) => toOffering(r, labels));
 }
 
 /** Throws unless the curriculum exists and is bookable (published leaf, active master rows). */

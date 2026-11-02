@@ -3,6 +3,7 @@
 export { catalogueRouter, adminCatalogueRouter } from './catalogue.routes.js';
 export {
   assertBookableCurriculum,
+  categoryScope,
   findOfferings,
   getAncestors,
   getOfferings,

@@ -580,23 +580,56 @@ model FacultyTermsAcceptance {
   @@map("faculty_terms_acceptances")
 }
 
+// Category tree (ADR-0005). The tree is categories only; board, subject and level are
+// lookups attached to leaves through curricula and category_levels. Only leaves can be
+// bookable. path/depth are materialised; version guards optimistic concurrency.
+// Hand-written in the migrations and not modelled here: CHECK constraints, the
+// NULLS NOT DISTINCT sibling index, text_pattern_ops path indexes and the deferred
+// tree / reference triggers. Remove any statement `migrate dev` generates to drop them.
 model Category {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code          String   @unique @db.VarChar(50)
+  parentId      String?  @map("parent_id") @db.Uuid
+  // Unique among siblings (index categories_parent_id_code_key, NULLS NOT DISTINCT)
+  code          String   @db.VarChar(50)
   name          String   @db.VarChar(100)
   description   String?  @db.Text
+  path          String   @unique @db.VarChar(500)
+  depth         Int      @default(0)
+  isBookable    Boolean  @default(false) @map("is_bookable")
   requiresBoard Boolean  @default(false) @map("requires_board")
+  requiresLevel Boolean  @default(true) @map("requires_level")
   isActive      Boolean  @default(true) @map("is_active")
   displayOrder  Int      @default(0) @map("display_order")
+  version       Int      @default(1)
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  curricula Curriculum[]
-  students  StudentProfile[]
-  levels    Level[]
-  node      CatalogueNode?
+  parent        Category?        @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children      Category[]       @relation("CategoryTree")
+  allowedLevels CategoryLevel[]
+  curricula     Curriculum[]
+  students      StudentProfile[]
+  levels        Level[]
+  node          CatalogueNode?
 
+  @@unique([parentId, code])
+  @@index([parentId, displayOrder])
   @@map("categories")
+}
+
+// Levels a bookable leaf allows (ADR-0005)
+model CategoryLevel {
+  categoryId String   @map("category_id") @db.Uuid
+  levelId    String   @map("level_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  category  Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  level     Level        @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  curricula Curriculum[]
+
+  @@id([categoryId, levelId])
+  @@index([levelId])
+  @@map("category_levels")
 }
 
 model Board {
@@ -647,10 +680,11 @@ model Level {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  category  Category?        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  curricula Curriculum[]
-  students  StudentProfile[]
-  nodes     CatalogueNode[]
+  category       Category?        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  curricula      Curriculum[]
+  students       StudentProfile[]
+  nodes          CatalogueNode[]
+  categoryLevels CategoryLevel[]
 
   @@index([categoryId, sortOrder])
   @@map("levels")
@@ -661,7 +695,8 @@ model Curriculum {
   categoryId String   @map("category_id") @db.Uuid
   boardId    String?  @map("board_id") @db.Uuid
   subjectId  String   @map("subject_id") @db.Uuid
-  levelId    String   @map("level_id") @db.Uuid
+  // Null only when the leaf does not require a level (ADR-0005)
+  levelId    String?  @map("level_id") @db.Uuid
   // The LEVEL leaf that owns this offering (ADR 0003). The tuple columns above are
   // copied from the leaf's ancestors and kept in sync by the catalogue service.
   nodeId     String?  @unique @map("node_id") @db.Uuid
@@ -673,8 +708,10 @@ model Curriculum {
   category Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   board    Board?         @relation(fields: [boardId], references: [id], onDelete: Restrict)
   subject  Subject        @relation(fields: [subjectId], references: [id], onDelete: Restrict)
-  level    Level          @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  level    Level?         @relation(fields: [levelId], references: [id], onDelete: Restrict)
   node     CatalogueNode? @relation(fields: [nodeId], references: [id], onDelete: Restrict)
+  // The leaf must allow the level (composite FK, MATCH SIMPLE: skipped when levelId is null)
+  allowedLevel CategoryLevel? @relation(fields: [categoryId, levelId], references: [categoryId, levelId], onDelete: Restrict, map: "curricula_category_id_level_id_fkey")
 
   assignments FacultyAssignment[]
   materials   LibraryMaterial[]

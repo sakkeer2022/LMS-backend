@@ -4,6 +4,7 @@ import type { PrismaClient } from '@prisma/client';
 import { seedCatalogue, seedCataloguePermissions } from '../../prisma/seeds/catalogue';
 import {
   createBoard,
+  allowLevel,
   createCategory,
   createChildNode,
   createLevel,
@@ -26,6 +27,7 @@ describe('Catalogue schema', () => {
       const board = await createBoard();
       const subject = await createSubject();
       const level = await createLevel({ categoryId: category.id });
+      await allowLevel(category.id, level.id);
 
       const sub = await createChildNode(root, { type: 'SUBSECTION' });
       const boardNode = await createChildNode(sub, { type: 'BOARD', boardId: board.id });
@@ -40,6 +42,7 @@ describe('Catalogue schema', () => {
 
       // A leaf owns at most one curriculum
       const otherLevel = await createLevel();
+      await allowLevel(category.id, otherLevel.id);
       await expect(
         prisma.curriculum.create({
           data: { categoryId: category.id, boardId: board.id, subjectId: subject.id, levelId: otherLevel.id, nodeId: leaf.id },
@@ -105,10 +108,20 @@ describe('Catalogue schema', () => {
   describe('reference seed', () => {
     const client = prisma as unknown as PrismaClient;
 
-    it('creates the four categories, their published roots and the K-12 subsection', async () => {
+    it('creates the category tree, the legacy roots and the K-12 subsection', async () => {
       await seedCatalogue(client);
 
-      const categories = await prisma.category.findMany({ orderBy: { displayOrder: 'asc' } });
+      const tree = await prisma.category.findMany({ orderBy: { path: 'asc' } });
+      expect(tree.map((c) => [c.path, c.isBookable])).toEqual([
+        ['academic', false],
+        ['academic/jee-neet', true],
+        ['academic/school', false],
+        ['academic/school/k-12', true],
+        ['academic/university', true],
+        ['non-academic', false],
+        ['non-academic/research-skill', true],
+      ]);
+      const categories = await prisma.category.findMany({ where: { depth: 1 }, orderBy: { displayOrder: 'asc' } });
       expect(categories.map((c) => c.code)).toEqual(['school', 'university', 'jee-neet', 'research-skill']);
       expect(categories.find((c) => c.code === 'school')?.requiresBoard).toBe(true);
 
@@ -123,6 +136,9 @@ describe('Catalogue schema', () => {
       const schoolRoot = roots.find((r) => r.categoryId === school.id)!;
       const k12 = await prisma.catalogueNode.findFirst({ where: { parentId: schoolRoot.id, slug: 'k-12' } });
       expect(k12?.type).toBe('SUBSECTION');
+      // The legacy sub-section node and the category-tree leaf share their id
+      expect(tree.find((c) => c.path === 'academic/school/k-12')?.id).toBe(k12?.id);
+      expect(await prisma.categoryLevel.count({ where: { categoryId: k12?.id } })).toBe(12);
 
       const schoolLevels = await prisma.level.findMany({ where: { categoryId: school.id }, orderBy: { sortOrder: 'asc' } });
       expect(schoolLevels).toHaveLength(12);
@@ -144,7 +160,7 @@ describe('Catalogue schema', () => {
       const first = await counts();
       await seedCatalogue(client);
       expect(await counts()).toEqual(first);
-      expect(first).toEqual({ categories: 4, boards: 4, subjects: 11, levels: 22, nodes: 5 });
+      expect(first).toEqual({ categories: 7, boards: 4, subjects: 11, levels: 22, nodes: 5 });
 
       const physics = await prisma.subject.findUnique({ where: { code: 'physics' } });
       expect(physics?.name).toBe('Physics (edited)');

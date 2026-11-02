@@ -1,11 +1,10 @@
 /**
- * Demo catalogue paths and default prices for local development and demos (LMS-54, LMS-58). Never run in
+ * Demo offerings (curricula on category-tree leaves, ADR-0005) and default prices for local development and demos (LMS-54, LMS-58). Never run in
  * production. Requires the reference seed (`npx prisma db seed`) first.
  *
  * Usage: npm run db:seed:demo
  */
 import { prisma } from '../src/infrastructure/database/connection.js';
-import { createPath } from '../src/modules/catalogue/catalogue.mutations.js';
 import { createPriceRule } from '../src/modules/pricing/pricing.service.js';
 import { redisClient } from '../src/infrastructure/redis/connection.js';
 
@@ -72,15 +71,11 @@ async function main(): Promise<void> {
   }
 
   for (const p of PATHS) {
-    const category = await prisma.category.findUniqueOrThrow({ where: { code: p.category } });
-    const root = await prisma.catalogueNode.findUniqueOrThrow({
-      where: { categoryId: category.id },
-    });
-    const subsection = p.subsection
-      ? await prisma.catalogueNode.findFirstOrThrow({
-          where: { parentId: root.id, slug: p.subsection },
-        })
-      : null;
+    // The leaf: the sub-section when given (School › K-12), otherwise the tab itself
+    const tab = await prisma.category.findFirstOrThrow({ where: { code: p.category, depth: 1 } });
+    const leaf = p.subsection
+      ? await prisma.category.findFirstOrThrow({ where: { parentId: tab.id, code: p.subsection } })
+      : tab;
     const board = p.board
       ? await prisma.board.findUniqueOrThrow({ where: { code: p.board } })
       : null;
@@ -90,28 +85,27 @@ async function main(): Promise<void> {
     const label = [p.category, p.subsection, p.board, p.subject, p.level]
       .filter(Boolean)
       .join(' › ');
-    try {
-      await createPath(
-        {
-          categoryId: category.id,
-          subsectionNodeId: subsection?.id,
-          boardId: board?.id,
-          subjectId: subject.id,
-          levelId: level.id,
-          status: 'PUBLISHED',
-        },
-        { userId: null }
-      );
+    const key = {
+      categoryId: leaf.id,
+      boardId: board?.id ?? null,
+      subjectId: subject.id,
+      levelId: level.id,
+    };
+    await prisma.categoryLevel.createMany({
+      data: [{ categoryId: leaf.id, levelId: level.id }],
+      skipDuplicates: true,
+    });
+    const existing = await prisma.curriculum.findFirst({ where: key });
+    if (existing) console.log(`Already present ${label}`);
+    else {
+      await prisma.curriculum.create({ data: { ...key, isActive: true } });
       console.log(`Created ${label}`);
-    } catch (err) {
-      // Re-runs hit 409 for paths that already exist
-      console.log(`Skipped ${label}: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     if (p.pricePaise) {
       const curriculum = await prisma.curriculum.findFirstOrThrow({
         where: {
-          categoryId: category.id,
+          categoryId: leaf.id,
           boardId: board?.id ?? null,
           subjectId: subject.id,
           levelId: level.id,

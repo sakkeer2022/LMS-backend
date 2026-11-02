@@ -11,7 +11,7 @@ import { logger } from '@core/logger/index';
 import { buildPaginationMeta, type PaginatedResult } from '@shared/types/pagination';
 import { toPrismaPagination } from '@shared/validation/index';
 import { logAction } from '@modules/audit/index';
-import { getOfferings, type OfferingSummary } from '@modules/catalogue/index';
+import { categoryScope, getOfferings, type OfferingSummary } from '@modules/catalogue/index';
 import {
   DEFAULT_GST_RATE_BPS,
   computeStoredAmounts,
@@ -44,7 +44,7 @@ export interface PriceRuleView {
   categoryName: string;
   boardName: string | null;
   subjectName: string;
-  levelName: string;
+  levelName: string | null;
   amounts: PriceAmounts;
   effectiveFrom: Date;
   effectiveTo: Date | null;
@@ -147,7 +147,8 @@ export async function listPriceRules(
     ...(query.defaultOnly ? { facultyId: null } : {}),
     ...(query.isActive === undefined ? {} : { isActive: query.isActive }),
     curriculum: {
-      ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+      // A tab id matches every leaf below it (ADR-0005)
+      ...(query.categoryId ? await categoryScope(prisma, query.categoryId) : {}),
       ...(query.boardId ? { boardId: query.boardId } : {}),
       ...(query.subjectId ? { subjectId: query.subjectId } : {}),
       ...(query.levelId ? { levelId: query.levelId } : {}),

@@ -30,6 +30,17 @@ import type {
  */
 
 type Tx = Prisma.TransactionClient;
+
+/**
+ * ADR-0005 froze this tree: the category tree (module category-tree) replaced it, and
+ * syncCurricula would point curricula back at the frontline tabs. Reads still work.
+ */
+function assertLegacyTreeWritable(): void {
+  throw new ConflictError(
+    'This catalogue tree is read-only. Make changes on the new Categories & Content tree.',
+    { code: 'CATALOGUE_TREE_MIGRATED', severity: 'info' }
+  );
+}
 type MasterType = Extract<CatalogueNodeType, 'BOARD' | 'SUBJECT' | 'LEVEL'>;
 
 /** The master-reference column a node of `type` carries. */
@@ -168,6 +179,7 @@ export interface CreatePathResult {
 }
 
 export async function createPath(input: CreatePathInput, actor: Actor): Promise<CreatePathResult> {
+  assertLegacyTreeWritable();
   const { leafId, createdNodeIds } = await prisma.$transaction(async (tx) => {
     const { root, requiresBoard } = await getRootForCategory(tx, input.categoryId);
     if (requiresBoard && !input.boardId) {
@@ -249,6 +261,7 @@ export async function createPath(input: CreatePathInput, actor: Actor): Promise<
 // ── Single node writes ─────────────────────────────────────────────────────
 
 export async function createNode(input: CreateNodeInput, actor: Actor): Promise<NodeDetail> {
+  assertLegacyTreeWritable();
   const node = await prisma.$transaction(async (tx) => {
     const parent = await tx.catalogueNode.findUnique({ where: { id: input.parentId } });
     if (!parent) throw new ValidationError('Unknown parent node', { code: 'UNKNOWN_PARENT' });
@@ -312,6 +325,7 @@ export async function updateNode(
   input: UpdateNodeInput,
   actor: Actor
 ): Promise<NodeDetail> {
+  assertLegacyTreeWritable();
   const { before, after } = await prisma.$transaction(async (tx) => {
     const node = await findNode(tx, id);
     if (input.bookingEnabled !== undefined && node.type !== 'CATEGORY') {
@@ -346,6 +360,7 @@ export async function moveNode(
   input: MoveNodeInput,
   actor: Actor
 ): Promise<NodeDetail> {
+  assertLegacyTreeWritable();
   const result = await prisma.$transaction(async (tx) => {
     const node = await findNode(tx, id);
     if (node.type === 'CATEGORY') {
@@ -413,6 +428,7 @@ export async function moveNode(
 }
 
 export async function archiveNode(id: string, actor: Actor): Promise<NodeDetail> {
+  assertLegacyTreeWritable();
   const result = await prisma.$transaction(async (tx) => {
     const node = await findNode(tx, id);
     if (node.type === 'CATEGORY') {
@@ -450,6 +466,7 @@ export async function reorderNodes(
   input: ReorderNodesInput,
   actor: Actor
 ): Promise<{ parentId: string; orderedIds: string[] }> {
+  assertLegacyTreeWritable();
   const previous = await prisma.$transaction(async (tx) => {
     await findNode(tx, input.parentId, 'Parent node');
     const children = await tx.catalogueNode.findMany({

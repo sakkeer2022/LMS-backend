@@ -9,29 +9,70 @@ import { prisma } from '@infrastructure/database/index';
 
 const unique = () => randomUUID().slice(0, 8);
 
-export async function createCategory(overrides: { code?: string; name?: string; requiresBoard?: boolean } = {}) {
+/** A top-level category that is a bookable leaf of the category tree (ADR-0005). */
+export async function createCategory(
+  overrides: { code?: string; name?: string; requiresBoard?: boolean; requiresLevel?: boolean } = {}
+) {
   const code = overrides.code ?? `cat-${unique()}`;
   return prisma.category.create({
-    data: { code, name: overrides.name ?? code, requiresBoard: overrides.requiresBoard ?? false },
+    data: {
+      code,
+      name: overrides.name ?? code,
+      path: code,
+      depth: 0,
+      isBookable: true,
+      requiresBoard: overrides.requiresBoard ?? false,
+      requiresLevel: overrides.requiresLevel ?? false,
+    },
   });
 }
 
-export async function createBoard(overrides: { code?: string; name?: string; isActive?: boolean; sortOrder?: number } = {}) {
+/** The frontline tab with this code (depth 1 of the category tree after the reference seed). */
+export async function tabByCode(code: string) {
+  return prisma.category.findFirstOrThrow({ where: { code, depth: 1 } });
+}
+
+/** Lets a leaf offer a level (category_levels). */
+export async function allowLevel(categoryId: string, levelId: string): Promise<void> {
+  await prisma.categoryLevel.createMany({ data: [{ categoryId, levelId }], skipDuplicates: true });
+}
+
+export async function createBoard(
+  overrides: { code?: string; name?: string; isActive?: boolean; sortOrder?: number } = {}
+) {
   const code = overrides.code ?? `board-${unique()}`;
   return prisma.board.create({
-    data: { code, name: overrides.name ?? code, isActive: overrides.isActive ?? true, sortOrder: overrides.sortOrder ?? 0 },
+    data: {
+      code,
+      name: overrides.name ?? code,
+      isActive: overrides.isActive ?? true,
+      sortOrder: overrides.sortOrder ?? 0,
+    },
   });
 }
 
-export async function createSubject(overrides: { code?: string; name?: string; isActive?: boolean; sortOrder?: number } = {}) {
+export async function createSubject(
+  overrides: { code?: string; name?: string; isActive?: boolean; sortOrder?: number } = {}
+) {
   const code = overrides.code ?? `subject-${unique()}`;
   return prisma.subject.create({
-    data: { code, name: overrides.name ?? code, isActive: overrides.isActive ?? true, sortOrder: overrides.sortOrder ?? 0 },
+    data: {
+      code,
+      name: overrides.name ?? code,
+      isActive: overrides.isActive ?? true,
+      sortOrder: overrides.sortOrder ?? 0,
+    },
   });
 }
 
 export async function createLevel(
-  overrides: { code?: string; name?: string; categoryId?: string | null; isActive?: boolean; sortOrder?: number } = {}
+  overrides: {
+    code?: string;
+    name?: string;
+    categoryId?: string | null;
+    isActive?: boolean;
+    sortOrder?: number;
+  } = {}
 ) {
   const code = overrides.code ?? `level-${unique()}`;
   return prisma.level.create({
@@ -46,7 +87,10 @@ export async function createLevel(
 }
 
 /** CATEGORY root node for a category; rootId points at the node itself. */
-export async function createRootNode(categoryId: string, overrides: { status?: CatalogueNodeStatus; name?: string } = {}) {
+export async function createRootNode(
+  categoryId: string,
+  overrides: { status?: CatalogueNodeStatus; name?: string } = {}
+) {
   const id = randomUUID();
   return prisma.catalogueNode.create({
     data: {
@@ -102,7 +146,13 @@ export async function createPublishedOffering(codes: {
   subject: string;
   level: string;
 }) {
-  const category = await prisma.category.findUniqueOrThrow({ where: { code: codes.category } });
+  const category = await tabByCode(codes.category);
+  // The bookable leaf of the category tree: the sub-section when given, otherwise the tab
+  const leafCategory = codes.subsection
+    ? await prisma.category.findFirstOrThrow({
+        where: { parentId: category.id, code: codes.subsection },
+      })
+    : category;
   const root = await prisma.catalogueNode.findUniqueOrThrow({ where: { categoryId: category.id } });
   let parent: { id: string; rootId: string } = root;
 
@@ -117,16 +167,19 @@ export async function createPublishedOffering(codes: {
   };
 
   if (codes.subsection) await child('SUBSECTION', codes.subsection);
-  const board = codes.board ? await prisma.board.findUniqueOrThrow({ where: { code: codes.board } }) : null;
+  const board = codes.board
+    ? await prisma.board.findUniqueOrThrow({ where: { code: codes.board } })
+    : null;
   if (board) await child('BOARD', board.code, { boardId: board.id });
   const subject = await prisma.subject.findUniqueOrThrow({ where: { code: codes.subject } });
   const subjectNode = await child('SUBJECT', subject.code, { subjectId: subject.id });
   const level = await prisma.level.findUniqueOrThrow({ where: { code: codes.level } });
   const leaf = await child('LEVEL', level.code, { levelId: level.id });
 
+  await allowLevel(leafCategory.id, level.id);
   const curriculum = await prisma.curriculum.create({
     data: {
-      categoryId: category.id,
+      categoryId: leafCategory.id,
       boardId: board?.id ?? null,
       subjectId: subject.id,
       levelId: level.id,
@@ -134,5 +187,14 @@ export async function createPublishedOffering(codes: {
       isActive: true,
     },
   });
-  return { curriculum, leaf, subjectNode, categoryId: category.id, boardId: board?.id ?? null, subjectId: subject.id, levelId: level.id };
+  return {
+    curriculum,
+    leaf,
+    subjectNode,
+    categoryId: leafCategory.id,
+    tabId: category.id,
+    boardId: board?.id ?? null,
+    subjectId: subject.id,
+    levelId: level.id,
+  };
 }

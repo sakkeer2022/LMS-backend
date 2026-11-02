@@ -1,6 +1,6 @@
 # ADR-0003: Catalogue tree bridged to the existing curricula
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0005](0005-category-tree.md) (2026-11-02). The `catalogue_nodes` write endpoints are frozen; its reads remain until the table is dropped.
 **Date:** 2026-10-29
 **Deciders:** Vishnudas (LMS-53), Muhammad Sakkeer (owner of the identity and student onboarding schema)
 
