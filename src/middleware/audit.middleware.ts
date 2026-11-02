@@ -1,8 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
-import { logAction } from '@modules/audit/audit.service.js';
+import { logAction, type AuditContext } from '@modules/audit/audit.service.js';
 import { logger } from '@core/logger/index.js';
 import { generateDeviceFingerprint } from '@core/security/device.js';
 import crypto from 'crypto';
+
+/** Actor and request details for audit entries written by services. */
+export function auditContextFrom(req: Request): AuditContext {
+  return {
+    actorId: req.user?.sub ?? null,
+    ipAddress: req.ip ?? null,
+    userAgent: req.get('User-Agent') ?? null,
+    traceId: (req as Request & { traceId?: string }).traceId ?? null,
+  };
+}
 
 export interface AuditOptions {
   action: string;

@@ -9,6 +9,7 @@ import { featureFlagsRouter } from '@modules/feature-flags/feature-flags.routes.
 import { notificationsRouter } from '@modules/notifications/notifications.routes.js';
 import { adminRouter } from '@modules/admin/admin.routes.js';
 import { uploadsRouter } from '@modules/uploads/uploads.routes.js';
+import { settingsRouter } from '@modules/settings/index.js';
 import { auditLogMiddleware } from '@middleware/audit.middleware';
 
 export const router = Router();
@@ -28,6 +29,7 @@ export const featureRouters: ReadonlyArray<readonly [path: string, router: Route
   ['/audit', auditRouter],
   ['/feature-flags', featureFlagsRouter],
   ['/notifications', notificationsRouter],
+  ['/admin/settings', settingsRouter],
   ['/admin', adminRouter],
   ['/uploads', uploadsRouter],
 ];
