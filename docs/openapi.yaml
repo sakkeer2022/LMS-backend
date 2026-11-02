@@ -7114,8 +7114,8 @@
         "tags": [
           "Pricing"
         ],
-        "summary": "Configure one price for faculty offering",
-        "description": "Current active, email-verified admin; pricing.manage identity; server checks role, permission and resource ownership on every request. Exactly one row per assignment including inactive rows; DB unique constraint. Faculty/subject/category/level/board derived from validated assignment. Integer paise >0; proposed safety maximum INR 1,000,000 requires review. Currency INR and duration 60 are immutable, not client input; the 60-minute slot comes from the draft project plan (M05), not the SOW. No overlapping schedules, packages or fallback prices: packages are deferred per the draft project plan (M03), while SOW A1.7.2 allows them where applicable, so client confirmation is pending.",
+        "summary": "Create price rule",
+        "description": "Current active, email-verified admin; pricing.manage identity; server checks role, permission and resource ownership on every request. Rule per curriculum (category+board+subject+level offering) and optional tutor; facultyId null = default price. At most one active rule per curriculumId+facultyId (null treated as a value) for any overlapping effective window; overlap 409. gstPaise and studentPaysPaise are computed by the server on every create/update/bulk update and never accepted from clients. Integer paise >0; proposed safety maximum INR 1,000,000 requires review. Currency INR and duration 60 are fixed, not client input. No packages, bundles or credits. Unknown curriculum, or unknown or inactive faculty profile, 422. Audit create.",
         "x-required-role": "admin; pricing.manage",
         "x-review-status": "ready-for-review",
         "security": [
