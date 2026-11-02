@@ -133,6 +133,22 @@ const envSchema = z
 
 export { envSchema };
 
+// Local frontend origin(s) allowed when ALLOWED_ORIGINS is not set outside production.
+export const DEFAULT_DEV_ALLOWED_ORIGINS = ['http://localhost:3001'];
+
+/** Parses ALLOWED_ORIGINS. Outside production an empty value falls back to the local frontend. */
+export function resolveAllowedOrigins(
+  raw: string | undefined,
+  nodeEnv: 'development' | 'production' | 'test'
+): string[] {
+  const origins = (raw ?? '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter((o) => o !== '');
+  if (origins.length === 0 && nodeEnv !== 'production') return [...DEFAULT_DEV_ALLOWED_ORIGINS];
+  return origins;
+}
+
 const parsedEnv = envSchema.safeParse(process.env);
 
 if (!parsedEnv.success) {
@@ -176,7 +192,7 @@ export const config = {
     maxFailedLogins: env.MAX_FAILED_LOGINS,
     lockoutDurationMinutes: env.LOCKOUT_DURATION_MINUTES,
     cookieSecret: env.COOKIE_SECRET,
-    allowedOrigins: env.ALLOWED_ORIGINS ? env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()) : [],
+    allowedOrigins: resolveAllowedOrigins(env.ALLOWED_ORIGINS, env.NODE_ENV),
   },
 
   razorpay: {

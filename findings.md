@@ -12,7 +12,10 @@
 | Audit | `setting.updated` (SECURITY) with the actor, old and new value, revision and reason, written after the commit |
 | Re-authentication deferred | The contract requires recent re-authentication for `PUT`; `/auth/reauthenticate` comes with LMS-100, which adds the check |
 | Test fixtures | `tests/helpers/users.ts` creates users through Prisma (low bcrypt cost) and logs in through the real endpoint, instead of registering through the API |
-## 2026-10-29 — Audit hash chain breaks on same-millisecond writes (existing bug, needs a ticket)
+
+---
+
+## 2026-10-29 — Audit hash chain breaks on same-millisecond writes (LMS-102, fixed)
 
 | Finding / Decision | Detail |
 |---|---|
@@ -20,7 +23,10 @@
 | Cause | `logAction` links each record to the latest one found by `createdAt DESC, id DESC`, and `verifyAuditChain` walks `createdAt ASC, id ASC`. `createdAt` has millisecond precision and `id` is a random UUID, so records written in the same millisecond are linked and verified in different orders. Concurrent writes (the audit middleware is fire-and-forget) can also read the same "latest" record and fork the chain |
 | Evidence | Probe on development: 3 sequential writes, 200 times. Same millisecond in 153 of 200; an untampered chain reported as broken in 78 of 200 |
 | Impact | `npm run audit:verify` can report tampering that did not happen, which undermines the LMS-41 audit baseline |
-| Proposed fix | Separate ticket: add a monotonic sequence column (for example `BIGSERIAL`) used for both linking and verification, and serialise chain writes (for example a Postgres advisory lock in `logAction`). Needs a migration |
+| Fix (LMS-102) | New `audit_logs.sequence` (BIGINT, unique, sequence default) used for linking and verification. `logAction` takes `pg_advisory_xact_lock` inside a transaction, reads the latest record by `sequence` and inserts, so writes are serialised. Migration `20261029120000_audit_chain_sequence` numbers existing rows in their previous verification order (`created_at`, `id`) |
+| Existing rows | Not re-hashed. Rows written before the fix may already form a broken chain (for example in dev databases); production has no audit data yet. If `audit:verify` reports an old break on a dev database, clear its audit logs |
+| Cost | Audit writes are serialised by one lock. Acceptable at current volume; revisit if audit writes become a bottleneck |
+| Result | Probe after the fix: same millisecond in 115 of 200 runs, untampered chain reported as broken in 0 of 200 |
 
 ---
 
@@ -33,10 +39,45 @@
 | Naming: `resource.action` | The two colon guards (`feature_flags:*`, `uploads:create`) became dotted. Resource names were not renamed (singular `user`, `role`, `permission` stay) |
 | Roles | `super_admin` (`*`), `admin` (all but feature flags), `faculty` and `student` (no permissions yet). The template `viewer` role is no longer seeded |
 | `admin.*` is a global wildcard | The matcher treats it like `*`; it is never seeded |
-| Known escalation path | `admin` can assign roles and role permissions, so it can grant itself `super_admin`. Accepted for now; a separate ticket can restrict it |
+| Known escalation path | `admin` can assign roles and role permissions, so it can grant itself `super_admin`. Accepted for now; LMS-104 restricts it |
 | Role changes audited | `user.roles_assigned`, `user.roles_removed` and `user.roles_replaced` audit entries (severity SECURITY) record the actor and the role names before and after, written after the commit |
 | Portal guard deferred | Permission guards already block students and faculty from admin routes; a role-based portal guard comes with the first portal-only route (LMS-100) |
-| `tenantIds` claim | Open frontend decision; the backend has no tenants and does not issue it |
+| `tenantIds` claim | Decided 2026-10-29: no tenant parameter or invented tenant claims; the frontend's tenancy gate is resolved through review during frontend integration |
+
+---
+
+## 2026-10-29 — Security baseline decisions (LMS-91)
+
+| Finding / Decision | Detail |
+|---|---|
+| JWT algorithm pinned to HS256 | Sign and verify both pass HS256 explicitly. It was already the library default, so existing tokens stay valid; tokens with any other algorithm, including `none`, are rejected |
+| CORS allowlist in every environment | The old development setting (`*` with credentials) is rejected by browsers for cookie requests. `ALLOWED_ORIGINS` now applies everywhere; outside production an empty value allows only `http://localhost:3001`. **Confirm the admin frontend's local port** |
+| Verification checklist | `src/docs/SECURITY.md` maps each baseline control to its test; open rows point to LMS-94 (TLS, Secure cookie), LMS-97/LMS-100 (per-route rate limits) and LMS-99/LMS-100 (student data access) |
+| `cors` always sends Allow-Credentials | For an unknown origin it omits `Access-Control-Allow-Origin`, so the browser blocks the response; the credentials header alone has no effect |
+
+---
+
+## 2026-10-29 — Product and tech lead decisions; India and UAE support
+
+| Finding / Decision | Detail |
+|---|---|
+| Guardian identity (project plan risk R4) | **Accepted.** The consent signature is not identity-verified; the acceptance is to be recorded in writing. Unblocks LMS-98/LMS-99; remove the R4 `DECISION REQUIRED` note from the contract when LMS-98 is built |
+| Policy documents | Production documents come from the client. Development uses AI-generated placeholder Student Terms, Terms of Use, Privacy Policy and Child Safety Policy, clearly marked as placeholders and never seeded in production |
+| Password rule | **8 characters with at least one number** (the onboarding UI rule). The SOW (A1.8) only asks for "secure password policies"; the "12-character policy" in our contract notes came from the template DTO (`src/modules/auth/auth.dto.ts`, `.min(12)`), not from a client document. Align the template DTOs and the contract when LMS-99/LMS-101 are built |
+| Email | Gmail SMTP for development; a different provider (SendGrid or similar) for production. Build one email interface with the transport chosen by configuration so switching is a settings change (LMS-97, shared with LMS-79) |
+| Backups and deployment | LMS-92 and LMS-94 are parked until hosting is decided |
+| Regions | Phase 1 serves India and the UAE. Rules in `src/docs/REGIONS.md`: no hard-coded country rules, E.164 mobiles, UTC storage with user time zone, INR only (project plan), country-specific policies and consent. `policy_documents` needs a `country` column (LMS-98) |
+| Reuse | `src/docs/SHARED_COMPONENTS.md` lists reusable building blocks; check it before writing a helper |
+| Audit against client documents | Done. Corrected in the contract generator, contract review and database docs: packages ("excluded per SOW" → deferred by the draft plan, SOW allows them), Razorpay ("approved" → leading candidate), 60-minute slots and authorize/capture/void (draft plan, not SOW), consent design ("client instructions" → ours to design), boards, review statuses, notification read state. SOW-vs-plan conflicts recorded as pending: 20-minute rule, rescheduling. Missing items recorded: data protection and refund/cancellation policies, region on the student profile |
+| Consent age | Under 18 needs guardian consent in **both India and the UAE** (client confirmation pending, C8) |
+| Country capture | Derived from the mobile number's dialling code for now; IP or form capture may follow. Region cannot be derived from a mobile number and stays empty until the client defines it (C10) |
+| Countries table | Planned `countries` reference table (code, name, dialling code, mobile pattern, default time zone, guardian consent age, active flag), built with the first feature that needs it, so adding a country is a data change |
+| Library | Kept as designed (admin-only uploads, PDF/JPEG/PNG, logged-in students) although SOW A1.7.5 is broader; client question C1 |
+| Lockout and expiry values | Removed from the contract and docs as requirements; they are configuration values. The lockout and token expiry features themselves are unchanged |
+| Scalability without UI changes | Backend scalability changes must not change what the UI shows or collects; anything that would is raised in `docs/PENDING_DECISIONS.md` (rule added to CLAUDE.md, AGENTS.md, GEMINI.md and the PR checklist) |
+| Pending decisions | `docs/PENDING_DECISIONS.md` lists every open question by owner (client, product and UI, team) with the working assumption |
+| Approvals | `nodemailer` and `pdf-lib` approved as dependencies (LMS-97, LMS-98) |
+| No tenancy | No tenant parameter or invented tenant claims in tokens or APIs. The admin frontend's `tenantIds` gate must be removed or resolved through review during frontend integration |
 
 ---
 
@@ -47,7 +88,7 @@
 | UI is final | Schema and contract follow the onboarding screens; conflicts with project documents are marked `DECISION REQUIRED` in the contract instead of changing the UI |
 | Minor status computed, not stored | `is_under_18` removed; a stored flag goes stale at 18. Server computes from `date_of_birth` (`DATE`) |
 | Consent before account | `guardian_consents` rows are created by the DOB popup before registration, keyed by a hashed single-use token, linked at `POST /auth/register`, purged if unlinked after expiry |
-| Open decisions | Student password rule (8 + digit) vs SOW A1.8; R4 guardian identity not verified; guardian SMS not in Phase 1; library browsing without account; country not collected (default IN); full-name change affects faculty/admin; relationship options |
+| Open decisions | (Updated 2026-10-29: password rule, R4 and the consent age are decided; current list in `docs/PENDING_DECISIONS.md`.) Student password rule (8 + digit) vs SOW A1.8; R4 guardian identity not verified; guardian SMS not in Phase 1; library browsing without account; country not collected (default IN); full-name change affects faculty/admin; relationship options |
 | `policy_documents` vs `faculty_terms` | Overlap; merge is follow-up work |
 | `migrate diff` workflow | Generate SQL with `prisma migrate diff --from-config-datasource --to-schema` against `amentorz_test` (read-only) instead of `migrate dev` against dev |
 

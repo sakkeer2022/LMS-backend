@@ -32,7 +32,7 @@ A comprehensive verification was conducted comparing the implemented PostgreSQL/
 4. **Architectural Gap: `Curriculum.name`:**  
    The OpenAPI contract defines `Curriculum` with a required string property `"name": {"type": "string", "maxLength": 200}`. In the Prisma schema, `Curriculum` is implemented strictly as the 4-tier relational tuple `(category_id, board_id, subject_id, level_id)` with `syllabus` text and `NULLS NOT DISTINCT` uniqueness. The engineering team must decide whether `name` is a **dynamically computed virtual property** (e.g., `"${board.name} - ${level.name} - ${subject.name}"`) or if a dedicated `name` column should be added to the `curricula` table.
 5. **Contract Gap: Student Minor Digital Consent:**  
-   Per approved client instructions, `StudentProfile` was implemented with full digital minor consent tracking (`isUnder18`, `guardianName`, `guardianEmail`, `guardianPhone`, `guardianConsentSigned`, `guardianConsentDocument`, `guardianConsentSignedAt`). However, `docs/openapi.yaml` was written prior to this decision and notes minor consent as `DECISION REQUIRED`, omitting dedicated student profile consent update endpoints. The OpenAPI contract should be updated to expose `PUT /student/me/profile` and `POST /student/me/consent`.
+   Following the onboarding design (the project plan leaves the consent mechanism to the development team), `StudentProfile` was implemented with full digital minor consent tracking (`isUnder18`, `guardianName`, `guardianEmail`, `guardianPhone`, `guardianConsentSigned`, `guardianConsentDocument`, `guardianConsentSignedAt`). However, `docs/openapi.yaml` was written prior to this decision and notes minor consent as `DECISION REQUIRED`, omitting dedicated student profile consent update endpoints. The OpenAPI contract should be updated to expose `PUT /student/me/profile` and `POST /student/me/consent`.
 
 ---
 
@@ -249,7 +249,7 @@ createdAt (date-time)     createdAt (DateTime)        Direct Match
   ```
 * **Contract Gap:** In `docs/openapi.yaml`, the registration endpoint `/auth/register` notes:
   > *"DECISION REQUIRED: Minor eligibility and guardian-consent mechanism are unresolved. Schema intentionally has no guardian checkbox/contact workaround."*
-* **Recommendation:** Since the client decided in Gate 4 that minors submit a digitally signed consent document, update `docs/openapi.yaml` to include:
+* **Recommendation:** Since the onboarding design has minors submit a digitally signed consent document (the consent mechanism is ours to design, per the project plan), update `docs/openapi.yaml` to include:
   - `GET /student/me/profile`
   - `PUT /student/me/profile` (submitting date of birth, grade, school)
   - `POST /student/me/consent` (submitting guardian contact and digital signature payload)

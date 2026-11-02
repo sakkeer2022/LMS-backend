@@ -91,6 +91,11 @@ export function computeRecordHash(record: {
   return crypto.createHash('sha256').update(dataString).digest('hex');
 }
 
+const GENESIS_HASH = '0'.repeat(64);
+
+// Arbitrary constant identifying the audit chain's Postgres advisory lock.
+const AUDIT_CHAIN_LOCK_KEY = 7_240_102;
+
 // ── Log an Action ────────────────────────────────────────────────
 export async function logAction(params: LogActionParams): Promise<void> {
   const traceId = params.traceId || 'system-trace';
@@ -99,23 +104,6 @@ export async function logAction(params: LogActionParams): Promise<void> {
   const userAgent = params.userAgent || 'unknown';
   const severity = params.severity || 'INFO';
   const createdAt = new Date();
-
-  // Find the latest audit log to fetch its hash
-  const latestLog = await prisma.auditLog.findFirst({
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-  });
-
-  const previousHash = latestLog ? latestLog.hash : '0'.repeat(64);
-
-  const hash = computeRecordHash({
-    actorId: params.actorId || null,
-    action: params.action,
-    entity: params.entity,
-    previousValue: params.previousValue || null,
-    newValue: params.newValue || null,
-    createdAt,
-    previousHash,
-  });
 
   // Emit to SIEM/JSON Logger
   logger.info({
@@ -134,24 +122,47 @@ export async function logAction(params: LogActionParams): Promise<void> {
     ipAddress,
   });
 
-  await prisma.auditLog.create({
-    data: {
-      traceId,
-      correlationId,
+  // Chain writes run one at a time: the advisory lock is held until this
+  // transaction commits, so no two records can link to the same predecessor,
+  // and each new record gets the next sequence after the one it links to.
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${AUDIT_CHAIN_LOCK_KEY})`;
+
+    const latestLog = await tx.auditLog.findFirst({
+      orderBy: { sequence: 'desc' },
+      select: { hash: true },
+    });
+    const previousHash = latestLog ? latestLog.hash : GENESIS_HASH;
+
+    const hash = computeRecordHash({
       actorId: params.actorId || null,
-      ipAddress,
-      userAgent,
-      deviceFingerprint: params.deviceFingerprint || null,
-      severity,
-      entity: params.entity,
       action: params.action,
-      resourceId: params.resourceId || null,
-      previousValue: (params.previousValue as Prisma.JsonObject) || null,
-      newValue: (params.newValue as Prisma.JsonObject) || null,
-      hash,
-      previousHash,
+      entity: params.entity,
+      previousValue: params.previousValue || null,
+      newValue: params.newValue || null,
       createdAt,
-    },
+      previousHash,
+    });
+
+    await tx.auditLog.create({
+      data: {
+        traceId,
+        correlationId,
+        actorId: params.actorId || null,
+        ipAddress,
+        userAgent,
+        deviceFingerprint: params.deviceFingerprint || null,
+        severity,
+        entity: params.entity,
+        action: params.action,
+        resourceId: params.resourceId || null,
+        previousValue: (params.previousValue as Prisma.JsonObject) || null,
+        newValue: (params.newValue as Prisma.JsonObject) || null,
+        hash,
+        previousHash,
+        createdAt,
+      },
+    });
   });
 }
 
@@ -265,10 +276,10 @@ export async function getAuditLogById(id: string): Promise<AuditLogDetail> {
 // ── Verify Ledger Integrity ──────────────────────────────────────
 export async function verifyAuditChain(): Promise<{ isValid: boolean; brokenAt?: string }> {
   const logs = await prisma.auditLog.findMany({
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    orderBy: { sequence: 'asc' },
   });
 
-  let expectedPreviousHash = '0'.repeat(64);
+  let expectedPreviousHash = GENESIS_HASH;
 
   for (const log of logs) {
     // 1. Verify previousHash matches expected link
