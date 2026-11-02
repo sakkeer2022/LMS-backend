@@ -49,6 +49,7 @@ How each control of the LMS-41 security baseline (SSL, JWT security, role-based 
 ## Audit Trails [Implemented]
 
 - **Audit Logs**: An immutable `audit_logs` table records every sensitive action (login, role assignment, permission change, deletion).
+- **Hash Chain**: Each record stores the SHA-256 hash of the previous record. Records are chained and verified in `sequence` order, and chain writes take a Postgres advisory lock so two writers can never link to the same record. `npm run audit:verify` walks the chain and reports the first broken record.
 - **Log Structure**: Actions log the `userId`, `action`, `resource`, `status`, `ipAddress`, `userAgent`, and generic `details` JSON (e.g., method, URL, and status code).
 
 ## Structured Logging [Implemented]

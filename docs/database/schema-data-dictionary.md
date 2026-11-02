@@ -790,11 +790,13 @@
 | `new_value` | `JSON` | Yes | `NULL` | Post-mutation JSON snapshot | Application |
 | `hash` | `VARCHAR(64)` | No | — | SHA-256 hash of this record | Application |
 | `previous_hash`| `VARCHAR(64)` | No | — | SHA-256 hash of preceding record (hash chain) | Application |
+| `sequence` | `BIGINT` | No | `nextval('audit_logs_sequence_seq')` | Position in the hash chain. Linking and verification follow `sequence`, never `created_at`; chain writes are serialised with a Postgres advisory lock (LMS-102) | Database + Application |
 | `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Event timestamp | Database |
 
 - **Indexes & Constraints:**
   - `audit_logs_pkey` (PRIMARY KEY, `id`)
   - `audit_logs_actor_id_fkey` (FOREIGN KEY, `actor_id` → `users.id`, ON DELETE SET NULL)
+  - `audit_logs_sequence_key` (UNIQUE, `sequence`)
 
 ---
 
