@@ -4,6 +4,8 @@ import { RegisterDto, LoginDto } from './auth.dto.js';
 import * as AuthService from './auth.service.js';
 import * as SessionService from './session.service.js';
 import { loadContractUser } from './contract-user.js';
+import * as ReauthService from './reauth.service.js';
+import { ReauthenticateDto } from './auth.dto.js';
 import { auditContextFrom } from '@middleware/audit.middleware';
 import { paginationQuerySchema, uuidParams } from '@shared/validation/index';
 import { successResponse } from '@core/response/index';
@@ -155,6 +157,27 @@ export async function revokeOtherSessions(
     if (!req.user?.sid) throw new UnauthorizedError('Unauthorized');
     await SessionService.revokeOtherSessions(req.user.sub, req.user.sid, auditContextFrom(req));
     res.json(successResponse(null, 'Other sessions revoked'));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function reauthenticate(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user?.sid) throw new UnauthorizedError('Unauthorized');
+    const { password } = ReauthenticateDto.parse(req.body);
+    const result = await ReauthService.reauthenticate(
+      req.user.sub,
+      req.user.sid,
+      password,
+      auditContextFrom(req)
+    );
+    res.set('Cache-Control', 'no-store');
+    res.json(successResponse(result, 'Re-authenticated'));
   } catch (err) {
     next(err);
   }

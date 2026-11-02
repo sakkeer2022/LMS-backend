@@ -42,6 +42,11 @@ const envSchema = z
     REFRESH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
     REFRESH_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(60),
 
+    // Password confirmation for sensitive actions (POST /auth/reauthenticate)
+    REAUTH_WINDOW_MINUTES: z.coerce.number().int().positive().default(5),
+    REAUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+    REAUTH_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(30),
+
     REDIS_URL: z.string().default('redis://localhost:6379'),
 
     MAX_FAILED_LOGINS: z.coerce.number().int().positive().default(5),
@@ -201,6 +206,10 @@ export const config = {
       windowMs: env.REFRESH_RATE_LIMIT_WINDOW_MS,
       maxPerIp: env.REFRESH_RATE_LIMIT_MAX_PER_IP,
     },
+    reauth: {
+      windowMs: env.REAUTH_RATE_LIMIT_WINDOW_MS,
+      maxPerIp: env.REAUTH_RATE_LIMIT_MAX_PER_IP,
+    },
   },
 
   redis: {
@@ -210,6 +219,7 @@ export const config = {
   security: {
     maxFailedLogins: env.MAX_FAILED_LOGINS,
     lockoutDurationMinutes: env.LOCKOUT_DURATION_MINUTES,
+    reauthWindowMinutes: env.REAUTH_WINDOW_MINUTES,
     cookieSecret: env.COOKIE_SECRET,
     allowedOrigins: resolveAllowedOrigins(env.ALLOWED_ORIGINS, env.NODE_ENV),
   },

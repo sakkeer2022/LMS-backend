@@ -170,6 +170,34 @@ authRouter.post(
 
 /**
  * @openapi
+ * /auth/reauthenticate:
+ *   post:
+ *     summary: Confirm the current password for sensitive actions
+ *     tags: [Auth]
+ *     description: Marks the current session as freshly re-authenticated for a configured window (REAUTH_WINDOW_MINUTES). Wrong password returns 401 and counts toward lockout; too many attempts return 429.
+ *     responses:
+ *       200:
+ *         description: Fresh until reauthenticatedUntil
+ *       401:
+ *         description: Not signed in, or wrong password
+ *       429:
+ *         description: Too many attempts
+ */
+authRouter.post(
+  '/reauthenticate',
+  ...routeRateLimit({
+    name: 'reauth',
+    ip: {
+      windowMs: config.routeRateLimit.reauth.windowMs,
+      max: config.routeRateLimit.reauth.maxPerIp,
+    },
+  }),
+  authenticate,
+  AuthController.reauthenticate
+);
+
+/**
+ * @openapi
  * /auth/logout:
  *   post:
  *     summary: Logout and revoke refresh token

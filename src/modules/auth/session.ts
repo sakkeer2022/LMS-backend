@@ -24,6 +24,8 @@ export interface IssueOptions {
   familyId?: string;
   /** Absolute session deadline. Rotation passes the existing one so it does not slide. */
   expiresAt?: Date;
+  /** Carried over on rotation so a password confirmation survives a token refresh. */
+  reauthenticatedAt?: Date | null;
 }
 
 export async function issueTokenPair(
@@ -81,6 +83,7 @@ export async function issueTokenPair(
     used: false,
     portal: options.portal ?? null,
     familyId,
+    reauthenticatedAt: options.reauthenticatedAt ?? null,
     ipAddress: context.ipAddress || null,
     userAgent: context.userAgent || null,
     deviceFingerprint: context.deviceFingerprint || null,

@@ -1,5 +1,10 @@
 # Progress Log
 
+## 2026-11-02 — Reauthentication (LMS-100)
+
+- `POST /auth/reauthenticate` (`reauth.service.ts`): password check, session-bound freshness, audit (`reauth.success`, `reauth.failed`), lockout shared with login, per-IP limit `REAUTH_RATE_LIMIT_*`. `requireRecentReauth` guards `PUT /admin/settings/{key}`.
+- Tests: `reauthenticate.test.ts` (contract, session binding, window, survives refresh, wrong password, 429 lockout, freshness not extended by a failed check, 401/403/422); `settings.test.ts` reauthenticates before writing and checks the 403 without it. `reauthenticate()` helper in `tests/helpers/users.ts`.
+
 ## 2026-11-02 — Sessions, refresh and /auth/me contract fixes (LMS-100)
 
 - New `session.service.ts`: refresh rotation (keeps portal, family and the original deadline; re-checks account and portal role; reuse revokes the family outside the transaction and is audited), session list (family-based, paginated, `isCurrent`, no IP), revoke one and revoke others (audited, immediate).

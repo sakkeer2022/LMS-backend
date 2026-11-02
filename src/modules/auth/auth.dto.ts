@@ -25,6 +25,10 @@ export const PortalLoginDto = z
   })
   .strict();
 
+export const ReauthenticateDto = z
+  .object({ password: z.string().min(1, 'Password is required').max(1024) })
+  .strict();
+
 export const RefreshDto = z.object({
   refreshToken: z.string().optional(),
 });

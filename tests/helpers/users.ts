@@ -76,3 +76,14 @@ export async function loginWithRole(roleName: string, email: string): Promise<Lo
     csrfCookie,
   };
 }
+
+/** Confirms the password for a logged-in user so reauthentication-gated routes accept the session. */
+export async function reauthenticate(user: LoggedInUser): Promise<void> {
+  const res = await request(app)
+    .post('/api/v1/auth/reauthenticate')
+    .set('Authorization', `Bearer ${user.token}`)
+    .set('Cookie', user.csrfCookie)
+    .set('x-csrf-token', user.csrfToken)
+    .send({ password: TEST_PASSWORD });
+  if (res.status !== 200) throw new Error(`Reauthentication failed (status ${res.status})`);
+}

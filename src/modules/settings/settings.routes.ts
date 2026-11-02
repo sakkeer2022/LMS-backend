@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate, requirePermission } from '@middleware/authenticate';
 import { validateRequest } from '@middleware/validate';
+import { requireRecentReauth } from '@middleware/require-reauth';
 import * as SettingsController from './settings.controller.js';
 import { ListSettingsQueryDto, SettingKeyParamsDto, UpdateSettingDto } from './settings.dto.js';
 
@@ -96,7 +97,7 @@ settingsRouter.get(
  *       401:
  *         description: Missing or invalid token
  *       403:
- *         description: Requires configuration.manage, or CSRF token missing
+ *         description: Requires configuration.manage, recent re-authentication, or CSRF token missing
  *       404:
  *         description: Unknown setting key
  *       409:
@@ -107,6 +108,7 @@ settingsRouter.get(
 settingsRouter.put(
   '/:key',
   requirePermission('configuration.manage'),
+  requireRecentReauth,
   validateRequest({ params: SettingKeyParamsDto, body: UpdateSettingDto }),
   SettingsController.updateSetting
 );

@@ -102,6 +102,7 @@ export async function refresh(
       portal: stored.portal,
       familyId: stored.familyId ?? undefined,
       expiresAt: stored.expiresAt,
+      reauthenticatedAt: stored.reauthenticatedAt,
     });
     return { kind: 'rotated', tokens };
   });
