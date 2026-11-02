@@ -1,5 +1,14 @@
 # Progress Log
 
+## 2026-10-29 — API contract checks: routes and response shapes (LMS-93)
+
+- `tests/unit/api-contract-routes.test.ts`: every implemented route must be in `docs/openapi.yaml` or in a known-undocumented list with a reason; stale list entries also fail. Runs in `npm run test:unit`, so Bitbucket Pipelines enforces it.
+- `src/routes/index.ts` declares its mounts in an exported `featureRouters` list (Express 5 does not expose mount paths).
+- Proven to catch drift: a temporary undocumented route failed the test.
+- Response-schema validation: `tests/helpers/contract.ts` (`expectContractResponse`) with `ajv` and `ajv-formats` (dev dependencies). `tests/modules/contract_responses.test.ts` proves `GET /auth/csrf-token`, `DELETE /auth/sessions`, `POST /auth/logout` and the 401/422 error envelopes match, and tracks known mismatches (`/auth/me`, `/auth/sessions`, `/auth/refresh` for LMS-100; `GET /audit` for LMS-103).
+- After LMS-90 merged: `/admin/settings` added to `featureRouters` (above `/admin`), and the settings integration tests check list, get, update, 404, 409 and 422 responses against the contract.
+- LMS-93 stays open only for serving the approved contract at `/api/docs` once Sprint 1 endpoints exist.
+
 ## 2026-10-29 — Platform settings API (LMS-90)
 
 - New `settings` module: `GET /admin/settings`, `GET /admin/settings/{key}`, `PUT /admin/settings/{key}` per the contract, guarded by `configuration.read` and `configuration.manage` (added to `src/core/security/rbac.ts`, granted to admin).

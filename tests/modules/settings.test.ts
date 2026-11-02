@@ -3,6 +3,7 @@ import request from 'supertest';
 import { app } from '../helpers/app.js';
 import { getCsrfData } from '../helpers/csrf.js';
 import { loginWithRole } from '../helpers/users.js';
+import { expectContractResponse } from '../helpers/contract.js';
 import { prisma } from '@infrastructure/database/index.js';
 import { seedRbac } from '../../prisma/seed-rbac.js';
 import { getSetting } from '../../src/modules/settings/index.js';
@@ -77,6 +78,7 @@ describe('Platform settings API', () => {
         revision: 1,
       });
       expect(res.body.meta).toEqual({ page: 1, limit: 20, total: 3, totalPages: 1 });
+      expectContractResponse(res, 'get', '/admin/settings');
     });
 
     it('paginates', async () => {
@@ -120,6 +122,7 @@ describe('Platform settings API', () => {
         allowedValues: ['strict', 'relaxed'],
         revision: 1,
       });
+      expectContractResponse(res, 'get', '/admin/settings/test.mode');
     });
 
     it('returns 404 for an unregistered key', async () => {
@@ -127,6 +130,7 @@ describe('Platform settings API', () => {
         .get(`${BASE}/test.unknown`)
         .set('Authorization', `Bearer ${adminToken}`);
       expect(res.status).toBe(404);
+      expectContractResponse(res, 'get', '/admin/settings/test.unknown');
     });
 
     it('returns 422 for a malformed key', async () => {
@@ -147,6 +151,7 @@ describe('Platform settings API', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data).toMatchObject({ key: 'test.maxDailyBookings', value: 5, revision: 2 });
+      expectContractResponse(res, 'put', '/admin/settings/test.maxDailyBookings');
       expect(await getSetting<number>('test.maxDailyBookings')).toBe(5);
 
       const row = await prisma.systemSetting.findUniqueOrThrow({
@@ -173,6 +178,7 @@ describe('Platform settings API', () => {
       const res = await put('test.enabled', { value: false, expectedRevision: 1, reason: 'Late' });
 
       expect(res.status).toBe(409);
+      expectContractResponse(res, 'put', '/admin/settings/test.enabled');
       expect(await getSetting<boolean>('test.enabled')).toBe(true);
     });
 
@@ -193,6 +199,7 @@ describe('Platform settings API', () => {
     it('rejects a value outside the allowed list with 422', async () => {
       const res = await put('test.mode', { value: 'loose', expectedRevision: 1, reason: 'x' });
       expect(res.status).toBe(422);
+      expectContractResponse(res, 'put', '/admin/settings/test.mode');
     });
 
     it('returns 404 for an unregistered key', async () => {
