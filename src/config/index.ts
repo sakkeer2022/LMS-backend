@@ -35,6 +35,13 @@ const envSchema = z
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
     RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
 
+    // Per-route limits (src/middleware/rate-limit.ts), on top of the global limit above
+    LOGIN_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+    LOGIN_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(20),
+    LOGIN_RATE_LIMIT_MAX_PER_EMAIL: z.coerce.number().int().positive().default(10),
+    REFRESH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+    REFRESH_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(60),
+
     REDIS_URL: z.string().default('redis://localhost:6379'),
 
     MAX_FAILED_LOGINS: z.coerce.number().int().positive().default(5),
@@ -182,6 +189,18 @@ export const config = {
   rateLimit: {
     windowMs: env.RATE_LIMIT_WINDOW_MS,
     max: env.RATE_LIMIT_MAX,
+  },
+
+  routeRateLimit: {
+    login: {
+      windowMs: env.LOGIN_RATE_LIMIT_WINDOW_MS,
+      maxPerIp: env.LOGIN_RATE_LIMIT_MAX_PER_IP,
+      maxPerEmail: env.LOGIN_RATE_LIMIT_MAX_PER_EMAIL,
+    },
+    refresh: {
+      windowMs: env.REFRESH_RATE_LIMIT_WINDOW_MS,
+      maxPerIp: env.REFRESH_RATE_LIMIT_MAX_PER_IP,
+    },
   },
 
   redis: {

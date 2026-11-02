@@ -37,6 +37,23 @@ describe('Configuration Schema & Razorpay Validation Unit Tests', () => {
     }
   });
 
+  it('route rate limits have defaults and can be overridden', () => {
+    const defaults = envSchema.safeParse(baseValidDevEnv);
+    expect(defaults.success).toBe(true);
+    if (defaults.success) {
+      expect(defaults.data.LOGIN_RATE_LIMIT_MAX_PER_IP).toBe(20);
+      expect(defaults.data.LOGIN_RATE_LIMIT_MAX_PER_EMAIL).toBe(10);
+      expect(defaults.data.REFRESH_RATE_LIMIT_MAX_PER_IP).toBe(60);
+    }
+
+    const custom = envSchema.safeParse({ ...baseValidDevEnv, LOGIN_RATE_LIMIT_MAX_PER_IP: '5' });
+    expect(custom.success && custom.data.LOGIN_RATE_LIMIT_MAX_PER_IP).toBe(5);
+
+    expect(
+      envSchema.safeParse({ ...baseValidDevEnv, REFRESH_RATE_LIMIT_WINDOW_MS: '0' }).success
+    ).toBe(false);
+  });
+
   it('Development: accepts custom rzp_test_ keys', () => {
     const result = envSchema.safeParse({
       ...baseValidDevEnv,
@@ -62,7 +79,9 @@ describe('Configuration Schema & Razorpay Validation Unit Tests', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       const issues = result.error.issues.map((i) => i.message);
-      expect(issues).toContain('RAZORPAY_KEY_ID must be configured with a live key (rzp_live_...) in production');
+      expect(issues).toContain(
+        'RAZORPAY_KEY_ID must be configured with a live key (rzp_live_...) in production'
+      );
     }
   });
 
@@ -74,7 +93,9 @@ describe('Configuration Schema & Razorpay Validation Unit Tests', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       const issues = result.error.issues.map((i) => i.message);
-      expect(issues).toContain('RAZORPAY_KEY_ID must be configured with a live key (rzp_live_...) in production');
+      expect(issues).toContain(
+        'RAZORPAY_KEY_ID must be configured with a live key (rzp_live_...) in production'
+      );
     }
   });
 
@@ -86,7 +107,9 @@ describe('Configuration Schema & Razorpay Validation Unit Tests', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       const issues = result.error.issues.map((i) => i.message);
-      expect(issues).toContain('RAZORPAY_KEY_SECRET must be configured with a valid secret (min 16 characters) in production');
+      expect(issues).toContain(
+        'RAZORPAY_KEY_SECRET must be configured with a valid secret (min 16 characters) in production'
+      );
     }
   });
 
@@ -98,7 +121,9 @@ describe('Configuration Schema & Razorpay Validation Unit Tests', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       const issues = result.error.issues.map((i) => i.message);
-      expect(issues).toContain('RAZORPAY_WEBHOOK_SECRET must be configured with a valid secret (min 16 characters) in production');
+      expect(issues).toContain(
+        'RAZORPAY_WEBHOOK_SECRET must be configured with a valid secret (min 16 characters) in production'
+      );
     }
   });
 
