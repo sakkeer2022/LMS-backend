@@ -5,6 +5,7 @@
  * Usage: npm run db:seed:demo
  */
 import { prisma } from '../src/infrastructure/database/connection.js';
+import { addOffering } from '../src/modules/category-tree/category-tree.offerings.js';
 import { createPriceRule } from '../src/modules/pricing/pricing.service.js';
 import { redisClient } from '../src/infrastructure/redis/connection.js';
 
@@ -85,21 +86,15 @@ async function main(): Promise<void> {
     const label = [p.category, p.subsection, p.board, p.subject, p.level]
       .filter(Boolean)
       .join(' › ');
-    const key = {
-      categoryId: leaf.id,
-      boardId: board?.id ?? null,
-      subjectId: subject.id,
-      levelId: level.id,
-    };
-    await prisma.categoryLevel.createMany({
-      data: [{ categoryId: leaf.id, levelId: level.id }],
-      skipDuplicates: true,
-    });
-    const existing = await prisma.curriculum.findFirst({ where: key });
-    if (existing) console.log(`Already present ${label}`);
-    else {
-      await prisma.curriculum.create({ data: { ...key, isActive: true } });
-      console.log(`Created ${label}`);
+    try {
+      const { created } = await addOffering(
+        leaf.id,
+        { subjectId: subject.id, boardId: board?.id ?? null, levelId: level.id },
+        { userId: null }
+      );
+      console.log(`${created ? 'Created' : 'Already present'} ${label}`);
+    } catch (err) {
+      console.log(`Skipped ${label}: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     if (p.pricePaise) {

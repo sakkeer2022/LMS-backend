@@ -3,7 +3,7 @@
   "info": {
     "title": "Amentorz Sprint 1 API \u2014 review draft",
     "version": "0.1.0-draft",
-    "description": "PROPOSED CONTRACT ONLY. No client acceptance approval evidence supplied. No endpoint implementation implied. x-review-status separates ready-for-review from decision-required operations. Backend docs/openapi.yaml is the sole proposed Amentorz contract; existing JSDoc Swagger describes legacy template behavior and is not this draft. All paths below are relative to /api/v1. No booking, payment, live-session, earnings, scoring, messaging or infrastructure-control endpoints.\n\nExisting envelope retained: success/message/data/meta; errors use success=false/message/errors/traceId (no new error-code field). Unknown fields rejected; strict Zod DTO validation proposed for every body, query and path. Strings trimmed before length checks except credentials; identifiers UUID, UTC RFC3339 timestamps. 422 validation, 409 conflict, 401 authentication, 403 permission/CSRF, 404 concealed resources. All protected responses and auth challenges use Cache-Control: no-store. Credentials never logged. Every unsafe request requires signed _csrf cookie plus x-csrf-token, even when unauthenticated. CSRF is additional to authentication, never a replacement.\n\nProposed authentication reuses HttpOnly JWT access/refresh cookies, same-origin frontend rewrite, SameSite=Strict, Secure in deployed HTTPS, no Domain. No JSON token delivery/localStorage. Access cookie Path=/; refresh Path=/api/v1/auth. PostgreSQL session family and token hashes are authoritative; every protected request checks live user activity, role and session version. Immediate server revocation on logout, password reset/change, account deactivation and any existing role change; refresh rotation and replay revoke family. Fail closed when authoritative checks unavailable. Token lifetimes, re-authentication freshness, OTP expiry, attempt, lockout and resend limits are configuration values, not fixed in this contract; email OTPs have six digits. Refresh/logout/session-management routes remain usable during faculty onboarding restrictions. No public faculty/admin registration or role elevation API. Initial admin is an operator-only, audited provisioning command with prompted or secure-secret input, never a public endpoint or seeded password.\n\nPublic faculty eligibility is active user AND verified email AND active faculty profile AND current required terms accepted AND approved AND published AND at least one active valid assignment. This is a shared prerequisite for future bookability, not a guarantee of future booking, payment or attendance eligibility. Future bookability also rechecks selected assignment/price and later-sprint rules. All moderation and eligibility checks apply to content bytes as well as listings. Configuration/catalogue/pricing changes audit actor, UTC time and redacted values. Infrastructure backups, CI and deployment are operational procedures, not new API endpoints."
+    "description": "PROPOSED CONTRACT ONLY. No client acceptance approval evidence supplied. No endpoint implementation implied. x-review-status separates ready-for-review from decision-required operations. Backend docs/openapi.yaml is the sole proposed Amentorz contract; existing JSDoc Swagger describes legacy template behavior and is not this draft. All paths below are relative to /api/v1. No booking, payment, live-session, earnings, scoring, messaging or infrastructure-control endpoints.\n\nExisting envelope retained: success/message/data/meta; errors use success=false/message/errors/code/traceId; code is set on operational errors (ADR-0005). Unknown fields rejected; strict Zod DTO validation proposed for every body, query and path. Strings trimmed before length checks except credentials; identifiers UUID, UTC RFC3339 timestamps. 422 validation, 409 conflict, 401 authentication, 403 permission/CSRF, 404 concealed resources. All protected responses and auth challenges use Cache-Control: no-store. Credentials never logged. Every unsafe request requires signed _csrf cookie plus x-csrf-token, even when unauthenticated. CSRF is additional to authentication, never a replacement.\n\nProposed authentication reuses HttpOnly JWT access/refresh cookies, same-origin frontend rewrite, SameSite=Strict, Secure in deployed HTTPS, no Domain. No JSON token delivery/localStorage. Access cookie Path=/; refresh Path=/api/v1/auth. PostgreSQL session family and token hashes are authoritative; every protected request checks live user activity, role and session version. Immediate server revocation on logout, password reset/change, account deactivation and any existing role change; refresh rotation and replay revoke family. Fail closed when authoritative checks unavailable. Token lifetimes, re-authentication freshness, OTP expiry, attempt, lockout and resend limits are configuration values, not fixed in this contract; email OTPs have six digits. Refresh/logout/session-management routes remain usable during faculty onboarding restrictions. No public faculty/admin registration or role elevation API. Initial admin is an operator-only, audited provisioning command with prompted or secure-secret input, never a public endpoint or seeded password.\n\nPublic faculty eligibility is active user AND verified email AND active faculty profile AND current required terms accepted AND approved AND published AND at least one active valid assignment. This is a shared prerequisite for future bookability, not a guarantee of future booking, payment or attendance eligibility. Future bookability also rechecks selected assignment/price and later-sprint rules. All moderation and eligibility checks apply to content bytes as well as listings. Configuration/catalogue/pricing changes audit actor, UTC time and redacted values. Infrastructure backups, CI and deployment are operational procedures, not new API endpoints."
   },
   "servers": [
     {
@@ -31,6 +31,10 @@
     {
       "name": "Pricing",
       "description": "Task 3: INR single 60-minute session pricing only."
+    },
+    {
+      "name": "Category tree",
+      "description": "Category tree (ADR-0005): admin tree management and the learner catalogue."
     },
     {
       "name": "Library",
@@ -7549,6 +7553,1555 @@
         }
       }
     },
+    "/admin/category-tree": {
+      "get": {
+        "operationId": "getCategoryTree",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Whole category tree with child and curricula counts",
+        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. One aggregate query; cached until the next write (header X-Cache HIT/MISS). Cache-Control private, no-store.",
+        "x-required-role": "admin; catalogue.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whole category tree with child and curricula counts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getCategoryTreeResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "nodes": [],
+                    "stats": {
+                      "categories": 0,
+                      "bookableLeaves": 0,
+                      "curricula": 0
+                    },
+                    "generatedAt": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "parentId",
+            "in": "query",
+            "required": false,
+            "description": "Only the direct children of this node (lazy load).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      }
+    },
+    "/admin/category-tree/status": {
+      "get": {
+        "operationId": "getCategoryTreeStatus",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Whether the learner catalogue flag is on",
+        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Feature flag catalogue.category_tree.",
+        "x-required-role": "admin; catalogue.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whether the learner catalogue flag is on.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getCategoryTreeStatusResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "learnerCatalogueEnabled": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
+    "/admin/category-tree/roots": {
+      "post": {
+        "operationId": "createCategoryRoot",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Create a root category",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 200 for an idempotent retry (same code and name). Duplicate code 409 DUPLICATE_CODE. Audit category.create_root.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Create a root category.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/createCategoryRootResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "code": "mathematics",
+                    "name": "Mathematics",
+                    "path": "Example value",
+                    "depth": 0,
+                    "isBookable": true,
+                    "requiresBoard": true,
+                    "requiresLevel": true,
+                    "isActive": true,
+                    "displayOrder": 0,
+                    "version": 1,
+                    "childrenCount": 0,
+                    "curriculaCount": 0,
+                    "createdAt": "2026-10-21T09:00:00Z",
+                    "updatedAt": "2026-10-21T09:00:00Z",
+                    "description": "Reviewed configuration definition.",
+                    "breadcrumb": [],
+                    "allowedLevels": [],
+                    "activeCurriculaCount": 0,
+                    "studentCount": 0,
+                    "descendantCount": 0
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryTreeCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/category-tree/reorder": {
+      "put": {
+        "operationId": "reorderCategories",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Reorder the children of one parent",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Never changes a parent. 409 STALE_SIBLINGS when orderedIds is not exactly the current children. Audit category.reorder.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reorder the children of one parent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/reorderCategoriesResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryReorder"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/category-tree/{categoryId}": {
+      "get": {
+        "operationId": "getCategoryTreeNode",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Category detail for the panel",
+        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Breadcrumb comes from the path.",
+        "x-required-role": "admin; catalogue.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Category detail for the panel.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getCategoryTreeNodeResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "code": "mathematics",
+                    "name": "Mathematics",
+                    "path": "Example value",
+                    "depth": 0,
+                    "isBookable": true,
+                    "requiresBoard": true,
+                    "requiresLevel": true,
+                    "isActive": true,
+                    "displayOrder": 0,
+                    "version": 1,
+                    "childrenCount": 0,
+                    "curriculaCount": 0,
+                    "createdAt": "2026-10-21T09:00:00Z",
+                    "updatedAt": "2026-10-21T09:00:00Z",
+                    "description": "Reviewed configuration definition.",
+                    "breadcrumb": [],
+                    "allowedLevels": [],
+                    "activeCurriculaCount": 0,
+                    "studentCount": 0,
+                    "descendantCount": 0
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "updateCategoryTreeNode",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Rename, change code, activate or deactivate",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. A code change rebuilds the subtree paths in the same transaction. 409 STALE_VERSION or DUPLICATE_CODE. Audit category.update.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rename, change code, activate or deactivate.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/updateCategoryTreeNodeResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "code": "mathematics",
+                    "name": "Mathematics",
+                    "path": "Example value",
+                    "depth": 0,
+                    "isBookable": true,
+                    "requiresBoard": true,
+                    "requiresLevel": true,
+                    "isActive": true,
+                    "displayOrder": 0,
+                    "version": 1,
+                    "childrenCount": 0,
+                    "curriculaCount": 0,
+                    "createdAt": "2026-10-21T09:00:00Z",
+                    "updatedAt": "2026-10-21T09:00:00Z",
+                    "description": "Reviewed configuration definition.",
+                    "breadcrumb": [],
+                    "allowedLevels": [],
+                    "activeCurriculaCount": 0,
+                    "studentCount": 0,
+                    "descendantCount": 0
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryTreeUpdate"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteCategoryTreeNode",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Hard-delete an unreferenced category",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 409 DELETE_BLOCKED while it has children, curricula, student profiles, scoped levels or a legacy node link; the message lists the reasons and suggests deactivating. 409 STALE_VERSION. Audit category.delete.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          },
+          "204": {
+            "description": "Deleted."
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          }
+        },
+        "parameters": [
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "description": "Expected version.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ]
+      }
+    },
+    "/admin/category-tree/{categoryId}/children": {
+      "post": {
+        "operationId": "createCategoryChild",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Create a sub-category",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 409 PARENT_IS_BOOKABLE or DUPLICATE_CODE; 422 PARENT_NOT_FOUND, PATH_TOO_LONG or TOO_DEEP. 200 for an idempotent retry. Audit category.create_child.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Create a sub-category.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/createCategoryChildResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "code": "mathematics",
+                    "name": "Mathematics",
+                    "path": "Example value",
+                    "depth": 0,
+                    "isBookable": true,
+                    "requiresBoard": true,
+                    "requiresLevel": true,
+                    "isActive": true,
+                    "displayOrder": 0,
+                    "version": 1,
+                    "childrenCount": 0,
+                    "curriculaCount": 0,
+                    "createdAt": "2026-10-21T09:00:00Z",
+                    "updatedAt": "2026-10-21T09:00:00Z",
+                    "description": "Reviewed configuration definition.",
+                    "breadcrumb": [],
+                    "allowedLevels": [],
+                    "activeCurriculaCount": 0,
+                    "studentCount": 0,
+                    "descendantCount": 0
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryTreeCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/category-tree/{categoryId}/leaf-settings": {
+      "put": {
+        "operationId": "setCategoryLeafSettings",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Set booking settings of a leaf",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Only for a node without children (409 HAS_CHILDREN). 409 CATEGORY_REFERENCED, LEVEL_IN_USE, LEVEL_REQUIRED_BY_CURRICULA, BOARD_REQUIRED_BY_CURRICULA, STALE_VERSION; 422 LEVELS_REQUIRED, UNKNOWN_LEVEL, INACTIVE_LEVEL. Audit category.leaf_settings.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Set booking settings of a leaf.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/setCategoryLeafSettingsResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "code": "mathematics",
+                    "name": "Mathematics",
+                    "path": "Example value",
+                    "depth": 0,
+                    "isBookable": true,
+                    "requiresBoard": true,
+                    "requiresLevel": true,
+                    "isActive": true,
+                    "displayOrder": 0,
+                    "version": 1,
+                    "childrenCount": 0,
+                    "curriculaCount": 0,
+                    "createdAt": "2026-10-21T09:00:00Z",
+                    "updatedAt": "2026-10-21T09:00:00Z",
+                    "description": "Reviewed configuration definition.",
+                    "breadcrumb": [],
+                    "allowedLevels": [],
+                    "activeCurriculaCount": 0,
+                    "studentCount": 0,
+                    "descendantCount": 0
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryLeafSettings"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/category-tree/{categoryId}/move": {
+      "put": {
+        "operationId": "moveCategory",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Move a category under a new parent",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Locks the node, the new parent and the subtree (SELECT FOR UPDATE), checks the cycle rule inside the transaction and rebuilds path and depth for the subtree in one statement. 422 CYCLE; 409 PARENT_IS_BOOKABLE, DUPLICATE_CODE, STALE_VERSION, CONCURRENT_CHANGE. Already under that parent: 200, no change. Audit category.move.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Move a category under a new parent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/moveCategoryResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "code": "mathematics",
+                    "name": "Mathematics",
+                    "path": "Example value",
+                    "depth": 0,
+                    "isBookable": true,
+                    "requiresBoard": true,
+                    "requiresLevel": true,
+                    "isActive": true,
+                    "displayOrder": 0,
+                    "version": 1,
+                    "childrenCount": 0,
+                    "curriculaCount": 0,
+                    "createdAt": "2026-10-21T09:00:00Z",
+                    "updatedAt": "2026-10-21T09:00:00Z",
+                    "description": "Reviewed configuration definition.",
+                    "breadcrumb": [],
+                    "allowedLevels": [],
+                    "activeCurriculaCount": 0,
+                    "studentCount": 0,
+                    "descendantCount": 0
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryMove"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/category-tree/{categoryId}/offerings": {
+      "get": {
+        "operationId": "listCategoryOfferings",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Offerings (curricula) of a leaf",
+        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. ",
+        "x-required-role": "admin; catalogue.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Offerings (curricula) of a leaf.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listCategoryOfferingsResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "addCategoryOffering",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Add an offering to a bookable leaf",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 422 NOT_BOOKABLE, BOARD_REQUIRED, LEVEL_REQUIRED, LEVEL_NOT_ALLOWED, UNKNOWN_SUBJECT, UNKNOWN_BOARD, INACTIVE_LEVEL. 200 for an existing identical offering.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Add an offering to a bookable leaf.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/addCategoryOfferingResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "subject": {
+                      "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                      "name": "Mathematics"
+                    },
+                    "board": {
+                      "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                      "name": "Mathematics"
+                    },
+                    "level": {
+                      "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                      "name": "Mathematics"
+                    },
+                    "isActive": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryOfferingWrite"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/category-tree/offerings/{curriculumId}": {
+      "patch": {
+        "operationId": "updateCategoryOffering",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Activate or deactivate an offering",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. ",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Activate or deactivate an offering.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/updateCategoryOfferingResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "subject": {
+                      "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                      "name": "Mathematics"
+                    },
+                    "board": {
+                      "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                      "name": "Mathematics"
+                    },
+                    "level": {
+                      "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                      "name": "Mathematics"
+                    },
+                    "isActive": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "curriculumId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryOfferingUpdate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/catalogue/category-tree/children": {
+      "get": {
+        "operationId": "listLearnerCategories",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Children of a category on the way to a bookable leaf",
+        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. ",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Children of a category on the way to a bookable leaf.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listLearnerCategoriesResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "parentId",
+            "in": "query",
+            "required": false,
+            "description": "Omit for the roots.",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      }
+    },
+    "/catalogue/category-tree/leaves": {
+      "get": {
+        "operationId": "listLearnerLeaves",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Bookable leaves",
+        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. ",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Bookable leaves.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listLearnerLeavesResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": [],
+                  "meta": {
+                    "page": 1,
+                    "limit": 1,
+                    "total": 0,
+                    "totalPages": 0
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "under",
+            "in": "query",
+            "required": false,
+            "description": "Only leaves below this category.",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Name contains.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "One-based page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ]
+      }
+    },
+    "/catalogue/category-tree/leaves/{categoryId}": {
+      "get": {
+        "operationId": "getLearnerLeaf",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Bookable leaf with its options",
+        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. ",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Bookable leaf with its options.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getLearnerLeafResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "code": "mathematics",
+                    "name": "Mathematics",
+                    "path": "Example value",
+                    "isLeaf": true,
+                    "breadcrumb": [],
+                    "requiresBoard": true,
+                    "requiresLevel": true,
+                    "boards": [],
+                    "levels": [],
+                    "subjects": []
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "boardId",
+            "in": "query",
+            "required": false,
+            "description": "boardId",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "levelId",
+            "in": "query",
+            "required": false,
+            "description": "levelId",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      }
+    },
+    "/catalogue/category-tree/leaves/{categoryId}/offering": {
+      "get": {
+        "operationId": "resolveLearnerOffering",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Resolve a choice on a leaf to its curriculum",
+        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. 422 NOT_BOOKABLE, BOARD_REQUIRED, LEVEL_REQUIRED, LEVEL_NOT_ALLOWED; 404 NO_OFFERING. The same check a booking must make (resolveBookableOffering).",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Resolve a choice on a leaf to its curriculum.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/resolveLearnerOfferingResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "categoryPath": "Example value",
+                    "subjectId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "boardId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "levelId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "query",
+            "required": true,
+            "description": "subjectId",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "boardId",
+            "in": "query",
+            "required": false,
+            "description": "boardId",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "levelId",
+            "in": "query",
+            "required": false,
+            "description": "levelId",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      }
+    },
     "/admin/library/files": {
       "post": {
         "operationId": "uploadLibraryMaterial",
@@ -9071,6 +10624,12 @@
               },
               "maxItems": 100
             }
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Machine-readable code of an operational error (for example STALE_VERSION, DELETE_BLOCKED). Absent on validation and system errors."
           },
           "traceId": {
             "type": "string",
@@ -10745,14 +12304,16 @@
           "levelId": {
             "type": "string",
             "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true,
+            "description": "Null only when the leaf does not require a level (ADR-0005)."
           },
           "nodeId": {
             "type": "string",
             "format": "uuid",
             "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
             "nullable": true,
-            "description": "LEVEL leaf in the catalogue tree that owns this offering."
+            "description": "LEVEL leaf in the legacy catalogue tree (ADR-0003) that owned this offering."
           },
           "name": {
             "type": "string",
@@ -11561,7 +13122,8 @@
           "categoryName": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 200
+            "maxLength": 500,
+            "description": "Category-tree names below the root, e.g. \"School \u203a K-12\" (ADR-0005)."
           },
           "boardName": {
             "type": "string",
@@ -11577,7 +13139,8 @@
           "levelName": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 200
+            "maxLength": 200,
+            "nullable": true
           },
           "amounts": {
             "$ref": "#/components/schemas/PriceAmounts"
@@ -14689,6 +16252,1386 @@
               "$ref": "#/components/schemas/PriceQuoteItem"
             },
             "maxItems": 50
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "CategoryTreeNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50,
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20
+          },
+          "isBookable": {
+            "type": "boolean"
+          },
+          "requiresBoard": {
+            "type": "boolean"
+          },
+          "requiresLevel": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "displayOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "childrenCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "curriculaCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "subtreeCurriculaCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "Curricula on this node and every node below it (whole-tree response only)."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          }
+        },
+        "required": [
+          "id",
+          "parentId",
+          "code",
+          "name",
+          "path",
+          "depth",
+          "isBookable",
+          "requiresBoard",
+          "requiresLevel",
+          "isActive",
+          "displayOrder",
+          "version",
+          "childrenCount",
+          "curriculaCount",
+          "subtreeCurriculaCount",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CategoryTree": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryTreeNode"
+            },
+            "maxItems": 100000
+          },
+          "stats": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "categories": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
+              },
+              "bookableLeaves": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
+              },
+              "curricula": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
+              }
+            },
+            "required": [
+              "categories",
+              "bookableLeaves",
+              "curricula"
+            ]
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          }
+        },
+        "required": [
+          "nodes",
+          "stats",
+          "generatedAt"
+        ]
+      },
+      "CategoryTreeDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50,
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20
+          },
+          "isBookable": {
+            "type": "boolean"
+          },
+          "requiresBoard": {
+            "type": "boolean"
+          },
+          "requiresLevel": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "displayOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "childrenCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "curriculaCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "nullable": true
+          },
+          "breadcrumb": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "path"
+              ]
+            },
+            "maxItems": 20
+          },
+          "allowedLevels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "code": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 50
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "isActive": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "code",
+                "name",
+                "isActive"
+              ]
+            },
+            "maxItems": 200
+          },
+          "activeCurriculaCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "studentCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "descendantCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "id",
+          "parentId",
+          "code",
+          "name",
+          "path",
+          "depth",
+          "isBookable",
+          "requiresBoard",
+          "requiresLevel",
+          "isActive",
+          "displayOrder",
+          "version",
+          "childrenCount",
+          "curriculaCount",
+          "createdAt",
+          "updatedAt",
+          "description",
+          "breadcrumb",
+          "allowedLevels",
+          "activeCurriculaCount",
+          "studentCount",
+          "descendantCount"
+        ]
+      },
+      "CategoryTreeCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50,
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
+      "CategoryTreeUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "The version the change is based on (optimistic concurrency). A stale version returns 409 STALE_VERSION, unless the request is an idempotent retry whose values are already saved."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50,
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "false hides the whole subtree from learners."
+          }
+        },
+        "required": [
+          "version"
+        ]
+      },
+      "CategoryLeafSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "The version the change is based on (optimistic concurrency). A stale version returns 409 STALE_VERSION, unless the request is an idempotent retry whose values are already saved."
+          },
+          "isBookable": {
+            "type": "boolean"
+          },
+          "requiresBoard": {
+            "type": "boolean"
+          },
+          "requiresLevel": {
+            "type": "boolean"
+          },
+          "levelIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            },
+            "maxItems": 200,
+            "description": "Allowed levels (category_levels); replaces the current set."
+          }
+        },
+        "required": [
+          "version",
+          "isBookable",
+          "requiresBoard",
+          "requiresLevel",
+          "levelIds"
+        ]
+      },
+      "CategoryReorder": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true,
+            "description": "null = the roots."
+          },
+          "orderedIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "description": "Every child exactly once."
+          }
+        },
+        "required": [
+          "parentId",
+          "orderedIds"
+        ]
+      },
+      "CategoryMove": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "The version the change is based on (optimistic concurrency). A stale version returns 409 STALE_VERSION, unless the request is an idempotent retry whose values are already saved."
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true,
+            "description": "null = make it a root."
+          }
+        },
+        "required": [
+          "version",
+          "parentId"
+        ]
+      },
+      "CategoryOffering": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "curriculumId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "subject": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ]
+          },
+          "board": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "nullable": true
+          },
+          "level": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "curriculumId",
+          "categoryId",
+          "subject",
+          "board",
+          "level",
+          "isActive"
+        ]
+      },
+      "CategoryOfferingWrite": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "subjectId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "boardId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          },
+          "levelId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          }
+        },
+        "required": [
+          "subjectId"
+        ]
+      },
+      "CategoryOfferingUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "isActive"
+        ]
+      },
+      "LearnerCategory": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50,
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "isLeaf": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "path",
+          "isLeaf"
+        ]
+      },
+      "LearnerLeaf": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50,
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "isLeaf": {
+            "type": "boolean"
+          },
+          "breadcrumb": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ]
+            },
+            "maxItems": 20
+          },
+          "requiresBoard": {
+            "type": "boolean"
+          },
+          "requiresLevel": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "path",
+          "isLeaf",
+          "breadcrumb",
+          "requiresBoard",
+          "requiresLevel"
+        ]
+      },
+      "LearnerLeafDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50,
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "isLeaf": {
+            "type": "boolean"
+          },
+          "breadcrumb": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ]
+            },
+            "maxItems": 20
+          },
+          "requiresBoard": {
+            "type": "boolean"
+          },
+          "requiresLevel": {
+            "type": "boolean"
+          },
+          "boards": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ]
+            },
+            "maxItems": 500,
+            "description": "Filled only when requiresBoard."
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ]
+            },
+            "maxItems": 500,
+            "description": "Filled only when requiresLevel; from category_levels."
+          },
+          "subjects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ]
+            },
+            "maxItems": 500,
+            "description": "From the active offerings, narrowed by the chosen board and level."
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "path",
+          "isLeaf",
+          "breadcrumb",
+          "requiresBoard",
+          "requiresLevel",
+          "boards",
+          "levels",
+          "subjects"
+        ]
+      },
+      "BookableOffering": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "curriculumId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "categoryPath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "subjectId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "boardId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          },
+          "levelId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true
+          }
+        },
+        "required": [
+          "curriculumId",
+          "categoryId",
+          "categoryPath",
+          "subjectId",
+          "boardId",
+          "levelId"
+        ]
+      },
+      "getCategoryTreeResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CategoryTree"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CategoryTreeNode"
+                },
+                "maxItems": 10000
+              }
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getCategoryTreeStatusResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "learnerCatalogueEnabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "learnerCatalogueEnabled"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "createCategoryRootResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/CategoryTreeDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "reorderCategoriesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryTreeNode"
+            },
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getCategoryTreeNodeResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/CategoryTreeDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "updateCategoryTreeNodeResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/CategoryTreeDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "deleteCategoryTreeNodeResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "object",
+            "nullable": true,
+            "enum": [
+              null
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "createCategoryChildResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/CategoryTreeDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "setCategoryLeafSettingsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/CategoryTreeDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "moveCategoryResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/CategoryTreeDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "listCategoryOfferingsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryOffering"
+            },
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "addCategoryOfferingResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/CategoryOffering"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "updateCategoryOfferingResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/CategoryOffering"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "listLearnerCategoriesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LearnerCategory"
+            },
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "listLearnerLeavesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LearnerLeaf"
+            },
+            "maxItems": 100
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data",
+          "meta"
+        ]
+      },
+      "getLearnerLeafResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/LearnerLeafDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "resolveLearnerOfferingResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/BookableOffering"
           }
         },
         "required": [

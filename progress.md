@@ -1,5 +1,27 @@
 # Progress Log
 
+## 2026-11-02 — Category tree (ADR-0005, LMS-0: ticket number to be assigned)
+
+- `categories` is now the tree (path, depth, bookable leaves, version), superseding ADR-0003. Board, subject and level stay lookups; `category_levels` lists a leaf's levels.
+- Migrations: `20261102090000_category_tree_expand` (additive, backfill, verification) and `20261102100000_category_tree_contract` (nullable `curricula.level_id`, reference triggers, level FK). Rollback scripts and runbook in `prisma/rollbacks/`.
+- New module `src/modules/category-tree`: admin API at `/admin/category-tree` (tree, children, detail, create root/child, update, leaf settings, reorder, move, delete, offerings) and the learner API at `/catalogue/category-tree` behind the `catalogue.category_tree` feature flag.
+- The legacy `catalogue_nodes` writes are frozen (409 `CATALOGUE_TREE_MIGRATED`); reads, pricing and the onboarding lists keep working through subtree-aware filters.
+- Error responses carry a `code`.
+- **After pulling:** `npx prisma migrate deploy`, `npx prisma db seed`, then enable the `catalogue.category_tree` flag where the learner catalogue should show.
+
+### Test Results
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | ✅ Pass |
+| `npm run lint` | ✅ 0 errors, 38 warnings (33 pre-existing; 5 `detect-object-injection` on typed maps) |
+| `npm run build` | ✅ Pass |
+| `npx vitest run` (unit + integration, amentorz_test) | ✅ 395 passed; ❌ 2 pre-existing `tests/unit/rbac.test.ts` failures (`catalogue.*` and `pricing.*` missing from `rbac.ts` on this base branch, fixed by the uncommitted LMS-64 change) |
+| `tests/modules/category-tree-performance.test.ts` | Admin tree, 5,044 nodes, uncached p95 ≈ 70 ms (target < 200 ms); learner leaves page ≈ 20 ms; moving 1,241 nodes ≈ 0.7 s |
+| `tests/modules/category-tree-migration.test.ts` | Expand → verify → contract → both rollbacks restore the exact schema and data |
+| `python3 docs/check-contract-structure.py` | ✅ 100 paths, 115 operations |
+| Not run here | `prisma migrate diff` (Prisma engine host blocked in the build sandbox); run it locally, see `findings.md` |
+
 ## 2026-10-29 — Permission naming and portal roles (LMS-96)
 
 - Fixed the seed/guard mismatch: seeded admins were denied by every guard (`users:manage` vs `user.read`).

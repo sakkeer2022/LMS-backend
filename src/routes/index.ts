@@ -12,6 +12,10 @@ import { uploadsRouter } from '@modules/uploads/uploads.routes.js';
 import { auditLogMiddleware } from '@middleware/audit.middleware';
 import { catalogueRouter, adminCatalogueRouter } from '@modules/catalogue/index.js';
 import { pricesRouter, adminPricesRouter } from '@modules/pricing/index.js';
+import {
+  adminCategoryTreeRouter,
+  learnerCategoryTreeRouter,
+} from '@modules/category-tree/index.js';
 
 export const router = Router();
 
@@ -28,7 +32,10 @@ router.use('/feature-flags', featureFlagsRouter);
 router.use('/notifications', notificationsRouter);
 
 // ── Catalogue (LMS-54). Mounted before '/admin', whose router authenticates every path ──
+// Category tree (ADR-0005) before '/catalogue', whose router has no '/category-tree' paths
+router.use('/catalogue/category-tree', learnerCategoryTreeRouter);
 router.use('/catalogue', catalogueRouter);
+router.use('/admin/category-tree', adminCategoryTreeRouter);
 router.use('/admin/catalogue', adminCatalogueRouter);
 
 // ── Pricing (LMS-58). Also mounted before '/admin' ──

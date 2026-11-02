@@ -19,6 +19,7 @@ Building blocks that more than one module uses. **Check this list before writing
 | Background jobs                   | `src/infrastructure/queue/`                        | BullMQ queue and worker                                                                            |
 | JSON cache                        | `src/infrastructure/cache/` (`appCache`)           | Redis-backed cache with an in-memory test double; fails open                                       |
 | Feature flag check                | `src/modules/feature-flags/index.ts` (`isFeatureEnabled`) | Gating a new code path; a missing flag is off                                               |
+| Bookable offering check           | `src/modules/category-tree/index.ts` (`resolveBookableOffering`) | Bookings and profiles: the category is a visible bookable leaf and the board/level follow its rules |
 | Test fixtures                     | `tests/helpers/`                                   | `app` and `getCsrfData`; more helpers listed below as their branches merge                         |
 
 ## Arriving with open branches

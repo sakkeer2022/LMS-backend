@@ -42,6 +42,11 @@ Evidence references: SOW = Software Development Agreement, Annexure 1 (the signe
 | T5  | Should `npm audit` (high severity) fail the build?                                       | CI                | Advisory                                                 | Pending |
 | T6  | Who owns the frontend parts of LMS-41 (settings screen, shared UI components, admin CI)? | LMS-40 UI work    | Unassigned                                               | Pending |
 | T7  | Restrict who can grant system roles (an admin can promote itself to `super_admin`)       | RBAC              | Documented risk                                          | Pending |
+| CT1 | Root mapping: School, University and JEE / NEET under Academic; Research & Skill under Non-academic | ADR-0005 backfill | As stated | Pending |
+| CT2 | Should a learner see a bookable leaf with no active offering? | Learner catalogue | Hidden until it has at least one active offering | Pending |
+| CT3 | New children inherit `requires_board` from their parent; `is_bookable` defaults to false | Admin tree | As stated | Pending |
+| CT4 | Should student profiles also be restricted to the leaf's allowed levels (as curricula are)? | Onboarding (LMS-99) | Only bookable-leaf and board rules for profiles | Pending |
+| CT5 | When can `catalogue_nodes` and its endpoints be dropped? | ADR-0003 cleanup | After the new tree is verified in production | Pending |
 | T8  | Align `GET /audit` with the contract (it returns more fields than designed)              | LMS-41            | Listed as a known contract mismatch                      | Pending |
 
 ## Decided
