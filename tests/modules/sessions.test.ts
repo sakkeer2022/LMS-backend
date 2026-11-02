@@ -21,12 +21,18 @@ const cookieOf = (res: request.Response, name: string): string =>
     .find((c) => c.startsWith(`${name}=`))!
     .split(';')[0]!;
 
-async function secondLogin(email: string, portal: string): Promise<LoggedInUser> {
+/** Another device: a different user agent, so it is a separate session rather than a replacement */
+async function secondLogin(
+  email: string,
+  portal: string,
+  userAgent = 'Second Device/1.0'
+): Promise<LoggedInUser> {
   const { csrfToken, csrfCookie } = await getCsrfData();
   const res = await request(app)
     .post(`/api/v1/auth/${portal}/login`)
     .set('Cookie', csrfCookie)
     .set('x-csrf-token', csrfToken)
+    .set('User-Agent', userAgent)
     .send({ email, password: TEST_PASSWORD });
   const accessCookie = cookieOf(res, 'accessToken');
   return {
@@ -118,6 +124,22 @@ describe('Sessions and refresh', () => {
   });
 
   describe('GET /auth/sessions', () => {
+    it('replaces the earlier session of the same browser but keeps other devices', async () => {
+      const sameBrowser = await secondLogin('sessions@example.com', 'student', 'Vitest');
+      const otherDevice = await secondLogin('sessions@example.com', 'student', 'Other Phone/2.0');
+      const again = await secondLogin('sessions@example.com', 'student', 'Vitest');
+
+      const list = await request(app).get('/api/v1/auth/sessions').set(bearer(again));
+      expect(list.status).toBe(200);
+      // the beforeEach login, the other phone and the latest browser sign-in
+      expect(list.body.data).toHaveLength(3);
+      expect(list.body.data.filter((s: { isCurrent: boolean }) => s.isCurrent)).toHaveLength(1);
+
+      // The replaced session no longer works, the other device still does
+      expect((await request(app).get('/api/v1/auth/me').set(bearer(sameBrowser))).status).toBe(401);
+      expect((await request(app).get('/api/v1/auth/me').set(bearer(otherDevice))).status).toBe(200);
+    });
+
     it('lists live sessions with a stable id across rotation and marks the current one', async () => {
       const other = await secondLogin('sessions@example.com', 'student');
 

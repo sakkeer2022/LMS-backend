@@ -204,6 +204,30 @@ export async function listSessions(
   };
 }
 
+/**
+ * A new sign-in replaces the earlier sessions of the same user, portal and browser (same device
+ * fingerprint), so one browser never lists several sessions. Other devices are untouched.
+ */
+export async function supersedeDeviceSessions(
+  userId: string,
+  portal: Portal,
+  deviceFingerprint: string,
+  keepFamilyId: string
+): Promise<void> {
+  const older = await prisma.refreshToken.findMany({
+    where: {
+      userId,
+      portal,
+      deviceFingerprint,
+      revokedAt: null,
+      familyId: { not: null, notIn: [keepFamilyId] },
+    },
+    select: { familyId: true },
+    distinct: ['familyId'],
+  });
+  for (const { familyId } of older) await revokeFamily(userId, familyId);
+}
+
 /** Revokes one of the user's own sessions; another user's session is a 404. */
 export async function revokeSession(
   userId: string,

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import { prisma } from '@infrastructure/database/index';
 import { ForbiddenError, UnauthorizedError } from '@core/errors/index';
@@ -8,6 +9,7 @@ import { logAction } from '../audit/audit.service.js';
 import type { PortalLoginInput } from './auth.dto.js';
 import { assessLoginLocation, type SessionContext } from './auth.service.js';
 import { issueTokenPair } from './session.js';
+import { supersedeDeviceSessions } from './session.service.js';
 import { loadContractUser, type ContractUser } from './contract-user.js';
 
 export interface PortalLoginResult {
@@ -114,6 +116,7 @@ export async function loginToPortal(
 
   const country = await assessLoginLocation(user, context);
 
+  const familyId = crypto.randomUUID();
   const result = await prisma.$transaction(async (tx) => {
     const updated = await tx.user.update({
       where: { id: user.id },
@@ -127,10 +130,13 @@ export async function loginToPortal(
     });
     const tokens = await issueTokenPair(updated, context, tx, {
       portal,
+      familyId,
       remember: dto.rememberMe,
     });
     return { tokens, contractUser: await loadContractUser(user.id, tx) };
   });
+
+  await supersedeDeviceSessions(user.id, portal, context.deviceFingerprint, familyId);
 
   await logAction({
     actorId: user.id,
