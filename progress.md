@@ -1,5 +1,57 @@
 # Progress Log
 
+## 2026-10-29 — Permission naming and portal roles (LMS-96)
+
+- Fixed the seed/guard mismatch: seeded admins were denied by every guard (`users:manage` vs `user.read`).
+- `src/core/security/rbac.ts` is the single list of permission names (`resource.action`) and system roles; `prisma/seed-rbac.ts` seeds from it and `prisma/seed.ts` calls it.
+- Roles seeded: `super_admin` (`*`), `admin` (all but feature flags), `faculty` and `student` (no permissions yet). The template `viewer` role is no longer seeded.
+- Guards `feature_flags:*` and `uploads:create` renamed to dotted names; `requirePermission` uses the shared `hasPermission` matcher.
+- User role changes write SECURITY audit entries (`user.roles_assigned`, `user.roles_removed`, `user.roles_replaced`) with the actor and roles before and after.
+- Portal guard deferred to LMS-100; `tenantIds` token claim recorded as an open frontend decision (`src/docs/RBAC_RULES.md`).
+- **After pulling, re-run `npx prisma db seed`** on dev databases.
+
+### Test Results
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | ✅ Pass |
+| `npm run lint` | ✅ 0 errors, 33 warnings (pre-existing) |
+| `npm run test:unit` | ✅ 132 passed (13 files), including `tests/unit/rbac.test.ts` (guard coverage) |
+| `npm run test:integration` (amentorz_test) | ✅ 80 passed (13 files), including `tests/modules/rbac_seed.test.ts`. Intermittent failures found and fixed (see below) |
+
+### Intermittent integration test failures (found while testing LMS-96 and LMS-90)
+
+- **Port clashes:** supertest started a server per request on all interfaces; macOS sometimes handed out a port another local app held on 127.0.0.1, so the request reached that app (`socket hang up`, `Client sent an HTTP request to an HTTPS server`). Fixed: one test server per file bound to 127.0.0.1 (`tests/helpers/app.ts`).
+- **Data leaking between files:** `upload.test.ts` creates `uploads.create` in `beforeAll`, which ran before the tables were emptied; when a file that seeds RBAC ran first, the name already existed. Fixed: `tests/setup.ts` also truncates at the start of each file.
+- Measured: development 0 of 12 full runs failed; this work before the fixes 5 of 12; after both fixes 1 of 12, and that one was the audit-chain bug below.
+- **Open, existing bug:** see the audit hash chain entry in `findings.md` (2026-10-29). It makes `audit_chain.test.ts` fail occasionally on every branch.
+
+## 2026-10-29 — Security baseline gaps closed (LMS-91)
+
+- JWT access and refresh tokens are signed and verified with HS256 only (`src/core/security/jwt.ts`).
+- CORS uses the `ALLOWED_ORIGINS` allowlist in every environment; outside production an empty value allows only `http://localhost:3001` (`resolveAllowedOrigins` in `src/config/index.ts`).
+- `src/docs/SECURITY.md` has a verification checklist mapping each baseline control to its test. Open rows: TLS and the Secure cookie (LMS-94), per-route rate limits (LMS-97, LMS-100), student data access (LMS-99, LMS-100).
+- New tests: `tests/unit/jwt.test.ts`, `tests/unit/cors.test.ts`, `resolveAllowedOrigins` cases in `tests/unit/config.test.ts`, HttpOnly and SameSite assertions in `tests/modules/auth.test.ts`.
+
+### Test Results
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | ✅ Pass |
+| `npm run lint` | ✅ 0 errors, 33 warnings (pre-existing) |
+| `npm run test:unit` | ✅ 129 passed (14 files) |
+| `npm run test:integration` (amentorz_test) | ✅ 73 passed (12 files) |
+
+## 2026-10-29 — Regional and shared-component guidelines (LMS-41)
+
+- `src/docs/REGIONS.md`: India and UAE rules (country codes, E.164 mobiles, time zones, INR only, country-specific policies and consent, open regional decisions).
+- `src/docs/SHARED_COMPONENTS.md`: reusable building blocks, available and planned.
+- CLAUDE.md, AGENTS.md, GEMINI.md and the PR checklist point to both.
+- Decisions recorded in `findings.md`: R4 accepted, placeholder policies for development, 8-character password rule, configurable email transport, LMS-92/LMS-94 parked.
+- Audited our docs against the SOW, project plan and consent document; corrected misattributed rules in the contract generator (regenerated `docs/openapi.yaml`), contract review, database docs and README. One password rule for every role (8 characters with a number); lockout and expiry values described as configuration.
+- `docs/PENDING_DECISIONS.md`: client, product and team questions with working assumptions.
+- `REGIONS.md`: consent age 18 for both countries, country from the mobile number, planned `countries` table, scalability-without-UI-changes rule.
+
 ## 2026-10-28 — Project setup and team conventions (LMS-52)
 
 - Rebuilt the unpushed local history into ticket-based commits on `feature/LMS-52-project-setup`; the onboarding schema and contract work moved to `feature/LMS-38-student-registration`.

@@ -117,7 +117,7 @@ Every sensitive API action is recorded in `audit_logs`. The Pino logger and audi
 
 ## Phase 6: Feature Flags ✅ Complete
 
-A full feature flag management API with rollout percentages, condition targeting, and enable/disable toggling. Protected by RBAC with the `feature_flags:*` permission set.
+A full feature flag management API with rollout percentages, condition targeting, and enable/disable toggling. Protected by RBAC with the `feature_flags.*` permission set.
 
 ---
 

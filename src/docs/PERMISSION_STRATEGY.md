@@ -4,14 +4,15 @@
 
 Permissions are structured using a dot-notation format to guarantee uniqueness, clarity, and wildcard compatibility.
 
-**Format:** `resource.action` or `resource:action`
+**Format:** `resource.action` (the legacy `resource:action` form is no longer used)
 
 ### Examples
 
-- `document.read`
-- `document.write`
-- `role.create`
-- `feature_flags:read`
+- `user.read`
+- `role.assign_permission`
+- `feature_flags.read`
+
+The full list lives in `src/core/security/rbac.ts`; see `RBAC_RULES.md` for how to add one.
 
 ---
 

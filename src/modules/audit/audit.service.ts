@@ -21,6 +21,12 @@ export interface LogActionParams {
   newValue?: Record<string, unknown> | null;
 }
 
+/** Request details a service passes through so its audit entries name the actor. */
+export type AuditContext = Pick<
+  LogActionParams,
+  'actorId' | 'ipAddress' | 'userAgent' | 'traceId' | 'correlationId'
+>;
+
 export interface AuditLogSummary {
   id: string;
   traceId: string;

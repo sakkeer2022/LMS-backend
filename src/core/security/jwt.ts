@@ -21,12 +21,16 @@ export interface TokenPair {
   expiresIn: number; // seconds
 }
 
+// Pinned so a token signed with any other algorithm (including "none") is rejected.
+export const JWT_ALGORITHM = 'HS256' as const;
+
 // ── Sign ────────────────────────────────────────────────────────
 export function signAccessToken(
   payload: Omit<TokenPayload, 'iat' | 'exp'> & { jti?: string }
 ): string {
   const finalPayload = { jti: crypto.randomUUID(), ...payload };
   return jwt.sign(finalPayload, config.jwt.secret, {
+    algorithm: JWT_ALGORITHM,
     expiresIn: config.jwt.expiresIn as ms.StringValue,
   });
 }
@@ -36,17 +40,20 @@ export function signRefreshToken(
 ): string {
   const finalPayload = { jti: crypto.randomUUID(), ...payload };
   return jwt.sign(finalPayload, config.jwt.refreshSecret, {
+    algorithm: JWT_ALGORITHM,
     expiresIn: config.jwt.refreshExpiresIn as ms.StringValue,
   });
 }
 
 // ── Verify ───────────────────────────────────────────────────────
 export function verifyAccessToken(token: string): TokenPayload {
-  return jwt.verify(token, config.jwt.secret) as TokenPayload;
+  return jwt.verify(token, config.jwt.secret, { algorithms: [JWT_ALGORITHM] }) as TokenPayload;
 }
 
 export function verifyRefreshToken(token: string): TokenPayload {
-  return jwt.verify(token, config.jwt.refreshSecret) as TokenPayload;
+  return jwt.verify(token, config.jwt.refreshSecret, {
+    algorithms: [JWT_ALGORITHM],
+  }) as TokenPayload;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────

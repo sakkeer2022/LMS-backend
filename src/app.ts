@@ -55,7 +55,8 @@ export function createApp(): Application {
   );
   app.use(
     cors({
-      origin: config.env === 'production' ? config.security.allowedOrigins : '*',
+      // Explicit allowlist in every environment: browsers reject "*" for credentialed requests
+      origin: config.security.allowedOrigins,
       credentials: true,
     })
   );

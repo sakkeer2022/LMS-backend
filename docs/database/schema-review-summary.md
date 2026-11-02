@@ -41,7 +41,7 @@ All technical artifacts generated during this verification review are indexed be
 2. **PostgreSQL 16 Null-Safe Uniqueness:**
    - Deployed `UNIQUE NULLS NOT DISTINCT` on `curricula([category_id, board_id, subject_id, level_id])`. Guarantees non-School curricula (where `board_id` is null) cannot have duplicate tuples.
 3. **Single-Currency Financial Invariant:**
-   - Monies are stored strictly as integers in paise (`price_paise`) with currency locked to `INR`. Packages and subscriptions are excluded per SOW v2.0.
+   - Monies are stored strictly as integers in paise (`price_paise`) with currency locked to `INR`. Subscriptions are out of scope (SOW A1.9). Packages are deferred per the draft project plan (M03), although SOW A1.7.2 allows them where applicable; client confirmation is pending (`docs/PENDING_DECISIONS.md`).
 4. **Minor Digital Consent Tracking (No Parent Accounts):**
    - In accordance with client scope exclusions, no parent portal or parent accounts exist. Instead, minor consent audit fields (`guardian_consent_signed`, `guardian_consent_document`, `guardian_consent_signed_at`) are captured directly on `student_profiles`.
 5. **Private Document Quarantine & Virus Scanning:**
@@ -64,18 +64,18 @@ pie title Phase 1 MVP Scope Coverage
 ### Sprint 2 Scope (Immediate Next Gate)
 - **`AvailabilitySlot` & `BookingSlotLock` (M05):** Tutor availability slots and real-time locking to prevent concurrent double-booking.
 - **`Booking` (M05):** Core booking transaction with status lifecycle (`REQUESTED`, `CONFIRMED`, `REJECTED`, `CANCELLED`, `COMPLETED`, `DISPUTED`).
-- **`PaymentTransaction` & `Invoice` (M10):** Razorpay order, payment, capture, refund records, and GST amounts in paise.
+- **`PaymentTransaction` & `Invoice` (M10):** Gateway order, payment, capture, refund records, and GST amounts in paise. The gateway is not chosen yet: Razorpay is the leading candidate and the draft project plan names Stripe and Checkout.com as fallbacks.
 - **`VideoSession` (M06):** VideoSDK meeting/room references, participant controls, and recording URLs.
 
 ### Sprint 3 Scope
-- **`SessionAttendance` & `AttendanceEvent` (M07):** Join/leave duration logs and the **20-minute billable rule** (>20 min billable, ≤20 min non-billable).
+- **`SessionAttendance` & `AttendanceEvent` (M07):** Join/leave duration logs and the **20-minute billable rule** (>20 min billable, ≤20 min non-billable, SOW A1.7.6). The draft project plan instead charges the student for every booked session and applies the rule to tutor payout, measured from the scheduled start; the conflict is pending (`docs/PENDING_DECISIONS.md`).
 - **`Homework` & `HomeworkSubmission` (M08):** Assignment distribution, student submissions, and grading.
 - **`DailySessionLog` (M08):** Tutor daily log enforcing the **same-day log next-day booking access rule**.
 - **`TutorReview` & `StudentProgressReport` (M09):** Student 1–10 star ratings with moderation queue, and periodic student progress reports with PDF generation.
 - **`TutorMonthlyScore`, `TutorEarnings` & `TutorPayout` (M11):** 50-point monthly score, 30-session/40-point incentive calculation (10% bonus on 31st+), TDS deductions, and manual payout tracking.
 
 ### Sprint 4 Scope
-- **`NotificationQueue` / Enhanced `Notification` (M13):** User FKs, delivery channels (email, in-app), retry counters, and read receipts.
+- **`NotificationQueue` / Enhanced `Notification` (M13):** User FKs, delivery channels (email, in-app), retry counters, and read/unread state for in-app notifications (not messaging read receipts, which the SOW excludes).
 - **Materialized Views for Reporting (M12):** Pre-aggregated indexes for the 14 admin revenue, tutor, and tax reports.
 
 ---

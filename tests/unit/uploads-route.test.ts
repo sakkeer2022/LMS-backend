@@ -46,7 +46,7 @@ async function csrf() {
     cookie: response.headers['set-cookie'][0].split(';')[0] as string,
   };
 }
-function token(permissions = ['uploads:create']) {
+function token(permissions = ['uploads.create']) {
   return signAccessToken({
     sub: '8841731b-d642-42e6-b706-57b92e2acc85',
     email: 'uploader@example.org',
@@ -89,7 +89,7 @@ describe('Uploads route wiring (no database or real storage)', () => {
     expect(secureUploadPipeline).not.toHaveBeenCalled();
   });
 
-  it('requires the existing uploads:create permission before parsing/storing', async () => {
+  it('requires the existing uploads.create permission before parsing/storing', async () => {
     const data = await csrf();
     const response = await request(app)
       .post('/uploads')

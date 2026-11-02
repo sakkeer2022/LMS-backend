@@ -17,7 +17,7 @@ featureFlagsRouter.use(authenticate);
  */
 featureFlagsRouter.get(
   '/',
-  requirePermission('feature_flags:read'),
+  requirePermission('feature_flags.read'),
   FeatureFlagsController.listFeatureFlags
 );
 
@@ -31,7 +31,7 @@ featureFlagsRouter.get(
  */
 featureFlagsRouter.get(
   '/:id',
-  requirePermission('feature_flags:read'),
+  requirePermission('feature_flags.read'),
   FeatureFlagsController.getFeatureFlagById
 );
 
@@ -45,7 +45,7 @@ featureFlagsRouter.get(
  */
 featureFlagsRouter.post(
   '/',
-  requirePermission('feature_flags:create'),
+  requirePermission('feature_flags.create'),
   FeatureFlagsController.createFeatureFlag
 );
 
@@ -59,7 +59,7 @@ featureFlagsRouter.post(
  */
 featureFlagsRouter.patch(
   '/:id',
-  requirePermission('feature_flags:update'),
+  requirePermission('feature_flags.update'),
   FeatureFlagsController.updateFeatureFlag
 );
 
@@ -73,6 +73,6 @@ featureFlagsRouter.patch(
  */
 featureFlagsRouter.delete(
   '/:id',
-  requirePermission('feature_flags:delete'),
+  requirePermission('feature_flags.delete'),
   FeatureFlagsController.deleteFeatureFlag
 );

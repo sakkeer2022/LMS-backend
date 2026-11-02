@@ -13,7 +13,7 @@ describe('Upload API', () => {
     // Mock the queue add method
     vi.spyOn(backgroundJobQueue, 'add').mockResolvedValue({} as any);
 
-    // Create a user with uploads:create permission
+    // Create a user with uploads.create permission
     const email = 'uploader@example.com';
     const user = await prisma.user.create({
       data: {
@@ -31,7 +31,7 @@ describe('Upload API', () => {
 
     const permission = await prisma.permission.create({
       data: {
-        name: 'uploads:create',
+        name: 'uploads.create',
         resource: 'uploads',
         action: 'create',
       },
@@ -51,12 +51,12 @@ describe('Upload API', () => {
       },
     });
 
-    // Sign a token with uploads:create permission
+    // Sign a token with uploads.create permission
     adminToken = signAccessToken({
       sub: user.id,
       email: user.email,
       roles: [role.name],
-      permissions: ['uploads:create'],
+      permissions: ['uploads.create'],
     });
   });
 
@@ -70,7 +70,7 @@ describe('Upload API', () => {
     expect(res.status).toBe(401);
   });
 
-  it('rejects uploads if user lacks uploads:create permission', async () => {
+  it('rejects uploads if user lacks uploads.create permission', async () => {
     const { csrfToken, csrfCookie } = await getCsrfData();
 
     // Create non-permission token
