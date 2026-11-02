@@ -43,6 +43,7 @@ Evidence references: SOW = Software Development Agreement, Annexure 1 (the signe
 | T6  | Who owns the frontend parts of LMS-41 (settings screen, shared UI components, admin CI)? | LMS-40 UI work    | Unassigned                                               | Pending |
 | T7  | Restrict who can grant system roles (an admin can promote itself to `super_admin`)       | RBAC              | Documented risk                                          | Pending |
 | T8  | Align `GET /audit` with the contract (it returns more fields than designed)              | LMS-41            | Listed as a known contract mismatch                      | Pending |
+| T9  | Landing page data: public endpoints for featured tutors, platform statistics and free-resource counts per category; confirm the "18% GST" sentence and footer company details | Student landing page | Sections show an empty state; no sample data; footer line from env | Pending |
 
 ## Decided
 
