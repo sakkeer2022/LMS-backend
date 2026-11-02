@@ -1,5 +1,11 @@
 # Progress Log
 
+## 2026-11-02 — Per-route rate limiter (LMS-100)
+
+- `src/middleware/rate-limit.ts` (`routeRateLimit`): per-IP limit and optional per-email limit (normalised `body.email`, falls back to the IP) for one route. Redis store with a per-route key prefix; memory store in tests. A rejected request gets 429 with `Retry-After`.
+- `tests/unit/rate-limit.test.ts`: IP limit, email limit (case and spaces ignored, other emails unaffected), fallback to the IP, separate counters per route.
+- Not applied to any route yet; login and refresh use it in the next commits.
+
 ## 2026-10-29 — API contract checks: routes and response shapes (LMS-93)
 
 - `tests/unit/api-contract-routes.test.ts`: every implemented route must be in `docs/openapi.yaml` or in a known-undocumented list with a reason; stale list entries also fail. Runs in `npm run test:unit`, so Bitbucket Pipelines enforces it.
