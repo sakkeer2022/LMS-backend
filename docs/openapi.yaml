@@ -1463,6 +1463,177 @@
         ]
       }
     },
+    "/admin/me/profile": {
+      "put": {
+        "operationId": "updateOwnAdminProfile",
+        "tags": [
+          "Identity"
+        ],
+        "summary": "Update own admin profile",
+        "description": "Current active, email-verified admin (self only) identity; server checks role, permission and resource ownership on every request. Full replacement of the three editable fields; the account is always the authenticated one, never a client-supplied ID. Email is read-only here: changing it needs email verification (LMS-99). Audit profile.updated with before and after values of these fields only.",
+        "x-required-role": "admin (self only)",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Update own admin profile.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/updateOwnAdminProfileResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "email": "learner@example.org",
+                    "fullName": "Ananya Rao",
+                    "mobileNumber": "+919876543210",
+                    "isActive": true,
+                    "emailVerified": true,
+                    "roles": []
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminProfileUpdate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/me/activity": {
+      "get": {
+        "operationId": "listOwnSecurityActivity",
+        "tags": [
+          "Identity"
+        ],
+        "summary": "List own sign-in and security activity",
+        "description": "Current active, email-verified admin (self only) identity; server checks role, permission and resource ownership on every request. Only the caller\u2019s own sign-in, failed sign-in, session, re-authentication and profile events, newest first. No other user\u2019s events and no request bodies.",
+        "x-required-role": "admin (self only)",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List own sign-in and security activity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listOwnSecurityActivityResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": [],
+                  "meta": {
+                    "page": 1,
+                    "limit": 1,
+                    "total": 0,
+                    "totalPages": 0
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "One-based page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ]
+      }
+    },
     "/auth/sessions/{jti}": {
       "delete": {
         "operationId": "revokeOwnSession",
@@ -8098,6 +8269,22 @@
             "description": "E.164. The UI defaults to +91. Not OTP-verified in Phase 1. Not unique: siblings may share a parent number.",
             "nullable": true
           },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[A-Za-z][A-Za-z0-9_+\\-/]*$",
+            "example": "Asia/Kolkata",
+            "description": "IANA time zone name. Timestamps are stored in UTC and shown in this zone.",
+            "nullable": true
+          },
+          "lastLoginAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z",
+            "nullable": true,
+            "description": "Most recent successful sign-in of this account."
+          },
           "isActive": {
             "type": "boolean"
           },
@@ -8120,6 +8307,86 @@
           "isActive",
           "emailVerified",
           "roles"
+        ]
+      },
+      "AdminProfileUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
+          },
+          "mobileNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "pattern": "^\\+[1-9][0-9]{7,14}$",
+            "example": "+919876543210",
+            "description": "E.164. The UI defaults to +91. Not OTP-verified in Phase 1. Not unique: siblings may share a parent number.",
+            "nullable": true
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[A-Za-z][A-Za-z0-9_+\\-/]*$",
+            "example": "Asia/Kolkata",
+            "description": "IANA time zone name. Timestamps are stored in UTC and shown in this zone.",
+            "nullable": true
+          }
+        },
+        "required": [
+          "fullName",
+          "mobileNumber",
+          "timezone"
+        ]
+      },
+      "SecurityEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "login.success",
+              "login.failed",
+              "session.revoked",
+              "session.revoked_others",
+              "session.reuse_detected",
+              "reauth.success",
+              "reauth.failed",
+              "profile.updated"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "ipAddress": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 45
+          },
+          "userAgent": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "createdAt"
         ]
       },
       "RegistrationEmailVerified": {
@@ -10771,6 +11038,64 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Session"
+            },
+            "maxItems": 100
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data",
+          "meta"
+        ]
+      },
+      "updateOwnAdminProfileResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "listOwnSecurityActivityResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityEvent"
             },
             "maxItems": 100
           },

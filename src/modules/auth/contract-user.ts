@@ -9,6 +9,8 @@ export interface ContractUser {
   email: string;
   fullName: string;
   mobileNumber: string | null;
+  timezone: string | null;
+  lastLoginAt: Date | null;
   isActive: boolean;
   emailVerified: boolean;
   roles: Array<{ id: string; name: string; permissions: Array<{ name: string }> }>;
@@ -51,6 +53,8 @@ export async function loadContractUser(
     email: user.email,
     fullName: user.fullName,
     mobileNumber: user.mobileNumber,
+    timezone: user.timezone,
+    lastLoginAt: user.lastLoginAt,
     isActive: user.isActive,
     emailVerified: user.emailVerifiedAt !== null,
     roles: [...byName.values()],
