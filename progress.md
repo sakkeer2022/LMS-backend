@@ -1,5 +1,12 @@
 # Progress Log
 
+## 2026-11-02 — Portal logins (LMS-100)
+
+- `POST /auth/{student,faculty,admin}/login` in the auth module (`portal-login.service.ts`, `portal-login.controller.ts`), rate limited per IP and per email, audited (`login.success`, `login.failed` with reason, never the password). Response matches the contract (`LoginResult`).
+- Refactor: token issuing moved to `session.ts` (portal and family on the refresh row, absolute deadline option for rotation), cookie helpers to `session-cookies.ts` (refresh cookie max age now follows `JWT_REFRESH_EXPIRES_IN`), impossible-travel check extracted as `assessLoginLocation`, `auth/index.ts` added.
+- Tests: `tests/modules/portal-login.test.ts` (all three portals, wrong portal, super_admin, generic 401, lockout, unverified 403, 422, CSRF, audit) and `portal-login-rate-limit.test.ts` (429 with `Retry-After`). `tests/env-setup.ts` sets high default limits so shared-IP suites never hit them.
+- The sample "unimplemented contract path" in the API docs tests is now `/admin/faculty`.
+
 ## 2026-11-02 — Per-route rate limiter (LMS-100)
 
 - `src/middleware/rate-limit.ts` (`routeRateLimit`): per-IP limit and optional per-email limit (normalised `body.email`, falls back to the IP) for one route. Redis store with a per-route key prefix; memory store in tests. A rejected request gets 429 with `Retry-After`.

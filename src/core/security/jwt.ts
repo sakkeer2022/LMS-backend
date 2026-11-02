@@ -10,6 +10,7 @@ export interface TokenPayload {
   roles: string[];
   permissions: string[];
   policies?: PolicyRule[];
+  portal?: string; // 'student' | 'faculty' | 'admin' for portal sessions
   jti?: string;
   iat?: number;
   exp?: number;

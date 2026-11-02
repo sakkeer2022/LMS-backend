@@ -1,6 +1,10 @@
 import { Router } from 'express';
 import { authenticate } from '@middleware/authenticate';
+import { routeRateLimit } from '@middleware/rate-limit';
+import { config } from '@config/index';
+import { PORTALS } from '@core/security/rbac';
 import * as AuthController from './auth.controller.js';
+import { portalLogin } from './portal-login.controller.js';
 
 export const authRouter = Router();
 
@@ -102,6 +106,48 @@ authRouter.post('/register', AuthController.register);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 authRouter.post('/login', AuthController.login);
+
+/**
+ * @openapi
+ * /auth/student/login:
+ *   post:
+ *     summary: Log in to the student portal
+ *     tags: [Auth]
+ *     description: Email and password; the account must hold the student role. Wrong portal, unknown, locked or inactive accounts all return the same 401. Unverified email returns 403. Rate limited per IP and per email.
+ *     responses:
+ *       200:
+ *         description: Signed in; access and refresh cookies set
+ *       401:
+ *         description: Invalid credentials
+ *       403:
+ *         description: Email not verified, or CSRF failure
+ *       429:
+ *         description: Too many attempts
+ * /auth/faculty/login:
+ *   post:
+ *     summary: Log in to the faculty portal
+ *     tags: [Auth]
+ *     description: Same behaviour as the student login, for the faculty role.
+ * /auth/admin/login:
+ *   post:
+ *     summary: Log in to the admin portal
+ *     tags: [Auth]
+ *     description: Same behaviour as the student login, for the admin and super_admin roles.
+ */
+const loginLimits = routeRateLimit({
+  name: 'login',
+  ip: {
+    windowMs: config.routeRateLimit.login.windowMs,
+    max: config.routeRateLimit.login.maxPerIp,
+  },
+  email: {
+    windowMs: config.routeRateLimit.login.windowMs,
+    max: config.routeRateLimit.login.maxPerEmail,
+  },
+});
+for (const portal of PORTALS) {
+  authRouter.post(`/${portal}/login`, ...loginLimits, portalLogin(portal));
+}
 
 /**
  * @openapi

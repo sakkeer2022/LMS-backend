@@ -1,5 +1,18 @@
 # Findings & Decisions
 
+## 2026-11-02 — Portal logins (LMS-100)
+
+| Finding / Decision | Detail |
+|---|---|
+| Portal roles | `PORTAL_ROLES` in `src/core/security/rbac.ts`: student and faculty accept their own role; the admin portal accepts `admin` and `super_admin` (team decision 2026-11-02, so a super_admin-only account can use amentorz-admin). The contract `User` shows `super_admin` as `admin`. |
+| Failure order | Same 401 and no cookies for unknown, locked, wrong-password, inactive and wrong-portal accounts. The password is compared (against a dummy hash for unknown emails) before the lock and role checks, so timing and wrong-portal responses reveal nothing. Unverified email returns 403 only after the role check. Failure reasons go to the audit log only. |
+| Wrong portal | Not counted as a failed attempt, so using the wrong portal cannot lock an account. |
+| Session columns | `refresh_tokens.portal`, `family_id`, `reauthenticated_at` and `revoked_at` already existed (LMS-95); no migration. Login stores `portal` and a new `family_id`; the portal is also a claim in both tokens. |
+| Not yet derivable | `requiresTermsAcceptance` is always `false` (no terms data until faculty onboarding). `requiresPasswordChange` is true for `PENDING_ACTIVATION` accounts. |
+| Rate limits | Login: per IP and per email, `LOGIN_RATE_LIMIT_*` env settings. Refresh uses `REFRESH_RATE_LIMIT_*` in the next commits. |
+| Generic login | `POST /auth/login` still exists and must be removed before LMS-100 closes (the contract forbids a bypass). `loginWithRole` uses the portal endpoint for portal roles; custom test roles still use the generic route until it goes. The seed creates no users, so the first admin needs a seeded or manual account. |
+| Seed and verified email | Users created by tests set `emailVerifiedAt`. Seeds that create login users (LMS-64 local logins) must set it too, or the portal login returns 403. |
+
 ## 2026-10-29 — API route/contract drift check (LMS-93)
 
 | Finding / Decision | Detail |

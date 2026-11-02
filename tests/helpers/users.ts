@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import request from 'supertest';
 import { app } from './app.js';
 import { getCsrfData } from './csrf.js';
+import { PORTALS } from '@core/security/rbac.js';
 import { prisma } from '@infrastructure/database/index.js';
 
 export const TEST_PASSWORD = 'Password123!';
@@ -12,6 +13,15 @@ let passwordHash: Promise<string> | undefined;
 function testPasswordHash(): Promise<string> {
   passwordHash ??= bcrypt.hash(TEST_PASSWORD, 4);
   return passwordHash;
+}
+
+// Portal roles sign in through their portal. Other roles (custom test roles) have no portal
+// and use the generic login until it is removed.
+function loginPath(roleName: string): string {
+  if (roleName === 'super_admin') return '/api/v1/auth/admin/login';
+  return (PORTALS as readonly string[]).includes(roleName)
+    ? `/api/v1/auth/${roleName}/login`
+    : '/api/v1/auth/login';
 }
 
 /**
@@ -29,13 +39,14 @@ export async function loginWithRole(
       email,
       passwordHash: await testPasswordHash(),
       fullName: `${roleName} user`,
+      emailVerifiedAt: new Date(),
       roles: { create: { roleId: role.id } },
     },
   });
 
   const { csrfToken, csrfCookie } = await getCsrfData();
   const loginRes = await request(app)
-    .post('/api/v1/auth/login')
+    .post(loginPath(roleName))
     .set('Cookie', csrfCookie)
     .set('x-csrf-token', csrfToken)
     .send({ email, password: TEST_PASSWORD });

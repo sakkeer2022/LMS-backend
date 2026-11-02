@@ -1,31 +1,18 @@
 import bcrypt from 'bcrypt';
-import crypto from 'crypto';
 import { prisma } from '@infrastructure/database/index';
 import type { Prisma } from '@prisma/client';
-import {
-  signAccessToken,
-  signRefreshToken,
-  verifyAccessToken,
-  verifyRefreshToken,
-  getAccessTokenTtlSeconds,
-  getRefreshTokenExpiryDate,
-  type TokenPair,
-} from '@core/security/jwt';
+import { verifyAccessToken, verifyRefreshToken, type TokenPair } from '@core/security/jwt';
 import { redisClient } from '@infrastructure/redis/connection';
 import { ConflictError, UnauthorizedError, NotFoundError } from '@core/errors/index';
 import { logger } from '@core/logger/index';
 import { config } from '@config/index';
 import type { RegisterInput, LoginInput } from './auth.dto.js';
-import { resolvePermissionsForRoles, resolvePoliciesForRoles } from '../roles/roles.service.js';
+import { issueTokenPair, hashToken } from './session.js';
 import { resolveCountry, detectImpossibleTravel } from '@core/security/travel';
 
 const BCRYPT_ROUNDS = 12;
 
 export const mockImpossibleTravelSuspensions = new Set<string>();
-
-function hashToken(token: string): string {
-  return crypto.createHash('sha256').update(token).digest('hex');
-}
 
 // ── Public profile shape ──────────────────────────────────────────
 export interface UserProfile {
@@ -67,11 +54,70 @@ export async function register(
       },
     });
 
-    const tokens = await _issueTokenPair(user, context, tx);
+    const tokens = await issueTokenPair(user, context, tx);
     const profile = await _buildProfile(user.id, tx);
 
     return { user: profile, tokens };
   });
+}
+
+/**
+ * Resolves the login country and flags impossible travel against the previous login, which
+ * suspends session refresh for 24 hours. Returns the country to store as the last login country.
+ */
+export async function assessLoginLocation(
+  user: {
+    id: string;
+    email: string;
+    lastLoginAt: Date | null;
+    lastLoginIp: string | null;
+    lastLoginCountry: string | null;
+  },
+  context: SessionContext
+): Promise<string> {
+  // Resolve current country code
+  const newLoginCountry = resolveCountry(context.ipAddress) || 'US';
+
+  // Perform impossible travel calculation if previous login info exists
+  if (user.lastLoginAt && user.lastLoginIp && user.lastLoginCountry) {
+    const result = detectImpossibleTravel({
+      lastLoginIp: user.lastLoginIp,
+      lastLoginCountry: user.lastLoginCountry,
+      lastLoginAt: user.lastLoginAt,
+      newLoginIp: context.ipAddress,
+      newLoginCountry,
+      newLoginAt: new Date(),
+    });
+
+    if (result.suspicious) {
+      logger.error(
+        {
+          type: 'security',
+          event: 'IMPOSSIBLE_TRAVEL_DETECTED',
+          userId: user.id,
+          email: user.email,
+          lastLoginIp: user.lastLoginIp,
+          lastLoginCountry: user.lastLoginCountry,
+          lastLoginAt: user.lastLoginAt,
+          newLoginIp: context.ipAddress,
+          newLoginCountry,
+          velocityKmh: result.velocityKmh,
+          distanceKm: result.distanceKm,
+        },
+        '🚨 Impossible travel threat detected'
+      );
+
+      if (redisClient) {
+        // Suspend session refresh capability for 24 hours
+        await redisClient.set(`impossible_travel:${user.id}`, 'true', 'EX', 86400);
+      } else {
+        // Fallback to in-memory set in test/dev environments without Redis
+        mockImpossibleTravelSuspensions.add(user.id);
+      }
+    }
+  }
+
+  return newLoginCountry;
 }
 
 export async function login(
@@ -144,47 +190,7 @@ export async function login(
     throw new UnauthorizedError('Invalid email or password');
   }
 
-  // Resolve current country code
-  const newLoginCountry = resolveCountry(context.ipAddress) || 'US';
-
-  // Perform impossible travel calculation if previous login info exists
-  if (user.lastLoginAt && user.lastLoginIp && user.lastLoginCountry) {
-    const result = detectImpossibleTravel({
-      lastLoginIp: user.lastLoginIp,
-      lastLoginCountry: user.lastLoginCountry,
-      lastLoginAt: user.lastLoginAt,
-      newLoginIp: context.ipAddress,
-      newLoginCountry,
-      newLoginAt: new Date(),
-    });
-
-    if (result.suspicious) {
-      logger.error(
-        {
-          type: 'security',
-          event: 'IMPOSSIBLE_TRAVEL_DETECTED',
-          userId: user.id,
-          email: user.email,
-          lastLoginIp: user.lastLoginIp,
-          lastLoginCountry: user.lastLoginCountry,
-          lastLoginAt: user.lastLoginAt,
-          newLoginIp: context.ipAddress,
-          newLoginCountry,
-          velocityKmh: result.velocityKmh,
-          distanceKm: result.distanceKm,
-        },
-        '🚨 Impossible travel threat detected'
-      );
-
-      if (redisClient) {
-        // Suspend session refresh capability for 24 hours
-        await redisClient.set(`impossible_travel:${user.id}`, 'true', 'EX', 86400);
-      } else {
-        // Fallback to in-memory set in test/dev environments without Redis
-        mockImpossibleTravelSuspensions.add(user.id);
-      }
-    }
-  }
+  const newLoginCountry = await assessLoginLocation(user, context);
 
   return prisma.$transaction(async (tx) => {
     const updatedUser = await tx.user.update({
@@ -200,7 +206,7 @@ export async function login(
 
     logger.info({ type: 'security', event: 'SUCCESSFUL_LOGIN', email: dto.email });
 
-    const tokens = await _issueTokenPair(updatedUser, context, tx);
+    const tokens = await issueTokenPair(updatedUser, context, tx);
     const profile = await _buildProfile(updatedUser.id, tx);
 
     return { user: profile, tokens };
@@ -349,7 +355,7 @@ export async function refresh(
       await redisClient.del(`sess:${payload.sub}:${storedToken.jti}`);
     }
 
-    return _issueTokenPair(user, context, tx);
+    return issueTokenPair(user, context, tx);
   });
 }
 
@@ -488,88 +494,6 @@ export async function getMe(userId: string): Promise<UserProfile> {
 }
 
 // ── Private helpers ───────────────────────────────────────────────
-async function _issueTokenPair(
-  user: { id: string; email: string },
-  context: Partial<SessionContext>,
-  tx?: Prisma.TransactionClient
-): Promise<TokenPair> {
-  const db = tx || prisma;
-  const userRoles = await db.userRole.findMany({
-    where: { userId: user.id },
-    select: {
-      role: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-  });
-
-  const roleIds = userRoles.map((ur) => ur.role.id);
-  const roleNames = userRoles.map((ur) => ur.role.name);
-
-  const permissions = await resolvePermissionsForRoles(roleIds);
-  const policies = await resolvePoliciesForRoles(roleIds);
-
-  const refreshJti = crypto.randomUUID();
-  const accessJti = crypto.randomUUID();
-
-  const payload = { sub: user.id, email: user.email, roles: roleNames, permissions, policies };
-  const accessToken = signAccessToken({ ...payload, jti: accessJti });
-  const refreshToken = signRefreshToken({ ...payload, jti: refreshJti });
-
-  const tokenHash = hashToken(refreshToken);
-  const expiresAt = getRefreshTokenExpiryDate();
-
-  const isMocked =
-    typeof (prisma.refreshToken.create as unknown as { mock?: unknown }).mock !== 'undefined';
-
-  const tokenData = {
-    userId: user.id,
-    tokenHash,
-    jti: refreshJti,
-    used: false,
-    ipAddress: context.ipAddress || null,
-    userAgent: context.userAgent || null,
-    deviceFingerprint: context.deviceFingerprint || null,
-    expiresAt,
-  };
-
-  if (process.env.NODE_ENV === 'test' && isMocked) {
-    await prisma.refreshToken.create({
-      data: tokenData,
-    });
-  } else {
-    await db.refreshToken.create({
-      data: tokenData,
-    });
-  }
-
-  if (redisClient) {
-    const ttlSeconds = Math.floor((expiresAt.getTime() - Date.now()) / 1000);
-    if (ttlSeconds > 0) {
-      const sessionData = {
-        jti: refreshJti,
-        userId: user.id,
-        deviceFingerprint: context.deviceFingerprint || '',
-        ipAddress: context.ipAddress || '',
-        userAgent: context.userAgent || '',
-        createdAt: new Date().toISOString(),
-        expiresAt: expiresAt.toISOString(),
-      };
-      await redisClient.set(
-        `sess:${user.id}:${refreshJti}`,
-        JSON.stringify(sessionData),
-        'EX',
-        ttlSeconds
-      );
-    }
-  }
-
-  return { accessToken, refreshToken, expiresIn: getAccessTokenTtlSeconds() };
-}
-
 async function _buildProfile(userId: string, tx?: Prisma.TransactionClient): Promise<UserProfile> {
   const db = tx || prisma;
   const user = await db.user.findFirst({

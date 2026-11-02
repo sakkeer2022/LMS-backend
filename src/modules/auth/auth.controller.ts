@@ -5,43 +5,8 @@ import * as AuthService from './auth.service.js';
 import { successResponse } from '@core/response/index';
 import { UnauthorizedError } from '@core/errors/index';
 import { config } from '@config/index';
-import { generateDeviceFingerprint } from '@core/security/device';
+import { setTokenCookies, clearTokenCookies, getRequestContext } from './session-cookies.js';
 import { verifyRefreshToken } from '@core/security/jwt';
-
-function setTokenCookies(
-  res: Response,
-  tokens: { accessToken: string; refreshToken: string; expiresIn: number }
-): void {
-  const cookieOptions = {
-    httpOnly: true,
-    secure: config.env === 'production',
-    sameSite: 'strict' as const,
-  };
-
-  res.cookie('accessToken', tokens.accessToken, {
-    ...cookieOptions,
-    maxAge: tokens.expiresIn * 1000,
-  });
-
-  res.cookie('refreshToken', tokens.refreshToken, {
-    ...cookieOptions,
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (matching typical refresh token TTL)
-    path: '/api/v1/auth', // Scope to auth routes for better security
-  });
-}
-
-function clearTokenCookies(res: Response): void {
-  res.clearCookie('accessToken', { path: '/' });
-  res.clearCookie('refreshToken', { path: '/api/v1/auth' });
-}
-
-function getRequestContext(req: Request): AuthService.SessionContext {
-  return {
-    ipAddress: req.ip || req.socket?.remoteAddress || 'unknown-ip',
-    userAgent: req.headers['user-agent'] || 'unknown-agent',
-    deviceFingerprint: generateDeviceFingerprint(req),
-  };
-}
 
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {

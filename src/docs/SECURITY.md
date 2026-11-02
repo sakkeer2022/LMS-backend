@@ -14,7 +14,7 @@
 ## Hardening & Protection [Implemented]
 
 - **OWASP Guidelines**: The platform is built following the OWASP Top 10 recommendations.
-- **Rate Limiting**: A global Redis-backed limit applies to every route. `routeRateLimit` (`src/middleware/rate-limit.ts`) adds stricter per-route limits, per IP and per email; login and refresh use it in LMS-100, OTP, registration and consent in LMS-99.
+- **Rate Limiting**: A global Redis-backed limit applies to every route. `routeRateLimit` (`src/middleware/rate-limit.ts`) adds stricter per-route limits, per IP and per email; login uses it (LMS-100), refresh in the same ticket, OTP, registration and consent in LMS-99.
 - **Helmet**: Secures HTTP headers.
 - **CORS**: An explicit origin allowlist (`ALLOWED_ORIGINS`) in every environment, with credentials. Outside production an empty value allows only the local frontend.
 - **JWT**: Tokens are signed and verified with HS256 only, so tokens using any other algorithm (including `none`) are rejected.

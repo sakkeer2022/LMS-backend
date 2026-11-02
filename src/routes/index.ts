@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { successResponse } from '@core/response/index';
-import { authRouter } from '@modules/auth/auth.routes';
+import { authRouter } from '@modules/auth/index';
 import { rolesRouter } from '@modules/roles/roles.routes';
 import { permissionsRouter } from '@modules/permissions/permissions.routes';
 import { usersRouter } from '@modules/users/users.routes';
