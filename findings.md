@@ -65,7 +65,7 @@
 |---|---|
 | JWT algorithm pinned to HS256 | Sign and verify both pass HS256 explicitly. It was already the library default, so existing tokens stay valid; tokens with any other algorithm, including `none`, are rejected |
 | CORS allowlist in every environment | The old development setting (`*` with credentials) is rejected by browsers for cookie requests. `ALLOWED_ORIGINS` now applies everywhere; outside production an empty value allows only `http://localhost:3001`. **Confirm the admin frontend's local port** |
-| Verification checklist | `src/docs/SECURITY.md` maps each baseline control to its test; open rows point to LMS-94 (TLS, Secure cookie), LMS-97/LMS-100 (per-route rate limits) and LMS-99/LMS-100 (student data access) |
+| Verification checklist | `src/docs/SECURITY.md` maps each baseline control to its test; open rows point to LMS-94 (TLS, Secure cookie), LMS-99/LMS-100 (per-route rate limits) and LMS-99/LMS-100 (student data access) |
 | `cors` always sends Allow-Credentials | For an unknown origin it omits `Access-Control-Allow-Origin`, so the browser blocks the response; the credentials header alone has no effect |
 
 ---
@@ -74,12 +74,12 @@
 
 | Finding / Decision | Detail |
 |---|---|
-| Guardian identity (project plan risk R4) | **Accepted.** The consent signature is not identity-verified; the acceptance is to be recorded in writing. Unblocks LMS-98/LMS-99; remove the R4 `DECISION REQUIRED` note from the contract when LMS-98 is built |
+| Guardian identity (project plan risk R4) | **Accepted.** The consent signature is not identity-verified; the acceptance is to be recorded in writing. Unblocks LMS-99; remove the R4 `DECISION REQUIRED` note from the contract when LMS-99 is built |
 | Policy documents | Production documents come from the client. Development uses AI-generated placeholder Student Terms, Terms of Use, Privacy Policy and Child Safety Policy, clearly marked as placeholders and never seeded in production |
-| Password rule | **8 characters with at least one number** (the onboarding UI rule). The SOW (A1.8) only asks for "secure password policies"; the "12-character policy" in our contract notes came from the template DTO (`src/modules/auth/auth.dto.ts`, `.min(12)`), not from a client document. Align the template DTOs and the contract when LMS-99/LMS-101 are built |
-| Email | Gmail SMTP for development; a different provider (SendGrid or similar) for production. Build one email interface with the transport chosen by configuration so switching is a settings change (LMS-97, shared with LMS-79) |
+| Password rule | **8 characters with at least one number** (the onboarding UI rule). The SOW (A1.8) only asks for "secure password policies"; the "12-character policy" in our contract notes came from the template DTO (`src/modules/auth/auth.dto.ts`, `.min(12)`), not from a client document. Align the template DTOs and the contract when LMS-99/LMS-100 are built |
+| Email | Gmail SMTP for development; a different provider (SendGrid or similar) for production. Build one email interface with the transport chosen by configuration so switching is a settings change (LMS-99, shared with LMS-79) |
 | Backups and deployment | LMS-92 and LMS-94 are parked until hosting is decided |
-| Regions | Phase 1 serves India and the UAE. Rules in `src/docs/REGIONS.md`: no hard-coded country rules, E.164 mobiles, UTC storage with user time zone, INR only (project plan), country-specific policies and consent. `policy_documents` needs a `country` column (LMS-98) |
+| Regions | Phase 1 serves India and the UAE. Rules in `src/docs/REGIONS.md`: no hard-coded country rules, E.164 mobiles, UTC storage with user time zone, INR only (project plan), country-specific policies and consent. `policy_documents` needs a `country` column (LMS-99) |
 | Reuse | `src/docs/SHARED_COMPONENTS.md` lists reusable building blocks; check it before writing a helper |
 | Audit against client documents | Done. Corrected in the contract generator, contract review and database docs: packages ("excluded per SOW" → deferred by the draft plan, SOW allows them), Razorpay ("approved" → leading candidate), 60-minute slots and authorize/capture/void (draft plan, not SOW), consent design ("client instructions" → ours to design), boards, review statuses, notification read state. SOW-vs-plan conflicts recorded as pending: 20-minute rule, rescheduling. Missing items recorded: data protection and refund/cancellation policies, region on the student profile |
 | Consent age | Under 18 needs guardian consent in **both India and the UAE** (client confirmation pending, C8) |
@@ -89,7 +89,7 @@
 | Lockout and expiry values | Removed from the contract and docs as requirements; they are configuration values. The lockout and token expiry features themselves are unchanged |
 | Scalability without UI changes | Backend scalability changes must not change what the UI shows or collects; anything that would is raised in `docs/PENDING_DECISIONS.md` (rule added to CLAUDE.md, AGENTS.md, GEMINI.md and the PR checklist) |
 | Pending decisions | `docs/PENDING_DECISIONS.md` lists every open question by owner (client, product and UI, team) with the working assumption |
-| Approvals | `nodemailer` and `pdf-lib` approved as dependencies (LMS-97, LMS-98) |
+| Approvals | `nodemailer` and `pdf-lib` approved as dependencies (LMS-99) |
 | No tenancy | No tenant parameter or invented tenant claims in tokens or APIs. The admin frontend's `tenantIds` gate must be removed or resolved through review during frontend integration |
 
 ---
