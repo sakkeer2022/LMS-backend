@@ -1,5 +1,11 @@
 # Progress Log
 
+## 2026-11-02 — Generic login removed, dev origins (LMS-100)
+
+- `POST /auth/login` and `AuthService.login` removed; every login is a portal login. `signIn` test helper for users without a portal. Old generic-login tests deleted (covered by `portal-login.test.ts`, which now also checks the HttpOnly and SameSite cookie flags).
+- CORS dev defaults: `http://localhost:3001`, `3002`, `3003` (admin, student, faculty).
+- Full suite: 37 files, 331 tests passing.
+
 ## 2026-11-02 — Reauthentication (LMS-100)
 
 - `POST /auth/reauthenticate` (`reauth.service.ts`): password check, session-bound freshness, audit (`reauth.success`, `reauth.failed`), lockout shared with login, per-IP limit `REAUTH_RATE_LIMIT_*`. `requireRecentReauth` guards `PUT /admin/settings/{key}`.

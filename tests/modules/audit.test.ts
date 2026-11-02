@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../helpers/app.js';
 import { getCsrfData } from '../helpers/csrf.js';
+import { signIn } from '../helpers/users.js';
 import { prisma } from '@infrastructure/database/index.js';
 
 describe('Audit Logs API', () => {
@@ -57,14 +58,10 @@ describe('Audit Logs API', () => {
     });
 
     // 4. Re-login (this generates another audit log)
-    const loginRes = await request(app)
-      .post('/api/v1/auth/login')
-      .set('Cookie', typeof csrfCookie !== 'undefined' ? csrfCookie : '')
-      .set('x-csrf-token', typeof csrfToken !== 'undefined' ? csrfToken : '')
-      .send({
-        email: 'audit_admin@example.com',
-        password: 'Password123!',
-      });
+    const loginRes = await signIn({
+      email: 'audit_admin@example.com',
+      password: 'Password123!',
+    });
 
     const adminAccessTokenCookie = (loginRes.headers['set-cookie'] as unknown as string[])?.find(
       (c: string) => c.startsWith('accessToken=')
@@ -133,7 +130,9 @@ describe('Audit Logs API', () => {
     const userAccessTokenCookie = (res.headers['set-cookie'] as unknown as string[])?.find(
       (c: string) => c.startsWith('accessToken=')
     );
-    const userToken = userAccessTokenCookie ? userAccessTokenCookie.split(';')[0].split('=')[1] : '';
+    const userToken = userAccessTokenCookie
+      ? userAccessTokenCookie.split(';')[0].split('=')[1]
+      : '';
 
     // 2. Try to fetch audit logs
     const failRes = await request(app)

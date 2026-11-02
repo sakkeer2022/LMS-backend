@@ -67,6 +67,16 @@ describe('Portal login', () => {
       expect(res.body.data.requiresPasswordChange).toBe(false);
       expect(cookiesOf(res).some((c) => c.startsWith('accessToken='))).toBe(true);
       expect(cookiesOf(res).some((c) => c.startsWith('refreshToken='))).toBe(true);
+
+      // Auth cookies are not readable by scripts and are never sent cross-site
+      const authCookies = cookiesOf(res).filter(
+        (c) => c.startsWith('accessToken=') || c.startsWith('refreshToken=')
+      );
+      expect(authCookies).toHaveLength(2);
+      for (const cookie of authCookies) {
+        expect(cookie).toMatch(/;\s*HttpOnly/i);
+        expect(cookie).toMatch(/;\s*SameSite=Strict/i);
+      }
     });
 
     it('stores the portal and a session family on the refresh token', async () => {

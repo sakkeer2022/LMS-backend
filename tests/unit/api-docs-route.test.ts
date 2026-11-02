@@ -15,7 +15,7 @@ describe('API documentation routes (non-production)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.info.title).toContain('implemented');
-    expect(res.body.paths).toHaveProperty('/auth/login');
+    expect(res.body.paths).toHaveProperty('/auth/student/login');
     expect(res.body.paths).not.toHaveProperty('/admin/faculty');
   });
 

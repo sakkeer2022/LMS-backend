@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../helpers/app.js';
 import { getCsrfData } from '../helpers/csrf.js';
+import { signIn } from '../helpers/users.js';
 import { prisma } from '@infrastructure/database/index.js';
 
 describe('Permissions API', () => {
@@ -57,14 +58,10 @@ describe('Permissions API', () => {
     });
 
     // 4. Re-login
-    const loginRes = await request(app)
-      .post('/api/v1/auth/login')
-      .set('Cookie', typeof csrfCookie !== 'undefined' ? csrfCookie : '')
-      .set('x-csrf-token', typeof csrfToken !== 'undefined' ? csrfToken : '')
-      .send({
-        email: 'super@example.com',
-        password: 'Password123!',
-      });
+    const loginRes = await signIn({
+      email: 'super@example.com',
+      password: 'Password123!',
+    });
 
     const accessTokenCookie = (loginRes.headers['set-cookie'] as unknown as string[])?.find(
       (c: string) => c.startsWith('accessToken=')

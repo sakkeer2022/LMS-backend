@@ -10,7 +10,7 @@
 | Session columns | `refresh_tokens.portal`, `family_id`, `reauthenticated_at` and `revoked_at` already existed (LMS-95); no migration. Login stores `portal` and a new `family_id`; the portal is also a claim in both tokens. |
 | Not yet derivable | `requiresTermsAcceptance` is always `false` (no terms data until faculty onboarding). `requiresPasswordChange` is true for `PENDING_ACTIVATION` accounts. |
 | Rate limits | Login: per IP and per email, `LOGIN_RATE_LIMIT_*` env settings. Refresh uses `REFRESH_RATE_LIMIT_*` in the next commits. |
-| Generic login | `POST /auth/login` still exists and must be removed before LMS-100 closes (the contract forbids a bypass). `loginWithRole` uses the portal endpoint for portal roles; custom test roles still use the generic route until it goes. The seed creates no users, so the first admin needs a seeded or manual account. |
+| Generic login | `POST /auth/login` is removed (the contract forbids a bypass). Tests whose users hold custom roles, or come from the legacy register route, use `signIn` in `tests/helpers/users.ts`, which checks the password and mints a session directly; portal roles use the real portal login. The seed creates no users, so the first admin needs a seeded or manual account. |
 | Seed and verified email | Users created by tests set `emailVerifiedAt`. Seeds that create login users (LMS-64 local logins) must set it too, or the portal login returns 403. |
 | Reauthentication | `POST /auth/reauthenticate` confirms the password and sets `refresh_tokens.reauthenticated_at` on the session's live row; nothing transferable is returned. Freshness window `REAUTH_WINDOW_MINUTES` (default 5), carried over on rotation without extending it. `requireRecentReauth` (`src/middleware/require-reauth.ts`) returns 403 "Recent re-authentication required" and is applied to `PUT /admin/settings/{key}` after the permission check. The envelope has no error code, so clients tell this 403 apart by that message. A wrong password counts toward the same lockout as login; a locked account gets 429. Other routes the contract marks "recent reauthentication required" (faculty create, review, publication, status, documents, admin consent download) add the middleware when they are built. |
 | Session family | Both tokens carry `sid`, the session family id; the refresh row keeps `family_id` and `portal`. The contract's session `jti` is the family id, so it stays the same when the refresh token rotates. |
@@ -137,7 +137,7 @@
 | CI platform | Bitbucket Pipelines is the only CI; the unused GitHub Actions workflows were removed (LMS-52) |
 | Swagger | Implemented spec (JSDoc) and draft contract are served separately so docs match the running API (LMS-41) |
 | Enum contract mismatches | Not only case differences: `documentType`, `scanStatus`, library `kind` vs `LibraryMaterialKind`, plus DB-only `CHANGES_REQUESTED`/`WITHDRAWN`. `createEnumCodec` requires explicit mappings; these need a contract or schema decision before M02/M03 APIs |
-| Legacy template routes | `/auth/login`, `/users`, `/roles`, `/permissions`, `/feature-flags`, `/admin` left mounted until the first business API is approved |
+| Legacy template routes | `/users`, `/roles`, `/permissions`, `/feature-flags`, `/admin` left mounted until the first business API is approved |
 
 ---
 

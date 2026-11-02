@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../helpers/app.js';
 import { getCsrfData } from '../helpers/csrf.js';
+import { signIn } from '../helpers/users.js';
 import { prisma } from '@infrastructure/database/index.js';
 
 describe('Roles API', () => {
@@ -57,14 +58,10 @@ describe('Roles API', () => {
     });
 
     // 4. Re-login to get the updated token with roles in payload
-    const loginRes = await request(app)
-      .post('/api/v1/auth/login')
-      .set('Cookie', typeof csrfCookie !== 'undefined' ? csrfCookie : '')
-      .set('x-csrf-token', typeof csrfToken !== 'undefined' ? csrfToken : '')
-      .send({
-        email: 'admin@example.com',
-        password: 'Password123!',
-      });
+    const loginRes = await signIn({
+      email: 'admin@example.com',
+      password: 'Password123!',
+    });
 
     const accessTokenCookie = (loginRes.headers['set-cookie'] as unknown as string[])?.find(
       (c: string) => c.startsWith('accessToken=')
@@ -198,14 +195,10 @@ describe('Roles API', () => {
         .set('x-csrf-token', typeof csrfToken !== 'undefined' ? csrfToken : '')
         .send(payload);
 
-      const loginRes = await request(app)
-        .post('/api/v1/auth/login')
-        .set('Cookie', typeof csrfCookie !== 'undefined' ? csrfCookie : '')
-        .set('x-csrf-token', typeof csrfToken !== 'undefined' ? csrfToken : '')
-        .send({
-          email: payload.email,
-          password: payload.password,
-        });
+      const loginRes = await signIn({
+        email: payload.email,
+        password: payload.password,
+      });
 
       const accessTokenCookie = (loginRes.headers['set-cookie'] as unknown as string[])?.find(
         (c: string) => c.startsWith('accessToken=')
@@ -281,14 +274,10 @@ describe('Roles API', () => {
         },
       });
 
-      const loginRes = await request(app)
-        .post('/api/v1/auth/login')
-        .set('Cookie', typeof csrfCookie !== 'undefined' ? csrfCookie : '')
-        .set('x-csrf-token', typeof csrfToken !== 'undefined' ? csrfToken : '')
-        .send({
-          email: payload.email,
-          password: payload.password,
-        });
+      const loginRes = await signIn({
+        email: payload.email,
+        password: payload.password,
+      });
 
       const accessTokenCookie = (loginRes.headers['set-cookie'] as unknown as string[])?.find(
         (c: string) => c.startsWith('accessToken=')

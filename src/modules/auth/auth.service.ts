@@ -3,10 +3,9 @@ import { prisma } from '@infrastructure/database/index';
 import type { Prisma } from '@prisma/client';
 import { verifyAccessToken, verifyRefreshToken, type TokenPair } from '@core/security/jwt';
 import { redisClient } from '@infrastructure/redis/connection';
-import { ConflictError, UnauthorizedError, NotFoundError } from '@core/errors/index';
+import { ConflictError, NotFoundError } from '@core/errors/index';
 import { logger } from '@core/logger/index';
-import { config } from '@config/index';
-import type { RegisterInput, LoginInput } from './auth.dto.js';
+import type { RegisterInput } from './auth.dto.js';
 import { markSessionRevoked } from '@core/security/session-revocation';
 import { issueTokenPair, hashToken } from './session.js';
 import { resolveCountry, detectImpossibleTravel } from '@core/security/travel';
@@ -119,99 +118,6 @@ export async function assessLoginLocation(
   }
 
   return newLoginCountry;
-}
-
-export async function login(
-  dto: LoginInput,
-  context: SessionContext
-): Promise<{ user: UserProfile; tokens: TokenPair }> {
-  const user = await prisma.user.findFirst({
-    where: { email: dto.email, deletedAt: null },
-  });
-  if (!user) {
-    logger.warn({
-      type: 'security',
-      event: 'FAILED_LOGIN',
-      email: dto.email,
-      reason: 'Invalid credentials',
-    });
-    throw new UnauthorizedError('Invalid email or password');
-  }
-
-  if (!user.isActive) {
-    logger.warn({
-      type: 'security',
-      event: 'FAILED_LOGIN',
-      email: dto.email,
-      reason: 'Account is disabled',
-    });
-    throw new UnauthorizedError('Account is disabled');
-  }
-
-  if (user.lockedUntil && user.lockedUntil > new Date()) {
-    logger.warn({
-      type: 'security',
-      event: 'FAILED_LOGIN',
-      email: dto.email,
-      reason: 'Account is locked',
-    });
-    throw new UnauthorizedError('Account is temporarily locked. Please try again later.');
-  }
-
-  const valid = await bcrypt.compare(dto.password, user.passwordHash);
-  if (!valid) {
-    const attempts = (user.failedLoginAttempts || 0) + 1;
-    const updates: { failedLoginAttempts: number; lockedUntil?: Date | null } = {
-      failedLoginAttempts: attempts,
-    };
-
-    if (attempts >= config.security.maxFailedLogins) {
-      updates.lockedUntil = new Date(
-        Date.now() + config.security.lockoutDurationMinutes * 60 * 1000
-      );
-      logger.warn({
-        type: 'security',
-        event: 'ACCOUNT_LOCKED',
-        email: dto.email,
-        reason: `Exceeded ${config.security.maxFailedLogins} failed attempts`,
-      });
-    }
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: updates,
-    });
-
-    logger.warn({
-      type: 'security',
-      event: 'FAILED_LOGIN',
-      email: dto.email,
-      reason: 'Invalid credentials',
-    });
-    throw new UnauthorizedError('Invalid email or password');
-  }
-
-  const newLoginCountry = await assessLoginLocation(user, context);
-
-  return prisma.$transaction(async (tx) => {
-    const updatedUser = await tx.user.update({
-      where: { id: user.id },
-      data: {
-        lastLoginAt: new Date(),
-        lastLoginIp: context.ipAddress,
-        lastLoginCountry: newLoginCountry,
-        failedLoginAttempts: 0,
-        lockedUntil: null,
-      },
-    });
-
-    logger.info({ type: 'security', event: 'SUCCESSFUL_LOGIN', email: dto.email });
-
-    const tokens = await issueTokenPair(updatedUser, context, tx);
-    const profile = await _buildProfile(updatedUser.id, tx);
-
-    return { user: profile, tokens };
-  });
 }
 
 export async function logout(rawRefreshToken?: string, rawAccessToken?: string): Promise<void> {

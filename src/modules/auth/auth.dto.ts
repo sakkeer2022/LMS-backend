@@ -12,11 +12,6 @@ export const RegisterDto = z.object({
   fullName: z.string().min(1).max(150).trim(),
 });
 
-export const LoginDto = z.object({
-  email: z.string().email().toLowerCase(),
-  password: z.string().min(1, 'Password is required'),
-});
-
 // Portal logins reject unknown fields; the password is only length-bounded, never re-validated
 export const PortalLoginDto = z
   .object({
@@ -34,6 +29,5 @@ export const RefreshDto = z.object({
 });
 
 export type RegisterInput = z.infer<typeof RegisterDto>;
-export type LoginInput = z.infer<typeof LoginDto>;
 export type PortalLoginInput = z.infer<typeof PortalLoginDto>;
 export type RefreshInput = z.infer<typeof RefreshDto>;

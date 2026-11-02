@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import request from 'supertest';
 import { app } from './app.js';
 import { getCsrfData } from './csrf.js';
+import { issueTokenPair } from '../../src/modules/auth/session.js';
 import { PORTALS } from '@core/security/rbac.js';
 import { prisma } from '@infrastructure/database/index.js';
 
@@ -16,12 +17,37 @@ function testPasswordHash(): Promise<string> {
 }
 
 // Portal roles sign in through their portal. Other roles (custom test roles) have no portal
-// and use the generic login until it is removed.
-function loginPath(roleName: string): string {
+// and get a session minted directly (see signIn).
+function loginPath(roleName: string): string | null {
   if (roleName === 'super_admin') return '/api/v1/auth/admin/login';
   return (PORTALS as readonly string[]).includes(roleName)
     ? `/api/v1/auth/${roleName}/login`
-    : '/api/v1/auth/login';
+    : null;
+}
+
+/**
+ * Signs in an existing user without a portal: checks the password, then mints a session the way
+ * the login does. For tests whose users hold custom roles or are created through the legacy
+ * register route. Returns the parts of a login response that tests read.
+ */
+export async function signIn(credentials: {
+  email: string;
+  password: string;
+}): Promise<{ status: number; headers: { 'set-cookie': string[] } }> {
+  const user = await prisma.user.findFirstOrThrow({ where: { email: credentials.email } });
+  if (!(await bcrypt.compare(credentials.password, user.passwordHash))) {
+    throw new Error(`signIn: wrong password for ${credentials.email}`);
+  }
+  const tokens = await issueTokenPair(user, { ipAddress: '127.0.0.1', userAgent: 'vitest' });
+  return {
+    status: 200,
+    headers: {
+      'set-cookie': [
+        `accessToken=${tokens.accessToken}; Path=/; HttpOnly`,
+        `refreshToken=${tokens.refreshToken}; Path=/api/v1/auth; HttpOnly`,
+      ],
+    },
+  };
 }
 
 export interface LoggedInUser {
@@ -53,11 +79,14 @@ export async function loginWithRole(roleName: string, email: string): Promise<Lo
   });
 
   const { csrfToken, csrfCookie } = await getCsrfData();
-  const loginRes = await request(app)
-    .post(loginPath(roleName))
-    .set('Cookie', csrfCookie)
-    .set('x-csrf-token', csrfToken)
-    .send({ email, password: TEST_PASSWORD });
+  const path = loginPath(roleName);
+  const loginRes = path
+    ? await request(app)
+        .post(path)
+        .set('Cookie', csrfCookie)
+        .set('x-csrf-token', csrfToken)
+        .send({ email, password: TEST_PASSWORD })
+    : await signIn({ email, password: TEST_PASSWORD });
 
   const setCookies = (loginRes.headers['set-cookie'] as unknown as string[] | undefined) ?? [];
   const pair = (name: string): string | undefined =>
