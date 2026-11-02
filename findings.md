@@ -1,5 +1,14 @@
 # Findings & Decisions
 
+## 2026-11-02 — Remember me, device replacement, admin profile (LMS-100)
+
+| Finding / Decision | Detail |
+|---|---|
+| Remember me | Server-side choice carried in a signed `rm` claim, not a client cookie flag, so rotation cannot silently upgrade a 12-hour session to 7 days. Omitted `rememberMe` behaves as unticked. |
+| Duplicate sessions | Each sign-in used to add a session family, so one browser listed many sessions after a day. A sign-in now supersedes earlier families of the same user, portal and fingerprint (hash of UA, language, encoding). The fingerprint is not a security boundary; it only tidies the list. |
+| Profile edits | Admins edit only their own name, mobile and time zone. Email is read-only until verification exists (LMS-99). Mobile is E.164 only for now: users have no country, so India and UAE rules cannot be applied yet. |
+| Activity feed | Own audit rows only, filtered to an allow-list of security actions, `no-store`. IP and user agent are shown to the owner only. |
+
 ## 2026-11-02 — Portal logins (LMS-100)
 
 | Finding / Decision | Detail |

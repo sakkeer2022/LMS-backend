@@ -1,5 +1,14 @@
 # Progress Log
 
+## 2026-11-02 — Keep me signed in, device replacement, admin profile (LMS-100)
+
+- `rememberMe` on the portal login: a signed `rm` claim in both tokens. Ticked gives a persistent refresh cookie and the 7-day session (`JWT_REFRESH_EXPIRES_IN`); unticked gives a browser-session cookie and a 12-hour session (`JWT_SESSION_EXPIRES_IN`). The choice survives refresh rotation.
+- A new sign-in replaces the earlier sessions of the same user, portal and device fingerprint (`supersedeDeviceSessions`), so one browser never lists several sessions. Other devices are untouched.
+- `npm run create-admin` creates the first verified `super_admin` from `INITIAL_ADMIN_*` env values (idempotent, no defaults).
+- New `admin-profile` module: `PUT /admin/me/profile` (name, mobile in E.164, IANA time zone; email read-only; audited as `profile.updated`) and `GET /admin/me/activity` (the caller's own security events, newest first). `User` gains `timezone` and `lastLoginAt`.
+- Tests: keep-me-signed-in block in `portal-login.test.ts`, replacement test in `sessions.test.ts`, new `admin-profile.test.ts`. 225 tests pass across the auth, contract and unit suites; typecheck, eslint and `contract:validate` are clean.
+- Open: per-country mobile rules wait for the shared region helper (LMS-99); email and password change wait for email verification (LMS-99).
+
 ## 2026-11-02 — Generic login removed, dev origins (LMS-100)
 
 - `POST /auth/login` and `AuthService.login` removed; every login is a portal login. `signIn` test helper for users without a portal. Old generic-login tests deleted (covered by `portal-login.test.ts`, which now also checks the HttpOnly and SameSite cookie flags).
