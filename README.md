@@ -76,6 +76,10 @@ npx prisma migrate deploy
 
 # Seed baseline system roles, permissions, and initial reference catalogue
 npx prisma db seed
+
+# Create the first super_admin (no defaults; set INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD).
+# Does nothing if a super_admin already exists, so it is safe on every deployment.
+INITIAL_ADMIN_EMAIL=admin@example.com INITIAL_ADMIN_PASSWORD='<12+ chars, mixed>' npm run create-admin
 ```
 
 > ⚠️ **CRITICAL DATABASE SAFETY INVARIANT:** Destructive commands such as `prisma migrate reset` and `prisma db push` are strictly prohibited. Test suites are protected by an automated WHATWG URL validator (`assertTestDatabaseUrl`) that rejects execution if the parsed database name is not strictly `amentorz_test` on an approved local host.
