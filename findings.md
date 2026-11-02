@@ -12,6 +12,10 @@
 | Rate limits | Login: per IP and per email, `LOGIN_RATE_LIMIT_*` env settings. Refresh uses `REFRESH_RATE_LIMIT_*` in the next commits. |
 | Generic login | `POST /auth/login` still exists and must be removed before LMS-100 closes (the contract forbids a bypass). `loginWithRole` uses the portal endpoint for portal roles; custom test roles still use the generic route until it goes. The seed creates no users, so the first admin needs a seeded or manual account. |
 | Seed and verified email | Users created by tests set `emailVerifiedAt`. Seeds that create login users (LMS-64 local logins) must set it too, or the portal login returns 403. |
+| Session family | Both tokens carry `sid`, the session family id; the refresh row keeps `family_id` and `portal`. The contract's session `jti` is the family id, so it stays the same when the refresh token rotates. |
+| Absolute expiry | Rotation copies `expires_at` from the old refresh row, so `sessionExpiresAt` never slides. |
+| Revocation | Revoking a family sets `revoked_at` on its rows and marks `sid` revoked (Redis `rf:<sid>` for one access-token lifetime; in memory without Redis). `authenticate` rejects marked sessions at once. Logout marks the family too. |
+| Refresh checks | Cookie only (a token in the body is a 422). Re-checks the account, its status and its portal role; a row without a portal (old generic-login sessions) is rejected. Reuse of a rotated token revokes the family and is audited (`session.reuse_detected`). The revocation is now written outside the rotation transaction: before, the throw inside it rolled the deletion back (BACKEND_ANALYSIS finding). |
 
 ## 2026-10-29 — API route/contract drift check (LMS-93)
 
@@ -21,7 +25,7 @@
 | Express 5 | A mounted router does not keep its mount path, so `src/routes/index.ts` now declares its mounts as an exported `featureRouters` list and mounts them in a loop |
 | Template routes | 39 routes are not in the Sprint 1 contract (RBAC/user administration, feature flags, notifications, admin dashboard, uploads, `POST /auth/login`, `GET /audit/{id}`, `GET /`). They are listed as known undocumented with a reason, pending the legacy-routes decision; the test fails when an entry goes stale |
 | Response shapes | `tests/helpers/contract.ts` validates response bodies against the contract schema for the operation and status (Ajv 8 with `ajv-formats`, strict mode off for OpenAPI 3.0 keywords; added as dev dependencies with approval). `tests/modules/contract_responses.test.ts` covers the implemented contract routes |
-| Known mismatches | `GET /auth/me`, `GET /auth/sessions` and `POST /auth/refresh` (template versions, rewritten in LMS-100) and `GET /audit`. The audit list returns `correlationId`, `ipAddress`, `userAgent` and `deviceFingerprint`, which the contract's redacted projection excludes, and lacks the contract's filters and date window: needs its own ticket. The test fails when a mismatch is fixed, so the list stays current |
+| Known mismatches | `GET /audit` (`GET /auth/me`, `/auth/sessions` and `POST /auth/refresh` were fixed in LMS-100). The audit list returns `correlationId`, `ipAddress`, `userAgent` and `deviceFingerprint`, which the contract's redacted projection excludes, and lacks the contract's filters and date window: needs its own ticket. The test fails when a mismatch is fixed, so the list stays current |
 | Still open in LMS-93 | Serving the approved contract at `/api/docs` once Sprint 1 endpoints exist |
 
 ---

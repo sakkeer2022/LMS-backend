@@ -156,7 +156,17 @@ for (const portal of PORTALS) {
  *     summary: Refresh access token
  *     tags: [Auth]
  */
-authRouter.post('/refresh', AuthController.refresh);
+authRouter.post(
+  '/refresh',
+  ...routeRateLimit({
+    name: 'refresh',
+    ip: {
+      windowMs: config.routeRateLimit.refresh.windowMs,
+      max: config.routeRateLimit.refresh.maxPerIp,
+    },
+  }),
+  AuthController.refresh
+);
 
 /**
  * @openapi

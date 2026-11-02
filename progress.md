@@ -1,5 +1,12 @@
 # Progress Log
 
+## 2026-11-02 — Sessions, refresh and /auth/me contract fixes (LMS-100)
+
+- New `session.service.ts`: refresh rotation (keeps portal, family and the original deadline; re-checks account and portal role; reuse revokes the family outside the transaction and is audited), session list (family-based, paginated, `isCurrent`, no IP), revoke one and revoke others (audited, immediate).
+- `GET /auth/me` returns the contract user (`loadContractUser`, shared with the portal login). `POST /auth/refresh` is cookie-only and returns `accessExpiresAt` and `sessionExpiresAt`; it has the `REFRESH_RATE_LIMIT_*` limit.
+- `src/core/security/session-revocation.ts` and a check in `authenticate` stop a revoked session's access tokens at once.
+- Tests: `sessions.test.ts` rewritten (rotation, deadline, reuse, body token, role loss, list, pagination, revoke, 404, revoke others, `/me`); `contract_responses.test.ts` and three refresh tests in `auth.test.ts` now use the portal login. The three routes moved out of the known-mismatch list.
+
 ## 2026-11-02 — Portal logins (LMS-100)
 
 - `POST /auth/{student,faculty,admin}/login` in the auth module (`portal-login.service.ts`, `portal-login.controller.ts`), rate limited per IP and per email, audited (`login.success`, `login.failed` with reason, never the password). Response matches the contract (`LoginResult`).

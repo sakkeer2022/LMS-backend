@@ -7,6 +7,7 @@ import { ConflictError, UnauthorizedError, NotFoundError } from '@core/errors/in
 import { logger } from '@core/logger/index';
 import { config } from '@config/index';
 import type { RegisterInput, LoginInput } from './auth.dto.js';
+import { markSessionRevoked } from '@core/security/session-revocation';
 import { issueTokenPair, hashToken } from './session.js';
 import { resolveCountry, detectImpossibleTravel } from '@core/security/travel';
 
@@ -213,152 +214,6 @@ export async function login(
   });
 }
 
-export async function refresh(
-  rawRefreshToken: string,
-  context: SessionContext
-): Promise<TokenPair> {
-  let payload: ReturnType<typeof verifyRefreshToken>;
-  try {
-    payload = verifyRefreshToken(rawRefreshToken);
-  } catch {
-    throw new UnauthorizedError('Invalid or expired refresh token');
-  }
-
-  const tokenHash = hashToken(rawRefreshToken);
-
-  if (redisClient) {
-    const suspended = await redisClient.get(`impossible_travel:${payload.sub}`);
-    if (suspended) {
-      logger.warn(
-        {
-          type: 'security',
-          event: 'REFRESH_BLOCKED_IMPOSSIBLE_TRAVEL',
-          userId: payload.sub,
-        },
-        'Refresh token request blocked due to active impossible travel suspension'
-      );
-      throw new UnauthorizedError(
-        'Session suspended: unusual login location detected. Please verify your identity.'
-      );
-    }
-  } else if (mockImpossibleTravelSuspensions.has(payload.sub)) {
-    logger.warn(
-      {
-        type: 'security',
-        event: 'REFRESH_BLOCKED_IMPOSSIBLE_TRAVEL',
-        userId: payload.sub,
-      },
-      'Refresh token request blocked due to active impossible travel suspension (in-memory)'
-    );
-    throw new UnauthorizedError(
-      'Session suspended: unusual login location detected. Please verify your identity.'
-    );
-  }
-
-  return prisma.$transaction(async (tx) => {
-    // 1. Fetch token and check status
-    const storedToken = (await tx.refreshToken.findFirst({
-      where: {
-        userId: payload.sub,
-        tokenHash,
-      },
-    })) as unknown as {
-      id: string;
-      userId: string;
-      tokenHash: string;
-      jti: string | null;
-      used: boolean;
-      ipAddress: string | null;
-      userAgent: string | null;
-      deviceFingerprint: string | null;
-      expiresAt: Date;
-      createdAt: Date;
-    };
-
-    if (!storedToken) {
-      throw new UnauthorizedError('Refresh token has been revoked');
-    }
-
-    // 2. Token theft reuse / replay attack check
-    if (storedToken.used) {
-      logger.error(
-        {
-          type: 'security',
-          event: 'TOKEN_THEFT_DETECTED',
-          userId: payload.sub,
-          jti: storedToken.jti,
-          ipAddress: context.ipAddress,
-          userAgent: context.userAgent,
-        },
-        `Token replay detected for JTI ${storedToken.jti}. Revoking all sessions.`
-      );
-
-      // Immediate revocation of all refresh tokens for this user
-      await tx.refreshToken.deleteMany({
-        where: { userId: payload.sub },
-      });
-
-      // Clear all active sessions from Redis
-      if (redisClient) {
-        try {
-          const keys = await redisClient.keys(`sess:${payload.sub}:*`);
-          if (keys.length > 0) {
-            await redisClient.del(...keys);
-          }
-        } catch (err) {
-          logger.error(
-            { type: 'infrastructure', err },
-            'Failed to clear Redis sessions on token theft'
-          );
-        }
-      }
-
-      throw new UnauthorizedError('Session hijacked. Please login again.');
-    }
-
-    if (storedToken.expiresAt < new Date()) {
-      throw new UnauthorizedError('Refresh token has expired');
-    }
-
-    // 3. Device fingerprint anomaly check
-    if (
-      storedToken.deviceFingerprint &&
-      storedToken.deviceFingerprint !== context.deviceFingerprint
-    ) {
-      logger.warn(
-        {
-          type: 'security',
-          event: 'DEVICE_CHANGE_DETECTED',
-          userId: payload.sub,
-          jti: storedToken.jti,
-          expectedFingerprint: storedToken.deviceFingerprint,
-          receivedFingerprint: context.deviceFingerprint,
-        },
-        'Device change detected during token refresh'
-      );
-
-      throw new UnauthorizedError('Device mismatch. Please log in again.');
-    }
-
-    const user = await tx.user.findFirst({
-      where: { id: payload.sub, deletedAt: null },
-    });
-    if (!user || !user.isActive) throw new UnauthorizedError('Account not found or disabled');
-
-    // 4. Mark old token as used and issue new pair
-    await tx.refreshToken.update({
-      where: { id: storedToken.id },
-      data: { used: true },
-    });
-
-    if (redisClient && storedToken.jti) {
-      await redisClient.del(`sess:${payload.sub}:${storedToken.jti}`);
-    }
-
-    return issueTokenPair(user, context, tx);
-  });
-}
-
 export async function logout(rawRefreshToken?: string, rawAccessToken?: string): Promise<void> {
   if (rawRefreshToken) {
     try {
@@ -384,6 +239,7 @@ export async function logout(rawRefreshToken?: string, rawAccessToken?: string):
         await prisma.refreshToken.delete({
           where: { id: storedToken.id },
         });
+        if (payload.sid) await markSessionRevoked(payload.sid);
 
         if (redisClient && storedToken.jti) {
           await redisClient.del(`sess:${payload.sub}:${storedToken.jti}`);
@@ -407,90 +263,6 @@ export async function logout(rawRefreshToken?: string, rawAccessToken?: string):
       // already invalid — ignore
     }
   }
-}
-
-// ── Active Sessions Dashboard ──────────────────────────────────────
-export interface ActiveSessionInfo {
-  jti: string;
-  ipAddress: string;
-  userAgent: string;
-  createdAt: Date;
-  expiresAt: Date;
-}
-
-export async function listSessions(userId: string): Promise<ActiveSessionInfo[]> {
-  const sessions = (await prisma.refreshToken.findMany({
-    where: {
-      userId,
-      used: false,
-      expiresAt: { gt: new Date() },
-    } as unknown as Prisma.RefreshTokenWhereInput,
-    select: {
-      jti: true,
-      ipAddress: true,
-      userAgent: true,
-      createdAt: true,
-      expiresAt: true,
-    } as unknown as Prisma.RefreshTokenSelect,
-  })) as unknown as Array<{
-    jti: string | null;
-    ipAddress: string | null;
-    userAgent: string | null;
-    createdAt: Date;
-    expiresAt: Date;
-  }>;
-
-  return sessions.map((s) => ({
-    jti: s.jti || 'unknown',
-    ipAddress: s.ipAddress || 'unknown',
-    userAgent: s.userAgent || 'unknown',
-    createdAt: s.createdAt,
-    expiresAt: s.expiresAt,
-  }));
-}
-
-export async function revokeSession(userId: string, jti: string): Promise<void> {
-  const stored = (await prisma.refreshToken.findFirst({
-    where: { userId, jti } as unknown as Prisma.RefreshTokenWhereInput,
-  })) as unknown as { id: string } | null;
-
-  if (stored) {
-    await prisma.refreshToken.delete({
-      where: { id: stored.id },
-    });
-
-    if (redisClient) {
-      await redisClient.del(`sess:${userId}:${jti}`);
-    }
-  }
-}
-
-export async function revokeOtherSessions(userId: string, currentJti: string): Promise<void> {
-  const sessions = (await prisma.refreshToken.findMany({
-    where: {
-      userId,
-      NOT: { jti: currentJti },
-    } as unknown as Prisma.RefreshTokenWhereInput,
-  })) as unknown as Array<{ id: string; jti: string | null }>;
-
-  if (sessions.length > 0) {
-    const ids = sessions.map((s) => s.id);
-    await prisma.refreshToken.deleteMany({
-      where: { id: { in: ids } },
-    });
-
-    if (redisClient) {
-      for (const s of sessions) {
-        if (s.jti) {
-          await redisClient.del(`sess:${userId}:${s.jti}`);
-        }
-      }
-    }
-  }
-}
-
-export async function getMe(userId: string): Promise<UserProfile> {
-  return _buildProfile(userId);
 }
 
 // ── Private helpers ───────────────────────────────────────────────

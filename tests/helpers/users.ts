@@ -24,15 +24,23 @@ function loginPath(roleName: string): string {
     : '/api/v1/auth/login';
 }
 
+export interface LoggedInUser {
+  userId: string;
+  /** Access token value */
+  token: string;
+  /** `name=value` cookie pairs, ready for a Cookie header */
+  accessCookie: string;
+  refreshCookie: string;
+  csrfToken: string;
+  csrfCookie: string;
+}
+
 /**
  * Creates a user directly in the database (not through another module's API),
  * gives them an existing role and logs in through the real login endpoint.
  * Returns the user id and an access token carrying the role's permissions.
  */
-export async function loginWithRole(
-  roleName: string,
-  email: string
-): Promise<{ userId: string; token: string }> {
+export async function loginWithRole(roleName: string, email: string): Promise<LoggedInUser> {
   const role = await prisma.role.findUniqueOrThrow({ where: { name: roleName } });
   const user = await prisma.user.create({
     data: {
@@ -51,9 +59,20 @@ export async function loginWithRole(
     .set('x-csrf-token', csrfToken)
     .send({ email, password: TEST_PASSWORD });
 
-  const cookie = (loginRes.headers['set-cookie'] as unknown as string[] | undefined)?.find((c) =>
-    c.startsWith('accessToken=')
-  );
-  if (!cookie) throw new Error(`Login failed for ${email} (status ${loginRes.status})`);
-  return { userId: user.id, token: cookie.split(';')[0]!.split('=')[1]! };
+  const setCookies = (loginRes.headers['set-cookie'] as unknown as string[] | undefined) ?? [];
+  const pair = (name: string): string | undefined =>
+    setCookies.find((c) => c.startsWith(`${name}=`))?.split(';')[0];
+  const accessCookie = pair('accessToken');
+  const refreshCookie = pair('refreshToken');
+  if (!accessCookie || !refreshCookie) {
+    throw new Error(`Login failed for ${email} (status ${loginRes.status})`);
+  }
+  return {
+    userId: user.id,
+    token: accessCookie.split('=')[1]!,
+    accessCookie,
+    refreshCookie,
+    csrfToken,
+    csrfCookie,
+  };
 }

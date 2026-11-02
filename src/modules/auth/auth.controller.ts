@@ -2,11 +2,14 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { RegisterDto, LoginDto } from './auth.dto.js';
 import * as AuthService from './auth.service.js';
+import * as SessionService from './session.service.js';
+import { loadContractUser } from './contract-user.js';
+import { auditContextFrom } from '@middleware/audit.middleware';
+import { paginationQuerySchema, uuidParams } from '@shared/validation/index';
 import { successResponse } from '@core/response/index';
-import { UnauthorizedError } from '@core/errors/index';
+import { UnauthorizedError, ValidationError } from '@core/errors/index';
 import { config } from '@config/index';
 import { setTokenCookies, clearTokenCookies, getRequestContext } from './session-cookies.js';
-import { verifyRefreshToken } from '@core/security/jwt';
 
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -36,17 +39,25 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
 
 export async function refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
-
-    if (!refreshToken) {
+    // Cookie only: a token in the body is never accepted
+    if (req.body?.refreshToken !== undefined) {
+      throw new ValidationError('The refresh token is accepted only as a cookie');
+    }
+    const refreshToken: unknown = req.cookies?.refreshToken;
+    if (typeof refreshToken !== 'string' || refreshToken === '') {
       throw new UnauthorizedError('Refresh token is required');
     }
 
-    const context = getRequestContext(req);
-    const tokens = await AuthService.refresh(refreshToken, context);
-    setTokenCookies(res, tokens);
+    const result = await SessionService.refresh(refreshToken, getRequestContext(req));
+    setTokenCookies(res, result.tokens);
 
-    res.json(successResponse(null, 'Token refreshed'));
+    res.set('Cache-Control', 'no-store');
+    res.json(
+      successResponse(
+        { accessExpiresAt: result.accessExpiresAt, sessionExpiresAt: result.sessionExpiresAt },
+        'Token refreshed'
+      )
+    );
   } catch (err) {
     next(err);
   }
@@ -76,13 +87,13 @@ export async function logout(req: Request, res: Response, next: NextFunction): P
 
 export async function me(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const userId = (req as Request & { user?: { sub: string } }).user?.sub;
+    const userId = req.user?.sub;
     if (!userId) {
       next(new UnauthorizedError('Unauthorized'));
       return;
     }
-    const profile = await AuthService.getMe(userId);
-    res.json(successResponse(profile));
+    res.set('Cache-Control', 'no-store');
+    res.json(successResponse(await loadContractUser(userId)));
   } catch (err) {
     next(err);
   }
@@ -108,12 +119,11 @@ export function getCsrfToken(_req: Request, res: Response, next: NextFunction): 
 // ── Active Sessions Controls ──────────────────────────────────────
 export async function getSessions(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const userId = (req as Request & { user?: { sub: string } }).user?.sub;
-    if (!userId) {
-      throw new UnauthorizedError('Unauthorized');
-    }
-    const sessions = await AuthService.listSessions(userId);
-    res.json(successResponse(sessions));
+    if (!req.user) throw new UnauthorizedError('Unauthorized');
+    const query = paginationQuerySchema.parse(req.query);
+    const { sessions, meta } = await SessionService.listSessions(req.user.sub, req.user.sid, query);
+    res.set('Cache-Control', 'no-store');
+    res.json(successResponse(sessions, 'Success', meta));
   } catch (err) {
     next(err);
   }
@@ -125,15 +135,11 @@ export async function revokeSession(
   next: NextFunction
 ): Promise<void> {
   try {
-    const userId = (req as Request & { user?: { sub: string } }).user?.sub;
-    if (!userId) {
-      throw new UnauthorizedError('Unauthorized');
-    }
-    const { jti } = req.params;
-    if (typeof jti !== 'string') {
-      throw new UnauthorizedError('Invalid JTI');
-    }
-    await AuthService.revokeSession(userId, jti);
+    if (!req.user) throw new UnauthorizedError('Unauthorized');
+    const { jti } = uuidParams('jti').parse(req.params);
+    await SessionService.revokeSession(req.user.sub, jti, auditContextFrom(req));
+    // Revoking the session in use signs this browser out
+    if (jti === req.user.sid) clearTokenCookies(res);
     res.json(successResponse(null, 'Session revoked'));
   } catch (err) {
     next(err);
@@ -146,23 +152,8 @@ export async function revokeOtherSessions(
   next: NextFunction
 ): Promise<void> {
   try {
-    const userId = (req as Request & { user?: { sub: string } }).user?.sub;
-    if (!userId) {
-      throw new UnauthorizedError('Unauthorized');
-    }
-
-    const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
-    let currentJti = 'none';
-    if (refreshToken && typeof refreshToken === 'string') {
-      try {
-        const decoded = verifyRefreshToken(refreshToken);
-        currentJti = decoded.jti || 'none';
-      } catch {
-        // ignore invalid token
-      }
-    }
-
-    await AuthService.revokeOtherSessions(userId, currentJti);
+    if (!req.user?.sid) throw new UnauthorizedError('Unauthorized');
+    await SessionService.revokeOtherSessions(req.user.sub, req.user.sid, auditContextFrom(req));
     res.json(successResponse(null, 'Other sessions revoked'));
   } catch (err) {
     next(err);

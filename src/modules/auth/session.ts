@@ -51,6 +51,7 @@ export async function issueTokenPair(
   const permissions = await resolvePermissionsForRoles(roleIds);
   const policies = await resolvePoliciesForRoles(roleIds);
 
+  const familyId = options.familyId ?? crypto.randomUUID();
   const refreshJti = crypto.randomUUID();
   const accessJti = crypto.randomUUID();
 
@@ -60,6 +61,7 @@ export async function issueTokenPair(
     roles: roleNames,
     permissions,
     policies,
+    sid: familyId,
     ...(options.portal ? { portal: options.portal } : {}),
   };
   const accessToken = signAccessToken({ ...payload, jti: accessJti });
@@ -78,7 +80,7 @@ export async function issueTokenPair(
     jti: refreshJti,
     used: false,
     portal: options.portal ?? null,
-    familyId: options.familyId ?? crypto.randomUUID(),
+    familyId,
     ipAddress: context.ipAddress || null,
     userAgent: context.userAgent || null,
     deviceFingerprint: context.deviceFingerprint || null,

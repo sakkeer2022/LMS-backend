@@ -3,6 +3,14 @@ import request from 'supertest';
 import { app } from '../helpers/app.js';
 import { getCsrfData } from '../helpers/csrf.js';
 import { prisma } from '@infrastructure/database/index.js';
+import { seedRbac } from '../../prisma/seed-rbac.js';
+import { loginWithRole } from '../helpers/users.js';
+
+/** A student signed in through the portal login (refresh requires a portal session). */
+async function portalSession(email: string) {
+  await seedRbac(prisma);
+  return loginWithRole('student', email);
+}
 
 describe('Auth API', () => {
   const registerPayload = {
@@ -173,22 +181,9 @@ describe('Auth API', () => {
 
   describe('Refresh and Logout', () => {
     it('should successfully refresh token and rotate it', async () => {
-      const { csrfToken, csrfCookie } = await getCsrfData();
-
-      const payload = {
-        email: 'refresh_success@example.com',
-        password: 'Password123!',
-        fullName: 'Refresh Success',
-      };
-
-      const registerRes = await request(app)
-        .post('/api/v1/auth/register')
-        .set('Cookie', csrfCookie)
-        .set('x-csrf-token', csrfToken)
-        .send(payload);
-
-      const cookies = registerRes.headers['set-cookie'];
-      const refreshCookie = cookies?.find((c: string) => c.startsWith('refreshToken='));
+      const { refreshCookie, csrfToken, csrfCookie } = await portalSession(
+        'refresh_success@example.com'
+      );
 
       const res = await request(app)
         .post('/api/v1/auth/refresh')
@@ -398,23 +393,8 @@ describe('Auth API', () => {
     });
 
     it('should rollback old token deletion if new token generation fails during refresh', async () => {
-      const { csrfToken, csrfCookie } = await getCsrfData();
-
-      // Register a user to get valid tokens
-      const userPayload = {
-        email: 'refreshtest@example.com',
-        password: 'Password123!',
-        fullName: 'Refresh Test',
-      };
-
-      const registerRes = await request(app)
-        .post('/api/v1/auth/register')
-        .set('Cookie', csrfCookie)
-        .set('x-csrf-token', csrfToken)
-        .send(userPayload);
-
-      const cookies = registerRes.headers['set-cookie'];
-      const refreshCookie = cookies?.find((c: string) => c.startsWith('refreshToken='));
+      const { refreshCookie, csrfToken, csrfCookie } =
+        await portalSession('refreshtest@example.com');
 
       // Verify token exists in DB
       const initialTokensCount = await prisma.refreshToken.count();
@@ -442,26 +422,15 @@ describe('Auth API', () => {
 
   describe('Impossible Travel Integration', () => {
     it('blocks session refresh if impossible travel Redis key is set', async () => {
-      const { csrfToken, csrfCookie } = await getCsrfData();
-      const userPayload = {
-        email: 'travelblocked@example.com',
-        password: 'Password123!',
-        fullName: 'Travel Blocked',
-      };
-
-      const registerRes = await request(app)
-        .post('/api/v1/auth/register')
-        .set('Cookie', csrfCookie)
-        .set('x-csrf-token', csrfToken)
-        .send(userPayload);
-
-      const cookies = registerRes.headers['set-cookie'];
-      const refreshCookie = cookies?.find((c: string) => c.startsWith('refreshToken='));
-      const dbUser = await prisma.user.findFirst({ where: { email: userPayload.email } });
+      const { refreshCookie, csrfToken, csrfCookie } = await portalSession(
+        'travelblocked@example.com'
+      );
+      const dbUser = await prisma.user.findFirst({ where: { email: 'travelblocked@example.com' } });
       expect(dbUser).not.toBeNull();
 
       // Set impossible travel mock suspension for this user
-      const { mockImpossibleTravelSuspensions } = await import('../../src/modules/auth/auth.service.js');
+      const { mockImpossibleTravelSuspensions } =
+        await import('../../src/modules/auth/auth.service.js');
       mockImpossibleTravelSuspensions.add(dbUser!.id);
 
       // Try to refresh

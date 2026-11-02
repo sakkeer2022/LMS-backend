@@ -10,6 +10,7 @@ export interface TokenPayload {
   roles: string[];
   permissions: string[];
   policies?: PolicyRule[];
+  sid?: string; // session family id, stable across refresh rotation
   portal?: string; // 'student' | 'faculty' | 'admin' for portal sessions
   jti?: string;
   iat?: number;
