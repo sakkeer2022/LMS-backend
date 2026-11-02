@@ -9,6 +9,7 @@ import {
   childPath,
   countLabel,
   descendantsLikePattern,
+  insertAt,
   isSelfOrDescendantPath,
   rebasePath,
   subtreeCurriculaCounts,
@@ -39,6 +40,12 @@ describe('category tree rules (ADR-0005)', () => {
         'school/k-12/x'
       );
       expect(() => rebasePath('academic/schools', 'academic/school', 'x')).toThrow();
+    });
+
+    it('inserts a node at a clamped position among its siblings', () => {
+      expect(insertAt(['a', 'b', 'c'], 'x', 1)).toEqual(['a', 'x', 'b', 'c']);
+      expect(insertAt(['a', 'x', 'b'], 'x', 0)).toEqual(['x', 'a', 'b']);
+      expect(insertAt(['a', 'b'], 'x', 99)).toEqual(['a', 'b', 'x']);
     });
 
     it('escapes LIKE wildcards in codes, so "a_b" never matches "axb"', () => {

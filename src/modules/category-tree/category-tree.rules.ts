@@ -48,6 +48,13 @@ export function rebasePath(path: string, oldPrefix: string, newPrefix: string): 
   return newPrefix + path.slice(oldPrefix.length);
 }
 
+/** Sibling order with `id` inserted at `index` (clamped to the list), for a move to a position. */
+export function insertAt(siblingIds: readonly string[], id: string, index: number): string[] {
+  const rest = siblingIds.filter((s) => s !== id);
+  const at = Math.max(0, Math.min(index, rest.length));
+  return [...rest.slice(0, at), id, ...rest.slice(at)];
+}
+
 /** Escapes a path for a LIKE prefix match on the subtree below it (codes may contain "_"). */
 export function descendantsLikePattern(path: string): string {
   return `${path.replace(/[\\%_]/g, (c) => `\\${c}`)}/%`;

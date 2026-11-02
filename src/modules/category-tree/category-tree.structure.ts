@@ -10,6 +10,7 @@ import {
   childDepth,
   childPath,
   countLabel,
+  insertAt,
   wouldCreateCycle,
 } from './category-tree.rules.js';
 import {
@@ -23,6 +24,7 @@ import {
   snapshot,
   write,
   type Actor,
+  type Tx,
 } from './category-tree.tx.js';
 import type { MoveInput, ReorderInput } from './category-tree.dto.js';
 
@@ -58,6 +60,27 @@ export async function reorderSiblings(input: ReorderInput, actor: Actor): Promis
     orderedIds: input.orderedIds,
   });
   return listAdminChildren(input.parentId);
+}
+
+/** Gives `id` position `index` among the children of `parentId` (siblings are locked). */
+async function placeAmongSiblings(
+  tx: Tx,
+  id: string,
+  parentId: string | null,
+  index: number
+): Promise<void> {
+  const siblings = await tx.$queryRaw<{ id: string }[]>`
+    SELECT id FROM categories WHERE parent_id IS NOT DISTINCT FROM ${parentId}::uuid
+    ORDER BY display_order, name, id FOR UPDATE`;
+  const ordered = insertAt(
+    siblings.map((s) => s.id),
+    id,
+    index
+  );
+  await tx.$executeRaw`
+    UPDATE categories c SET display_order = o.ord, updated_at = now()
+    FROM unnest(${ordered}::uuid[]) WITH ORDINALITY AS o(id, ord)
+    WHERE c.id = o.id AND c.display_order <> o.ord`;
 }
 
 // ── Move ─────────────────────────────────────────────────────────────────────
@@ -112,6 +135,8 @@ export async function moveCategory(
       displayOrder: await nextDisplayOrder(tx, input.parentId),
       code: node.code,
     });
+    // A drop at a position: renumber the new siblings in the same transaction
+    if (input.index !== undefined) await placeAmongSiblings(tx, id, input.parentId, input.index);
     return { before: snapshot(node), rows };
   });
 

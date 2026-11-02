@@ -16736,6 +16736,12 @@
             "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
             "nullable": true,
             "description": "null = make it a root."
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000,
+            "description": "Position among the new parent's children, 0 = first; omitted = last. Renumbered in the same transaction."
           }
         },
         "required": [

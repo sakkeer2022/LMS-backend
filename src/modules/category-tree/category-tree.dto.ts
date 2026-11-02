@@ -57,7 +57,14 @@ export const ReorderDto = z
   })
   .strict();
 
-export const MoveDto = z.object({ version, parentId: z.uuid().nullable() }).strict();
+export const MoveDto = z
+  .object({
+    version,
+    parentId: z.uuid().nullable(),
+    // Position among the new parent's children (0 = first). Omitted: placed last.
+    index: z.number().int().min(0).max(10000).optional(),
+  })
+  .strict();
 
 export const DeleteQueryDto = z.object({ version: z.coerce.number().int().min(1) }).strict();
 

@@ -347,6 +347,33 @@ describe('Category tree API', () => {
       expect((await node(class11.id)).path).toBe('k-12/physics/class-11');
     });
 
+    it('moves a node to an exact position among its new siblings in one transaction', async () => {
+      const university = await createTreeNode(academic, { code: 'university', displayOrder: 2 });
+      const jee = await createTreeNode(academic, { code: 'jee-neet', displayOrder: 3 });
+      const res = await send('put', `${base}/${k12.id}/move`).send({
+        version: (await node(k12.id)).version,
+        parentId: academic.id,
+        index: 1,
+      });
+      expect(res.status).toBe(200);
+      const order = await prisma.category.findMany({
+        where: { parentId: academic.id },
+        orderBy: { displayOrder: 'asc' },
+      });
+      expect(order.map((c) => c.code)).toEqual(['school', 'k-12', 'university', 'jee-neet']);
+      expect(order.map((c) => c.displayOrder)).toEqual([1, 2, 3, 4]);
+      expect(university.id).toBeTruthy();
+      expect(jee.id).toBeTruthy();
+      // An index past the end places it last
+      const last = await send('put', `${base}/${k12.id}/move`).send({
+        version: (await node(k12.id)).version,
+        parentId: school.id,
+        index: 99,
+      });
+      expect(last.body.data).toMatchObject({ parentId: school.id, path: 'academic/school/k-12' });
+      expect(await verify()).toEqual([]);
+    });
+
     it('blocks cycles, bookable parents, code clashes and stale versions', async () => {
       const physics = await createTreeNode(k12, { code: 'physics' });
       const v = (await node(school.id)).version;

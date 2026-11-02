@@ -262,7 +262,7 @@ S['CategoryTreeCreate'] = obj({'code':code_s,'name':string(100)},['code','name']
 S['CategoryTreeUpdate'] = obj({'version':version_s,'name':string(100),'code':code_s,'isActive':dict(boolean,description='false hides the whole subtree from learners.')},['version'])
 S['CategoryLeafSettings'] = obj({'version':version_s,'isBookable':boolean,'requiresBoard':boolean,'requiresLevel':boolean,'levelIds':dict(array(uuid,200),description='Allowed levels (category_levels); replaces the current set.')},['version','isBookable','requiresBoard','requiresLevel','levelIds'])
 S['CategoryReorder'] = obj({'parentId':dict(uuid,nullable=True,description='null = the roots.'),'orderedIds':dict(array(uuid,1000),minItems=1,description='Every child exactly once.')},['parentId','orderedIds'])
-S['CategoryMove'] = obj({'version':version_s,'parentId':dict(uuid,nullable=True,description='null = make it a root.')},['version','parentId'])
+S['CategoryMove'] = obj({'version':version_s,'parentId':dict(uuid,nullable=True,description='null = make it a root.'),'index':dict(integer(0,10000),description='Position among the new parent\'s children, 0 = first; omitted = last. Renumbered in the same transaction.')},['version','parentId'])
 named = lambda: obj({'id':uuid,'name':string(200)},['id','name'])
 S['CategoryOffering'] = obj({'curriculumId':uuid,'categoryId':uuid,'subject':named(),'board':dict(named(),nullable=True),'level':dict(named(),nullable=True),'isActive':boolean},['curriculumId','categoryId','subject','board','level','isActive'])
 S['CategoryOfferingWrite'] = obj({'subjectId':uuid,'boardId':dict(uuid,nullable=True),'levelId':dict(uuid,nullable=True)},['subjectId'])

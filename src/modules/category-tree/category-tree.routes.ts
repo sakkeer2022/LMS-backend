@@ -249,6 +249,7 @@ adminCategoryTreeRouter.put('/:categoryId/leaf-settings', manage, Tree.setLeafSe
  *             properties:
  *               version: { type: integer, minimum: 1 }
  *               parentId: { type: string, format: uuid, nullable: true }
+ *               index: { type: integer, minimum: 0, description: "Position among the new siblings (0 = first); omitted = last" }
  *     responses:
  *       200: { description: Moved (or already under that parent) }
  *       403: { description: Missing catalogue.manage or CSRF token }
