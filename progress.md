@@ -1,5 +1,20 @@
 # Progress Log
 
+## 2026-11-03 — Merge development (LMS-99, LMS-100) into the faculty branch (LMS-78, LMS-79)
+
+- Conflicts resolved keeping both sides: category tree (`CategoryLevel`, `Board.nodes`) and countries in `schema.prisma`; the dev seed scripts and `create-admin` in `package.json`; faculty and registration/recovery/admin-profile routers.
+- Email: one `EmailMessage` (`html` and `category` optional) shared by `EmailSender` (OTP codes) and `EmailProvider` (invitations). `EMAIL_TRANSPORT` is now `smtp` (default), `sendgrid`, `log` or `memory`; `SMTP_HOST` is required in production only for `smtp`. Consolidating the two interfaces is T8 in `docs/PENDING_DECISIONS.md`.
+- Rate limits: `routeRateLimit` (per IP and email) and `createRouteRateLimiter` (per user) live together in `src/middleware/rate-limit.ts`.
+- Tests: `tests/setup.ts` re-inserts the countries reference rows after each truncate (boards now reference `countries`); the draft-only path in the API docs tests is now `/faculty/me/profile`, since `/admin/faculty` is implemented.
+
+### Test Results
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | ✅ Pass |
+| `npm run lint` | ✅ 0 errors |
+| `npx vitest run` (unit + integration, PostgreSQL 16 test DB) | ✅ 60 files, 710 passed |
+
 ## 2026-11-03 — Faculty list and tutor invitations (LMS-78, LMS-79)
 
 - New module `src/modules/faculty`: `GET /admin/faculty` (roster of profiles and pending invitations with a derived status, tabs, search, category subtree, sort, pagination), `GET /admin/faculty/status-counts` (tab badges), `POST /admin/faculty/invitations` (invite 1-20 emails, or Copy link with `delivery=link`). Guards `faculty.read` and `faculty.create` added to `rbac.ts` (granted to admin).
@@ -40,6 +55,63 @@
 | `tests/modules/category-tree-migration.test.ts` | Expand → verify → contract → both rollbacks restore the exact schema and data |
 | `python3 docs/check-contract-structure.py` | ✅ 100 paths, 115 operations |
 | Not run here | `prisma migrate diff` (Prisma engine host blocked in the build sandbox); run it locally, see `findings.md` |
+## 2026-11-03 — Account recovery and password change (LMS-100)
+
+- New `account-recovery` module: `POST /auth/recovery/requests` (same 202 for unknown, wrong-portal and inactive accounts, decoy challenge, nothing emailed), `/verify` (code to a single-use, five-minute reset credential, hash stored in `password_reset_grants`) and `/reset` (consumes the credential once even under concurrency, sets the password, activates an account waiting for activation, clears the lockout, ends every session, cancels other recovery and verification credentials, audit `password.reset`, clears the cookies, no automatic login). `PUT /auth/password` (current password checked and counted toward the lockout, new one must differ, every session ends including the caller's, audit `password.changed`).
+- Email code on password change (admin accounts by default, `PASSWORD_CHANGE_OTP_ROLES=admin|all`): `POST /auth/password/requests` emails a code to the signed-in account's own address (no email in the body; other accounts get 422) and `PUT /auth/password` also takes `challengeId` and `otp`. The code has its own purpose (`PASSWORD_CHANGE`, migration `20261103100000_password_change_code`), so it cannot be used for recovery and a recovery code cannot be used here. The current password is checked first, then the code, so a wrong password does not use up the code. Tests in `account-recovery.test.ts` and `password-change-otp-all.test.ts`.
+- `passwordSchema` in `src/shared/validation/password.ts` (8 characters with a number, at most 72 bytes) is the one password rule; `revokeAllSessions` and `clearTokenCookies` are exported from the auth module.
+- Limits reuse the OTP limits (`recovery-send`, `recovery-verify`, `recovery-reset`) and the reauth limit for the change. `RESET_GRANT_EXPIRES_MINUTES` sets the credential lifetime.
+- Tests: `tests/modules/account-recovery.test.ts` (end to end for all three portals, uniform answers, single use, simultaneous resets, expiry, cancellation by a new request, sessions ended, first password for a pending account, audit, password rule, CSRF, change-password cases).
+
+## 2026-11-03 — Email interface, OTP logic and registration email OTP (LMS-99)
+
+- `src/infrastructure/email/`: `EmailSender` interface, nodemailer SMTP sender and an in-memory outbox used when `EMAIL_TRANSPORT=memory` (the default under tests). Production requires `SMTP_HOST` and rejects the memory transport. Code bodies are never logged.
+- `src/modules/email-otp/`: `issueEmailOtp` (replaces the live challenge for the email and purpose, cooldown returns 429, `deliver: false` makes an undeliverable decoy), `verifyEmailOtp` (keyed HMAC-SHA256 hash, constant-time compare, attempts, single consumption under concurrency, registration token stored as a SHA-256 hash) and `consumeRegistrationToken`. Uses the existing `email_challenges` table; no migration.
+- New `registration` module with `POST /auth/registration/email-otp/requests` and `/verify`, per the contract.
+- Tests: `tests/modules/registration-otp.test.ts` (16 with the route check). Expiry, attempts, cooldown and the token lifetime are configuration (`OTP_*`, `EMAIL_TOKEN_EXPIRES_MINUTES`).
+- Regions: `countries` table (migration `20261103090000_countries`, India and UAE rows) with foreign keys from `student_profiles.country` and `boards.country`; the student default country is dropped. `src/modules/regions/` (`countryFromMobile`, `isValidMobile`, `defaultTimezone`, `guardianConsentAge`, cached list) and pure E.164 helpers in `src/shared/regions/`. Tests: `regions.test.ts`, `regions-mobile.test.ts`, `countries-reference.test.ts` (keeps the migration and `prisma/reference-data/countries.ts` equal). Tests insert the rows with `seedCountries()` because the test setup empties every table.
+- Send limits: the registration OTP routes use `routeRateLimit` (`OTP_SEND_RATE_LIMIT_*` per IP and per email, `OTP_VERIFY_RATE_LIMIT_*` per IP), tested in `registration-otp-rate-limit.test.ts`.
+- Not yet: policies, consent and `POST /auth/register`.
+
+## 2026-11-02 — Keep me signed in, device replacement, admin profile (LMS-100)
+
+- `rememberMe` on the portal login: a signed `rm` claim in both tokens. Ticked gives a persistent refresh cookie and the 7-day session (`JWT_REFRESH_EXPIRES_IN`); unticked gives a browser-session cookie and a 12-hour session (`JWT_SESSION_EXPIRES_IN`). The choice survives refresh rotation.
+- A new sign-in replaces the earlier sessions of the same user, portal and device fingerprint (`supersedeDeviceSessions`), so one browser never lists several sessions. Other devices are untouched.
+- `npm run create-admin` creates the first verified `super_admin` from `INITIAL_ADMIN_*` env values (idempotent, no defaults).
+- New `admin-profile` module: `PUT /admin/me/profile` (name, mobile in E.164, IANA time zone; email read-only; audited as `profile.updated`) and `GET /admin/me/activity` (the caller's own security events, newest first). `User` gains `timezone` and `lastLoginAt`.
+- Tests: keep-me-signed-in block in `portal-login.test.ts`, replacement test in `sessions.test.ts`, new `admin-profile.test.ts`. 225 tests pass across the auth, contract and unit suites; typecheck, eslint and `contract:validate` are clean.
+- Open: per-country mobile rules wait for the shared region helper (LMS-99); email and password change wait for email verification (LMS-99).
+
+## 2026-11-02 — Generic login removed, dev origins (LMS-100)
+
+- `POST /auth/login` and `AuthService.login` removed; every login is a portal login. `signIn` test helper for users without a portal. Old generic-login tests deleted (covered by `portal-login.test.ts`, which now also checks the HttpOnly and SameSite cookie flags).
+- CORS dev defaults: `http://localhost:3001`, `3002`, `3003` (admin, student, faculty).
+- Full suite: 37 files, 331 tests passing.
+
+## 2026-11-02 — Reauthentication (LMS-100)
+
+- `POST /auth/reauthenticate` (`reauth.service.ts`): password check, session-bound freshness, audit (`reauth.success`, `reauth.failed`), lockout shared with login, per-IP limit `REAUTH_RATE_LIMIT_*`. `requireRecentReauth` guards `PUT /admin/settings/{key}`.
+- Tests: `reauthenticate.test.ts` (contract, session binding, window, survives refresh, wrong password, 429 lockout, freshness not extended by a failed check, 401/403/422); `settings.test.ts` reauthenticates before writing and checks the 403 without it. `reauthenticate()` helper in `tests/helpers/users.ts`.
+
+## 2026-11-02 — Sessions, refresh and /auth/me contract fixes (LMS-100)
+
+- New `session.service.ts`: refresh rotation (keeps portal, family and the original deadline; re-checks account and portal role; reuse revokes the family outside the transaction and is audited), session list (family-based, paginated, `isCurrent`, no IP), revoke one and revoke others (audited, immediate).
+- `GET /auth/me` returns the contract user (`loadContractUser`, shared with the portal login). `POST /auth/refresh` is cookie-only and returns `accessExpiresAt` and `sessionExpiresAt`; it has the `REFRESH_RATE_LIMIT_*` limit.
+- `src/core/security/session-revocation.ts` and a check in `authenticate` stop a revoked session's access tokens at once.
+- Tests: `sessions.test.ts` rewritten (rotation, deadline, reuse, body token, role loss, list, pagination, revoke, 404, revoke others, `/me`); `contract_responses.test.ts` and three refresh tests in `auth.test.ts` now use the portal login. The three routes moved out of the known-mismatch list.
+
+## 2026-11-02 — Portal logins (LMS-100)
+
+- `POST /auth/{student,faculty,admin}/login` in the auth module (`portal-login.service.ts`, `portal-login.controller.ts`), rate limited per IP and per email, audited (`login.success`, `login.failed` with reason, never the password). Response matches the contract (`LoginResult`).
+- Refactor: token issuing moved to `session.ts` (portal and family on the refresh row, absolute deadline option for rotation), cookie helpers to `session-cookies.ts` (refresh cookie max age now follows `JWT_REFRESH_EXPIRES_IN`), impossible-travel check extracted as `assessLoginLocation`, `auth/index.ts` added.
+- Tests: `tests/modules/portal-login.test.ts` (all three portals, wrong portal, super_admin, generic 401, lockout, unverified 403, 422, CSRF, audit) and `portal-login-rate-limit.test.ts` (429 with `Retry-After`). `tests/env-setup.ts` sets high default limits so shared-IP suites never hit them.
+- The sample "unimplemented contract path" in the API docs tests is now `/admin/faculty`.
+
+## 2026-11-02 — Per-route rate limiter (LMS-100)
+
+- `src/middleware/rate-limit.ts` (`routeRateLimit`): per-IP limit and optional per-email limit (normalised `body.email`, falls back to the IP) for one route. Redis store with a per-route key prefix; memory store in tests. A rejected request gets 429 with `Retry-After`.
+- `tests/unit/rate-limit.test.ts`: IP limit, email limit (case and spaces ignored, other emails unaffected), fallback to the IP, separate counters per route.
+- Not applied to any route yet; login and refresh use it in the next commits.
 
 ## 2026-10-29 — API contract checks: routes and response shapes (LMS-93)
 
@@ -115,7 +187,7 @@
 
 - JWT access and refresh tokens are signed and verified with HS256 only (`src/core/security/jwt.ts`).
 - CORS uses the `ALLOWED_ORIGINS` allowlist in every environment; outside production an empty value allows only `http://localhost:3001` (`resolveAllowedOrigins` in `src/config/index.ts`).
-- `src/docs/SECURITY.md` has a verification checklist mapping each baseline control to its test. Open rows: TLS and the Secure cookie (LMS-94), per-route rate limits (LMS-97, LMS-100), student data access (LMS-99, LMS-100).
+- `src/docs/SECURITY.md` has a verification checklist mapping each baseline control to its test. Open rows: TLS and the Secure cookie (LMS-94), per-route rate limits (LMS-99, LMS-100), student data access (LMS-99, LMS-100).
 - New tests: `tests/unit/jwt.test.ts`, `tests/unit/cors.test.ts`, `resolveAllowedOrigins` cases in `tests/unit/config.test.ts`, HttpOnly and SameSite assertions in `tests/modules/auth.test.ts`.
 
 ### Test Results

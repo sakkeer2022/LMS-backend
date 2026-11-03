@@ -79,3 +79,5 @@ export function lowercaseEnumMapping<Db extends string>(
     Lowercase<Db>
   >;
 }
+
+export { MAX_PASSWORD_BYTES, passwordSchema } from './password.js';

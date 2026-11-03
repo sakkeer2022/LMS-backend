@@ -18,6 +18,7 @@ const prod = {
   RAZORPAY_KEY_SECRET: 'live_secret_key_minimum_16_chars',
   RAZORPAY_WEBHOOK_SECRET: 'live_webhook_secret_min_16_chars',
   METRICS_TOKEN: 'production-metrics-token-at-least-32-chars',
+  SMTP_HOST: 'smtp.example.org',
 };
 
 function messages(input: Record<string, unknown>): string[] {
@@ -82,6 +83,22 @@ describe('Email and invitation configuration (LMS-79)', () => {
       'APP_BASE_URL must use https in production'
     );
     expect(envSchema.safeParse(prod).success).toBe(true);
+  });
+
+  it('requires SMTP_HOST in production only for the smtp transport (the default)', () => {
+    const { SMTP_HOST: _host, ...noSmtp } = prod;
+    expect(messages(noSmtp)).toContain('SMTP_HOST is required in production');
+    expect(messages({ ...noSmtp, EMAIL_TRANSPORT: 'smtp' })).toContain(
+      'SMTP_HOST is required in production'
+    );
+    expect(
+      envSchema.safeParse({
+        ...noSmtp,
+        EMAIL_TRANSPORT: 'sendgrid',
+        SENDGRID_API_KEY: 'SG.test-key',
+        SENDGRID_FROM_EMAIL: 'no-reply@amentorz.com',
+      }).success
+    ).toBe(true);
   });
 
   it.each([['0'], ['721'], ['abc']])('rejects FACULTY_INVITE_TTL_HOURS=%s', (value) => {

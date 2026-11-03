@@ -1,8 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { beforeAll, afterAll, beforeEach } from 'vitest';
-import { prisma, connectDatabase, disconnectDatabase, assertTestDatabaseUrl } from '@infrastructure/database/index';
+import {
+  prisma,
+  connectDatabase,
+  disconnectDatabase,
+  assertTestDatabaseUrl,
+} from '@infrastructure/database/index';
 import { config } from '@config/index';
+import { seedCountries } from './helpers/regions';
 
 const MIGRATIONS_DIR = path.resolve(__dirname, '../prisma/migrations');
 
@@ -82,11 +88,16 @@ async function truncateAllTables(): Promise<void> {
   for (let attempt = 1; ; attempt++) {
     try {
       await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tableList} CASCADE;`);
+      // The countries rows are reference data from their migration, and boards and
+      // student profiles reference them, so every test starts with them in place.
+      await seedCountries();
       return;
     } catch (err) {
       const isDeadlock = err instanceof Error && err.message.includes(DEADLOCK_SQLSTATE);
       if (!isDeadlock || attempt >= MAX_TRUNCATE_ATTEMPTS) throw err;
-      console.warn(`[TEST SETUP] TRUNCATE deadlock, retry ${attempt} at ${new Date().toISOString()}`);
+      console.warn(
+        `[TEST SETUP] TRUNCATE deadlock, retry ${attempt} at ${new Date().toISOString()}`
+      );
       await new Promise((resolve) => setTimeout(resolve, 50 * attempt));
     }
   }

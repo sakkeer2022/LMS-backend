@@ -136,6 +136,11 @@ describe('createEmailProvider', () => {
     expect(createEmailProvider({ ...base, transport } as never)).toBeInstanceOf(type);
   });
 
+  it('builds the smtp transport on the shared SMTP sender', () => {
+    const provider = createEmailProvider({ ...base, transport: 'smtp' } as never);
+    expect(provider.name).toBe('smtp');
+  });
+
   it('builds the sendgrid transport', () => {
     const provider = createEmailProvider({
       ...base,

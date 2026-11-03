@@ -43,9 +43,9 @@ export class SendGridEmailProvider implements EmailProvider {
       subject: message.subject,
       content: [
         { type: 'text/plain', value: message.text },
-        { type: 'text/html', value: message.html },
+        ...(message.html ? [{ type: 'text/html', value: message.html }] : []),
       ],
-      categories: [message.category],
+      ...(message.category ? { categories: [message.category] } : {}),
       // Invitation links carry single-use tokens; click tracking would rewrite them.
       tracking_settings: { click_tracking: { enable: false, enable_text: false } },
     };

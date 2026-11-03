@@ -58,6 +58,16 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   permission('user.assign_role', 'Assign and remove user roles'),
 ];
 
+export const PORTALS = ['student', 'faculty', 'admin'] as const;
+export type Portal = (typeof PORTALS)[number];
+
+/** Roles that may sign in to each portal. super_admin can use the admin portal (team decision 2026-11-02). */
+export const PORTAL_ROLES: Record<Portal, readonly string[]> = {
+  student: ['student'],
+  faculty: ['faculty'],
+  admin: ['admin', 'super_admin'],
+};
+
 export interface RoleDefinition {
   name: string;
   description: string;

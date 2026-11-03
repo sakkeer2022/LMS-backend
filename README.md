@@ -40,7 +40,7 @@ Open `.env` and verify the configuration:
 - `JWT_SECRET`, `JWT_REFRESH_SECRET`, `COOKIE_SECRET` — Replace with 32+ character secrets (generate via `openssl rand -hex 32`)
 - `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` — Payment gateway credentials (`rzp_test_*` for local development). Razorpay is the leading candidate; the final gateway is still to be confirmed (`docs/PENDING_DECISIONS.md`)
 - `METRICS_TOKEN` — Bearer token for `GET /metrics`; optional locally, **required (32+ characters) in production**
-- `ALLOWED_ORIGINS` — Comma-separated browser origins allowed to call the API with cookies; empty locally allows only `http://localhost:3001`, **required in production**
+- `ALLOWED_ORIGINS` — Comma-separated browser origins allowed to call the API with cookies; empty locally allows the admin, student and faculty dev servers (`http://localhost:3001`, `3002`, `3003`), **required in production**
 
 ### B. Install Dependencies
 
@@ -76,6 +76,10 @@ npx prisma migrate deploy
 
 # Seed baseline system roles, permissions, and initial reference catalogue
 npx prisma db seed
+
+# Create the first super_admin (no defaults; set INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD).
+# Does nothing if a super_admin already exists, so it is safe on every deployment.
+INITIAL_ADMIN_EMAIL=admin@example.com INITIAL_ADMIN_PASSWORD='<12+ chars, mixed>' npm run create-admin
 ```
 
 > ⚠️ **CRITICAL DATABASE SAFETY INVARIANT:** Destructive commands such as `prisma migrate reset` and `prisma db push` are strictly prohibited. Test suites are protected by an automated WHATWG URL validator (`assertTestDatabaseUrl`) that rejects execution if the parsed database name is not strictly `amentorz_test` on an approved local host.

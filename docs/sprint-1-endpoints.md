@@ -20,11 +20,14 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 | GET | `/auth/me` | `getCurrentUser` | student, faculty or admin (self only) | ready-for-review |
 | POST | `/auth/reauthenticate` | `reauthenticate` | student, faculty or admin (self only) | ready-for-review |
 | PUT | `/auth/password` | `changeOwnPassword` | student, faculty or admin (self only) | ready-for-review |
+| POST | `/auth/password/requests` | `requestPasswordChangeCode` | student, faculty or admin (self only) | ready-for-review |
 | POST | `/auth/recovery/requests` | `requestPasswordRecovery` | public | ready-for-review |
 | POST | `/auth/recovery/verify` | `verifyRecoveryOtp` | public | ready-for-review |
 | POST | `/auth/recovery/reset` | `resetPassword` | public | ready-for-review |
 | GET | `/auth/sessions` | `listOwnSessions` | student, faculty or admin (self only) | ready-for-review |
 | DELETE | `/auth/sessions` | `revokeOtherSessions` | student, faculty or admin (self only) | ready-for-review |
+| PUT | `/admin/me/profile` | `updateOwnAdminProfile` | admin (self only) | ready-for-review |
+| GET | `/admin/me/activity` | `listOwnSecurityActivity` | admin (self only) | ready-for-review |
 | DELETE | `/auth/sessions/{jti}` | `revokeOwnSession` | student, faculty or admin (self only) | ready-for-review |
 
 ## Consent

@@ -1,10 +1,74 @@
 import type { Request, RequestHandler } from 'express';
-import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
+import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
-import { redisClient } from '@infrastructure/redis/connection';
+
 import { TooManyRequestsError } from '@core/errors/index';
+import { logger } from '@core/logger/index';
+import { redisClient } from '../infrastructure/redis/connection';
+
+export interface RouteLimit {
+  windowMs: number;
+  max: number;
+}
 
 export interface RouteRateLimitOptions {
+  /** Unique name, used as the Redis key prefix and in logs (for example `login`). */
+  name: string;
+  /** Limit per client IP. */
+  ip: RouteLimit;
+  /** Optional limit per normalised `body.email`, applied after the IP limit. */
+  email?: RouteLimit;
+}
+
+const clientIp = (req: Request): string => ipKeyGenerator(req.ip ?? 'unknown');
+
+/** The normalised email in the request body, or the client IP when there is none. */
+const emailOrIp = (req: Request): string => {
+  const email: unknown = (req.body as { email?: unknown } | undefined)?.email;
+  if (typeof email === 'string' && email.trim() !== '')
+    return `email:${email.trim().toLowerCase()}`;
+  return `ip:${clientIp(req)}`;
+};
+
+function limiter(
+  name: string,
+  scope: 'ip' | 'email',
+  limit: RouteLimit,
+  keyGenerator: (req: Request) => string
+): RequestHandler {
+  return rateLimit({
+    // Redis in every environment but test, where the memory store keeps tests stateless
+    store: redisClient
+      ? new RedisStore({
+          prefix: `rl:${name}:${scope}:`,
+          // @ts-expect-error - rate-limit-redis types differ slightly from ioredis
+          sendCommand: (...args: string[]): unknown => redisClient?.call(...args),
+        })
+      : undefined,
+    windowMs: limit.windowMs,
+    limit: limit.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator,
+    handler: (req, _res, next) => {
+      logger.warn({ type: 'security', route: name, scope, ip: req.ip }, 'Route rate limit hit');
+      next(new TooManyRequestsError('Too many requests, please try again later.'));
+    },
+  });
+}
+
+/**
+ * Per-route rate limits on top of the global limiter in `src/app.ts`. Returns the handlers to
+ * place before the controller; mount after the body parser so the email limit can read the body.
+ * A rejected request gets 429 with `Retry-After` and the standard `RateLimit` headers.
+ */
+export function routeRateLimit(options: RouteRateLimitOptions): RequestHandler[] {
+  const handlers = [limiter(options.name, 'ip', options.ip, clientIp)];
+  if (options.email) handlers.push(limiter(options.name, 'email', options.email, emailOrIp));
+  return handlers;
+}
+
+export interface UserRouteRateLimitOptions {
   /** Unique name; separates this limiter's counters from every other limiter. */
   name: string;
   windowMs: number;
@@ -18,19 +82,18 @@ export interface RouteRateLimitOptions {
 }
 
 /** Counter key for a request; exported for tests. */
-export function rateLimitKey(req: Request, keyBy: RouteRateLimitOptions['keyBy']): string {
+export function rateLimitKey(req: Request, keyBy: UserRouteRateLimitOptions['keyBy']): string {
   const userId = req.user?.sub;
   if (keyBy === 'user' && userId) return `user:${userId}`;
-  return `ip:${ipKeyGenerator(req.ip ?? 'unknown')}`;
+  return `ip:${clientIp(req)}`;
 }
 
 /**
- * Per-route rate limiter (planned in SHARED_COMPONENTS.md). Redis-backed in running
- * environments so every instance shares the budget; in-memory in tests, where Redis
- * is not connected. Mount it after `authenticate` when keying by user. Responds 429
- * with a Retry-After header through the standard error envelope.
+ * Single per-route limiter keyed by the authenticated user (or the IP). Use it for
+ * authenticated admin actions such as faculty invitations; mount it after `authenticate`
+ * when keying by user. Pre-auth routes keyed by IP and email use `routeRateLimit` above.
  */
-export function createRouteRateLimiter(options: RouteRateLimitOptions): RequestHandler {
+export function createRouteRateLimiter(options: UserRouteRateLimitOptions): RequestHandler {
   const prefix = `rl:${options.name}:`;
   return rateLimit({
     windowMs: options.windowMs,
@@ -45,7 +108,8 @@ export function createRouteRateLimiter(options: RouteRateLimitOptions): RequestH
         })
       : undefined,
     keyGenerator: (req) => `${prefix}${rateLimitKey(req, options.keyBy)}`,
-    handler: (_req, _res, next) => {
+    handler: (req, _res, next) => {
+      logger.warn({ type: 'security', route: options.name, ip: req.ip }, 'Route rate limit hit');
       next(
         new TooManyRequestsError(options.message ?? 'Too many requests, please try again later.')
       );

@@ -1,16 +1,19 @@
 import { Router } from 'express';
 import { successResponse } from '@core/response/index';
-import { authRouter } from '@modules/auth/auth.routes';
+import { authRouter } from '@modules/auth/index';
 import { rolesRouter } from '@modules/roles/roles.routes';
 import { permissionsRouter } from '@modules/permissions/permissions.routes';
 import { usersRouter } from '@modules/users/users.routes';
 import { auditRouter } from '@modules/audit/audit.routes';
 import { featureFlagsRouter } from '@modules/feature-flags/index.js';
 import { notificationsRouter } from '@modules/notifications/notifications.routes.js';
+import { adminProfileRouter } from '@modules/admin-profile/index.js';
 import { adminRouter } from '@modules/admin/admin.routes.js';
 import { uploadsRouter } from '@modules/uploads/uploads.routes.js';
 import { settingsRouter } from '@modules/settings/index.js';
 import { adminFacultyRouter } from '@modules/faculty/index.js';
+import { registrationRouter } from '@modules/registration/index.js';
+import { passwordRouter, recoveryRouter } from '@modules/account-recovery/index.js';
 import { auditLogMiddleware } from '@middleware/audit.middleware';
 import { catalogueRouter, adminCatalogueRouter } from '@modules/catalogue/index.js';
 import { pricesRouter, adminPricesRouter } from '@modules/pricing/index.js';
@@ -29,6 +32,9 @@ router.use(auditLogMiddleware);
 // come before a shorter prefix). tests/unit/api-contract-routes.test.ts reads
 // this list to check every implemented route against docs/openapi.yaml.
 export const featureRouters: ReadonlyArray<readonly [path: string, router: Router]> = [
+  ['/auth/registration', registrationRouter],
+  ['/auth/recovery', recoveryRouter],
+  ['/auth/password', passwordRouter],
   ['/auth', authRouter],
   ['/roles', rolesRouter],
   ['/permissions', permissionsRouter],
@@ -47,6 +53,7 @@ export const featureRouters: ReadonlyArray<readonly [path: string, router: Route
   ['/admin/prices', adminPricesRouter],
   ['/admin/settings', settingsRouter],
   ['/admin/faculty', adminFacultyRouter],
+  ['/admin/me', adminProfileRouter],
   ['/admin', adminRouter],
   ['/uploads', uploadsRouter],
 ];

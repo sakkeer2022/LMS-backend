@@ -1,16 +1,25 @@
 /**
- * Email sending contract (LMS-97, LMS-79). Services depend on this interface,
- * never on a provider SDK or HTTP API directly. The transport is chosen by
- * configuration (EMAIL_TRANSPORT), so switching provider is a settings change.
+ * Email contracts. Services depend on these interfaces, never on a mail SDK or HTTP API
+ * directly; the transport is chosen by configuration (EMAIL_TRANSPORT), so switching
+ * transport is a settings change.
+ *
+ * Two interfaces exist for now (see docs/PENDING_DECISIONS.md): `EmailSender` (registration,
+ * recovery and password-change codes) and `EmailProvider` (faculty invitations, LMS-79).
+ * Both accept the same `EmailMessage` and use the same configured transport.
  */
 export interface EmailMessage {
   to: string;
   subject: string;
-  html: string;
-  /** Plain-text alternative for clients that do not render HTML. */
+  /** Plain-text body; also the alternative for clients that do not render HTML. */
   text: string;
+  html?: string;
   /** Short label used in logs and metrics, never the message body. */
-  category: string;
+  category?: string;
+}
+
+/** The email surface the OTP flows depend on. Production sends over SMTP; tests keep an outbox. */
+export interface EmailSender {
+  send(message: EmailMessage): Promise<void>;
 }
 
 export interface EmailSendResult {

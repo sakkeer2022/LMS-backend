@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { prisma } from '@infrastructure/database/index';
+import { seedCountries } from '../helpers/regions.js';
 
 describe('Amentorz Domain Schema Integration', () => {
   let studentUserId: string;
@@ -7,6 +8,7 @@ describe('Amentorz Domain Schema Integration', () => {
   let adminUserId: string;
 
   beforeEach(async () => {
+    await seedCountries();
     const passwordHash = 'hashedpassword123';
 
     const studentUser = await prisma.user.create({
@@ -54,7 +56,12 @@ describe('Amentorz Domain Schema Integration', () => {
       await prisma.categoryLevel.create({ data: { categoryId: category.id, levelId: level.id } });
       const subject = await prisma.subject.create({ data: { code: 'MATHS', name: 'Mathematics' } });
       const curriculum = await prisma.curriculum.create({
-        data: { categoryId: category.id, boardId: board.id, subjectId: subject.id, levelId: level.id },
+        data: {
+          categoryId: category.id,
+          boardId: board.id,
+          subjectId: subject.id,
+          levelId: level.id,
+        },
       });
       const language = await prisma.teachingLanguage.create({
         data: { code: 'en_hi', name: 'English & Hindi', languageCodes: ['en', 'hi'] },
@@ -95,6 +102,7 @@ describe('Amentorz Domain Schema Integration', () => {
 
       const profile = await prisma.studentProfile.create({
         data: {
+          country: 'IN',
           userId: studentUserId,
           dateOfBirth: new Date('2012-05-15'),
           categoryId: category.id,
@@ -131,6 +139,7 @@ describe('Amentorz Domain Schema Integration', () => {
       const { category, board, level, language, studentTerms } = await createLearningCatalogue();
       const profile = await prisma.studentProfile.create({
         data: {
+          country: 'IN',
           userId: studentUserId,
           dateOfBirth: new Date('2012-05-15'),
           categoryId: category.id,
