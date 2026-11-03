@@ -50,6 +50,13 @@ const envSchema = z
     REFRESH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
     REFRESH_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(60),
 
+    // Email one-time codes: sending a code (per IP and per email) and checking one (per IP)
+    OTP_SEND_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+    OTP_SEND_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(10),
+    OTP_SEND_RATE_LIMIT_MAX_PER_EMAIL: z.coerce.number().int().positive().default(5),
+    OTP_VERIFY_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+    OTP_VERIFY_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(30),
+
     // Password confirmation for sensitive actions (POST /auth/reauthenticate)
     REAUTH_WINDOW_MINUTES: z.coerce.number().int().positive().default(5),
     REAUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
@@ -77,6 +84,24 @@ const envSchema = z
       .default(false),
     CLAMAV_HOST: z.string().default('localhost'),
     CLAMAV_PORT: z.coerce.number().int().positive().default(3310),
+
+    // Email: one interface, transport chosen here. `memory` keeps messages in process (tests only).
+    EMAIL_TRANSPORT: z.enum(['smtp', 'memory']).optional(),
+    EMAIL_FROM: z.string().default('Amentorz <no-reply@amentorz.local>'),
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().int().positive().default(587),
+    SMTP_SECURE: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(false),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASS: z.string().optional(),
+
+    // One-time passwords sent by email (the code is always 6 digits, see the contract)
+    OTP_EXPIRES_MINUTES: z.coerce.number().int().positive().default(10),
+    OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().positive().default(60),
+    OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+    EMAIL_TOKEN_EXPIRES_MINUTES: z.coerce.number().int().positive().default(30),
+    // Who must confirm a password change with an email code: admin and super_admin accounts, or every role
+    PASSWORD_CHANGE_OTP_ROLES: z.enum(['admin', 'all']).default('admin'),
+    RESET_GRANT_EXPIRES_MINUTES: z.coerce.number().int().positive().default(5),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production') {
@@ -99,6 +124,20 @@ const envSchema = z
           code: z.ZodIssueCode.custom,
           message: 'COOKIE_SECRET must be at least 32 characters long in production',
           path: ['COOKIE_SECRET'],
+        });
+      }
+      if (env.EMAIL_TRANSPORT === 'memory') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'EMAIL_TRANSPORT=memory is for tests and cannot be used in production',
+          path: ['EMAIL_TRANSPORT'],
+        });
+      }
+      if (!env.SMTP_HOST) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'SMTP_HOST is required in production',
+          path: ['SMTP_HOST'],
         });
       }
       if (!env.ALLOWED_ORIGINS || env.ALLOWED_ORIGINS.trim() === '') {
@@ -223,10 +262,41 @@ export const config = {
       windowMs: env.REAUTH_RATE_LIMIT_WINDOW_MS,
       maxPerIp: env.REAUTH_RATE_LIMIT_MAX_PER_IP,
     },
+    otpSend: {
+      windowMs: env.OTP_SEND_RATE_LIMIT_WINDOW_MS,
+      maxPerIp: env.OTP_SEND_RATE_LIMIT_MAX_PER_IP,
+      maxPerEmail: env.OTP_SEND_RATE_LIMIT_MAX_PER_EMAIL,
+    },
+    otpVerify: {
+      windowMs: env.OTP_VERIFY_RATE_LIMIT_WINDOW_MS,
+      maxPerIp: env.OTP_VERIFY_RATE_LIMIT_MAX_PER_IP,
+    },
   },
 
   redis: {
     url: env.REDIS_URL,
+  },
+
+  email: {
+    transport:
+      env.EMAIL_TRANSPORT ?? (env.NODE_ENV === 'test' ? ('memory' as const) : ('smtp' as const)),
+    from: env.EMAIL_FROM,
+    smtp: {
+      host: env.SMTP_HOST,
+      port: env.SMTP_PORT,
+      secure: env.SMTP_SECURE,
+      user: env.SMTP_USER,
+      pass: env.SMTP_PASS,
+    },
+  },
+
+  otp: {
+    expiresMinutes: env.OTP_EXPIRES_MINUTES,
+    resendCooldownSeconds: env.OTP_RESEND_COOLDOWN_SECONDS,
+    maxAttempts: env.OTP_MAX_ATTEMPTS,
+    emailTokenExpiresMinutes: env.EMAIL_TOKEN_EXPIRES_MINUTES,
+    resetGrantExpiresMinutes: env.RESET_GRANT_EXPIRES_MINUTES,
+    passwordChangeOtpRoles: env.PASSWORD_CHANGE_OTP_ROLES,
   },
 
   security: {

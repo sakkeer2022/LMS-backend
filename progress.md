@@ -1,5 +1,23 @@
 # Progress Log
 
+## 2026-11-03 — Account recovery and password change (LMS-100)
+
+- New `account-recovery` module: `POST /auth/recovery/requests` (same 202 for unknown, wrong-portal and inactive accounts, decoy challenge, nothing emailed), `/verify` (code to a single-use, five-minute reset credential, hash stored in `password_reset_grants`) and `/reset` (consumes the credential once even under concurrency, sets the password, activates an account waiting for activation, clears the lockout, ends every session, cancels other recovery and verification credentials, audit `password.reset`, clears the cookies, no automatic login). `PUT /auth/password` (current password checked and counted toward the lockout, new one must differ, every session ends including the caller's, audit `password.changed`).
+- Email code on password change (admin accounts by default, `PASSWORD_CHANGE_OTP_ROLES=admin|all`): `POST /auth/password/requests` emails a code to the signed-in account's own address (no email in the body; other accounts get 422) and `PUT /auth/password` also takes `challengeId` and `otp`. The code has its own purpose (`PASSWORD_CHANGE`, migration `20261103100000_password_change_code`), so it cannot be used for recovery and a recovery code cannot be used here. The current password is checked first, then the code, so a wrong password does not use up the code. Tests in `account-recovery.test.ts` and `password-change-otp-all.test.ts`.
+- `passwordSchema` in `src/shared/validation/password.ts` (8 characters with a number, at most 72 bytes) is the one password rule; `revokeAllSessions` and `clearTokenCookies` are exported from the auth module.
+- Limits reuse the OTP limits (`recovery-send`, `recovery-verify`, `recovery-reset`) and the reauth limit for the change. `RESET_GRANT_EXPIRES_MINUTES` sets the credential lifetime.
+- Tests: `tests/modules/account-recovery.test.ts` (end to end for all three portals, uniform answers, single use, simultaneous resets, expiry, cancellation by a new request, sessions ended, first password for a pending account, audit, password rule, CSRF, change-password cases).
+
+## 2026-11-03 — Email interface, OTP logic and registration email OTP (LMS-99)
+
+- `src/infrastructure/email/`: `EmailSender` interface, nodemailer SMTP sender and an in-memory outbox used when `EMAIL_TRANSPORT=memory` (the default under tests). Production requires `SMTP_HOST` and rejects the memory transport. Code bodies are never logged.
+- `src/modules/email-otp/`: `issueEmailOtp` (replaces the live challenge for the email and purpose, cooldown returns 429, `deliver: false` makes an undeliverable decoy), `verifyEmailOtp` (keyed HMAC-SHA256 hash, constant-time compare, attempts, single consumption under concurrency, registration token stored as a SHA-256 hash) and `consumeRegistrationToken`. Uses the existing `email_challenges` table; no migration.
+- New `registration` module with `POST /auth/registration/email-otp/requests` and `/verify`, per the contract.
+- Tests: `tests/modules/registration-otp.test.ts` (16 with the route check). Expiry, attempts, cooldown and the token lifetime are configuration (`OTP_*`, `EMAIL_TOKEN_EXPIRES_MINUTES`).
+- Regions: `countries` table (migration `20261103090000_countries`, India and UAE rows) with foreign keys from `student_profiles.country` and `boards.country`; the student default country is dropped. `src/modules/regions/` (`countryFromMobile`, `isValidMobile`, `defaultTimezone`, `guardianConsentAge`, cached list) and pure E.164 helpers in `src/shared/regions/`. Tests: `regions.test.ts`, `regions-mobile.test.ts`, `countries-reference.test.ts` (keeps the migration and `prisma/reference-data/countries.ts` equal). Tests insert the rows with `seedCountries()` because the test setup empties every table.
+- Send limits: the registration OTP routes use `routeRateLimit` (`OTP_SEND_RATE_LIMIT_*` per IP and per email, `OTP_VERIFY_RATE_LIMIT_*` per IP), tested in `registration-otp-rate-limit.test.ts`.
+- Not yet: policies, consent and `POST /auth/register`.
+
 ## 2026-11-02 — Keep me signed in, device replacement, admin profile (LMS-100)
 
 - `rememberMe` on the portal login: a signed `rm` claim in both tokens. Ticked gives a persistent refresh cookie and the 7-day session (`JWT_REFRESH_EXPIRES_IN`); unticked gives a browser-session cookie and a 12-hour session (`JWT_SESSION_EXPIRES_IN`). The choice survives refresh rotation.

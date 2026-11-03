@@ -23,12 +23,15 @@ Building blocks that more than one module uses. **Check this list before writing
 | Test users by role                | `tests/helpers/users.ts` (`loginWithRole`)                | Creating a user with a role and logging in, in integration tests                                          |
 | Contract response checks          | `tests/helpers/contract.ts` (`expectContractResponse`)    | Asserting a response matches `docs/openapi.yaml` in integration tests                                     |
 | Per-route rate limiter            | `src/middleware/rate-limit.ts` (`routeRateLimit`)         | Per-IP and per-email limits on one route (login, refresh, OTP, recovery, consent); 429 with `Retry-After` |
+| Regions (India, UAE)              | `src/modules/regions/index.ts`, pure E.164 helpers in `src/shared/regions/` | Country from a mobile number, mobile validation, default time zone, guardian consent age; `tests/helpers/regions.ts` (`seedCountries`) in tests |
+| Email sending                     | `src/infrastructure/email/` (`getEmailSender`, `getTestOutbox`)      | Sending any email through the interface; SMTP in use, `memory` outbox in tests (`tests/helpers/email.ts` reads the code) |
+| Email one-time codes              | `src/modules/email-otp/index.ts` (`issueEmailOtp`, `verifyEmailOtp`, `consumeRegistrationToken`) | Registration, recovery and email verification; keyed hash, attempts, cooldown, single-use token |
+| Password rule                     | `src/shared/validation/password.ts` (`passwordSchema`)    | The one password policy: 8 characters with a number, at most 72 bytes                          |
+| Ending all sessions               | `src/modules/auth/index.ts` (`revokeAllSessions`)         | After a password reset or change                                                               |
 
 ## Planned
 
 | Component            | Location                                                                 | Ticket                      | Notes                                                                           |
 | -------------------- | ------------------------------------------------------------------------ | --------------------------- | ------------------------------------------------------------------------------- |
-| Regions (India, UAE) | `countries` table, `src/modules/regions/`, pure helpers in `src/shared/` | LMS-99                      | See `REGIONS.md`                                                                |
-| Email sending        | `src/infrastructure/email/`                                              | LMS-99 (shared with LMS-79) | One interface; transport chosen by configuration (SMTP now, any provider later) |
 | File storage         | `src/infrastructure/storage/`                                            | LMS-99                      | Put and get by key with SHA-256; used by consent PDFs, policies, library        |
 | PDF stamping         | `src/infrastructure/pdf/`                                                | LMS-99                      | `pdf-lib` approved                                                              |

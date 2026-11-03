@@ -16,6 +16,7 @@ enum UserStatus {
 enum ChallengePurpose {
   REGISTRATION
   PASSWORD_RECOVERY
+  PASSWORD_CHANGE
   ACCOUNT_ACTIVATION
 }
 
@@ -326,11 +327,12 @@ model StudentProfile {
   guardianEmail           String?               @map("guardian_email") @db.VarChar(255)
   // "Also send progress reports and payment receipts to the guardian"
   guardianReceivesReports Boolean               @default(false) @map("guardian_receives_reports")
-  // Revenue reports group by country; derived from the mobile country code until a field exists
-  country                 String                @default("IN") @db.VarChar(2)
+  // Revenue reports group by country; derived from the mobile number's dialling code at registration
+  country                 String                @db.VarChar(2)
   createdAt               DateTime              @default(now()) @map("created_at")
   updatedAt               DateTime              @updatedAt @map("updated_at")
 
+  countryRef       Country           @relation(fields: [country], references: [code], onDelete: Restrict)
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   category         Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   board            Board?            @relation(fields: [boardId], references: [id], onDelete: Restrict)
@@ -583,6 +585,26 @@ model Category {
   @@map("categories")
 }
 
+// Countries the platform serves (docs REGIONS.md). A new country is a row here, not a code change.
+model Country {
+  code               String   @id @db.VarChar(2)
+  name               String   @db.VarChar(100)
+  dialCode           String   @unique @map("dial_code") @db.VarChar(5)
+  // National number (after the dialling code) as a regular expression
+  mobilePattern      String   @map("mobile_pattern") @db.VarChar(100)
+  defaultTimezone    String   @map("default_timezone") @db.VarChar(64)
+  guardianConsentAge Int      @map("guardian_consent_age")
+  isActive           Boolean  @default(true) @map("is_active")
+  displayOrder       Int      @default(0) @map("display_order")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  students StudentProfile[]
+  boards   Board[]
+
+  @@map("countries")
+}
+
 model Board {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   code      String   @unique @db.VarChar(50)
@@ -593,8 +615,9 @@ model Board {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  curricula Curriculum[]
-  students  StudentProfile[]
+  countryRef Country          @relation(fields: [country], references: [code], onDelete: Restrict)
+  curricula  Curriculum[]
+  students   StudentProfile[]
 
   @@map("boards")
 }

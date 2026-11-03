@@ -20,6 +20,7 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 | GET | `/auth/me` | `getCurrentUser` | student, faculty or admin (self only) | ready-for-review |
 | POST | `/auth/reauthenticate` | `reauthenticate` | student, faculty or admin (self only) | ready-for-review |
 | PUT | `/auth/password` | `changeOwnPassword` | student, faculty or admin (self only) | ready-for-review |
+| POST | `/auth/password/requests` | `requestPasswordChangeCode` | student, faculty or admin (self only) | ready-for-review |
 | POST | `/auth/recovery/requests` | `requestPasswordRecovery` | public | ready-for-review |
 | POST | `/auth/recovery/verify` | `verifyRecoveryOtp` | public | ready-for-review |
 | POST | `/auth/recovery/reset` | `resetPassword` | public | ready-for-review |
