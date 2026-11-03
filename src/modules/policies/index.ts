@@ -8,3 +8,4 @@ export {
   type NewPolicy,
   type PolicyView,
 } from './policies.service.js';
+export { loadPlaceholderPolicies, loadPolicyFolder, type LoadReport } from './policy-loader.js';
