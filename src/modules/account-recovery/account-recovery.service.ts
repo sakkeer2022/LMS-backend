@@ -15,6 +15,14 @@ import type {
 } from './account-recovery.dto.js';
 
 const BCRYPT_ROUNDS = 12;
+/** Whether this account must confirm a password change with an email code (admin accounts by default). */
+function changeNeedsEmailCode(roleNames: readonly string[]): boolean {
+  return (
+    config.otp.passwordChangeOtpRoles === 'all' ||
+    roleNames.some((name) => PORTAL_ROLES.admin.includes(name))
+  );
+}
+
 const INVALID_RESET = 'The reset link has expired. Start again from "Forgot password?".';
 
 const sha256 = (value: string): string => crypto.createHash('sha256').update(value).digest('hex');
@@ -134,6 +142,27 @@ export async function resetPassword(input: PasswordReset, audit: AuditContext): 
 }
 
 /**
+ * Emails a code to the signed-in account's own address, to confirm a password change. Only accounts that
+ * must confirm by email can ask; the code is bound to this account and to this purpose.
+ */
+export async function requestPasswordChangeCode(userId: string): Promise<IssuedChallenge> {
+  const user = await prisma.user.findFirst({
+    where: { id: userId, deletedAt: null },
+    include: { roles: { include: { role: { select: { name: true } } } } },
+  });
+  if (!user || !user.isActive) throw new ValidationError('Unable to send a code.');
+  if (!changeNeedsEmailCode(user.roles.map((ur) => ur.role.name))) {
+    throw new ValidationError('This account does not need an email code to change its password.');
+  }
+  return issueEmailOtp({
+    email: user.email,
+    purpose: 'PASSWORD_CHANGE',
+    userId: user.id,
+    deliver: true,
+  });
+}
+
+/**
  * Changes the signed-in user's own password. The current password is checked first (a wrong one counts
  * toward the account lockout, like a wrong login), and the new one must differ. Every session ends,
  * including this one, so the person signs in again with the new password.
@@ -143,8 +172,15 @@ export async function changePassword(
   input: PasswordChange,
   audit: AuditContext
 ): Promise<void> {
-  const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
+  const user = await prisma.user.findFirst({
+    where: { id: userId, deletedAt: null },
+    include: { roles: { include: { role: { select: { name: true } } } } },
+  });
   if (!user || !user.isActive) throw new ValidationError('Unable to change the password.');
+  const needsCode = changeNeedsEmailCode(user.roles.map((ur) => ur.role.name));
+  if (needsCode && (!input.challengeId || !input.otp)) {
+    throw new ValidationError('Enter the code we emailed you to change your password.');
+  }
   if (user.lockedUntil && user.lockedUntil > new Date()) {
     throw new TooManyRequestsError('Too many failed attempts. Please try again later.');
   }
@@ -173,6 +209,19 @@ export async function changePassword(
   }
   if (input.newPassword === input.currentPassword) {
     throw new ValidationError('The new password must be different from the current one.');
+  }
+
+  if (needsCode && input.challengeId && input.otp) {
+    // Checked last so a wrong current or unchanged password does not burn an attempt; the code must belong
+    // to this account (a code emailed to someone else's address never matches)
+    const verified = await verifyEmailOtp({
+      challengeId: input.challengeId,
+      otp: input.otp,
+      purpose: 'PASSWORD_CHANGE',
+    });
+    if (verified.userId !== user.id) {
+      throw new ValidationError('The code is invalid or has expired. Request a new one.');
+    }
   }
 
   await prisma.user.update({

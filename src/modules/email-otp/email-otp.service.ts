@@ -22,6 +22,7 @@ export interface VerifiedOtp {
 const COPY_FOR: Partial<Record<ChallengePurpose, OtpPurposeCopy>> = {
   REGISTRATION: 'registration',
   PASSWORD_RECOVERY: 'recovery',
+  PASSWORD_CHANGE: 'password-change',
 };
 
 // The OTP key is derived from the JWT secret, so no extra secret has to be provisioned. A 6-digit code

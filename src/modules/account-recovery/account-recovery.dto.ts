@@ -25,6 +25,12 @@ export const PasswordResetDto = z.strictObject({
 export const PasswordChangeDto = z.strictObject({
   currentPassword: z.string().min(1).max(1024),
   newPassword: passwordSchema,
+  // Required for accounts that confirm a change by email; the service decides which
+  challengeId: z.uuid().optional(),
+  otp: z
+    .string()
+    .regex(/^[0-9]{6}$/, 'The code is 6 digits')
+    .optional(),
 });
 
 export type RecoveryRequest = z.infer<typeof RecoveryRequestDto>;

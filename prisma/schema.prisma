@@ -16,6 +16,7 @@ enum UserStatus {
 enum ChallengePurpose {
   REGISTRATION
   PASSWORD_RECOVERY
+  PASSWORD_CHANGE
   ACCOUNT_ACTIVATION
 }
 

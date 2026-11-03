@@ -99,6 +99,8 @@ const envSchema = z
     OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().positive().default(60),
     OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
     EMAIL_TOKEN_EXPIRES_MINUTES: z.coerce.number().int().positive().default(30),
+    // Who must confirm a password change with an email code: admin and super_admin accounts, or every role
+    PASSWORD_CHANGE_OTP_ROLES: z.enum(['admin', 'all']).default('admin'),
     RESET_GRANT_EXPIRES_MINUTES: z.coerce.number().int().positive().default(5),
   })
   .superRefine((env, ctx) => {
@@ -294,6 +296,7 @@ export const config = {
     maxAttempts: env.OTP_MAX_ATTEMPTS,
     emailTokenExpiresMinutes: env.EMAIL_TOKEN_EXPIRES_MINUTES,
     resetGrantExpiresMinutes: env.RESET_GRANT_EXPIRES_MINUTES,
+    passwordChangeOtpRoles: env.PASSWORD_CHANGE_OTP_ROLES,
   },
 
   security: {

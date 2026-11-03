@@ -1,5 +1,14 @@
 # Findings & Decisions
 
+## 2026-11-03 — Email code on password change (LMS-100)
+
+| Finding / Decision | Detail |
+|---|---|
+| Why a code on top of the current password | A stolen session alone cannot change an admin's password (the current password is needed), and with the code the password alone is not enough either: the attacker also needs the admin's mailbox. Admin and super_admin accounts only by default; `PASSWORD_CHANGE_OTP_ROLES=all` extends it to every role. |
+| One request, not a grant | The password form is filled first and the code is sent with the same `PUT /auth/password`, so no separate grant or extra popup is needed. The current password and the new-password rules are checked before the code, so a typo does not burn a code attempt. |
+| Own purpose | `PASSWORD_CHANGE` is a separate challenge purpose: a recovery code cannot change a password and a change code cannot recover one (tests cover both directions and another account's code). |
+| Trade-off | An admin cannot change their password while email delivery is down; recovery has the same dependency. |
+
 ## 2026-11-03 — Email OTP (LMS-99)
 
 | Finding / Decision | Detail |

@@ -74,3 +74,16 @@ export async function changePassword(
     next(err);
   }
 }
+
+export async function requestChangeCode(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const challenge = await RecoveryService.requestPasswordChangeCode(req.user!.sub);
+    res.status(202).json(successResponse(challenge, 'A code has been sent to your email'));
+  } catch (err) {
+    next(err);
+  }
+}

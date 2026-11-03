@@ -1,4 +1,4 @@
-export type OtpPurposeCopy = 'registration' | 'recovery';
+export type OtpPurposeCopy = 'registration' | 'recovery' | 'password-change';
 
 const COPY: Record<OtpPurposeCopy, { subject: string; intro: string }> = {
   registration: {
@@ -9,6 +9,10 @@ const COPY: Record<OtpPurposeCopy, { subject: string; intro: string }> = {
   recovery: {
     subject: 'Your Amentorz password reset code',
     intro: 'Use this code to reset your Amentorz password.',
+  },
+  'password-change': {
+    subject: 'Your Amentorz password change code',
+    intro: 'Use this code to confirm the change of your Amentorz password.',
   },
 };
 

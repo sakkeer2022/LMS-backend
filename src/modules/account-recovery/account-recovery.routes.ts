@@ -39,6 +39,13 @@ const resetLimits = routeRateLimit({
     max: config.routeRateLimit.otpVerify.maxPerIp,
   },
 });
+const codeLimits = routeRateLimit({
+  name: 'password-change-code',
+  ip: {
+    windowMs: config.routeRateLimit.otpSend.windowMs,
+    max: config.routeRateLimit.otpSend.maxPerIp,
+  },
+});
 const changeLimits = routeRateLimit({
   name: 'password-change',
   ip: {
@@ -130,17 +137,37 @@ recoveryRouter.post(
 
 /**
  * @openapi
+ * /auth/password/requests:
+ *   post:
+ *     summary: Send a code to your own email before changing your password
+ *     description: Takes no body. A new request replaces the previous code; asking again inside the cooldown returns 429. Only accounts that must confirm a password change by email (admin and super_admin; every role when PASSWORD_CHANGE_OTP_ROLES=all) can ask, others get 422. The code works only for PUT /auth/password.
+ *     tags: [Auth]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       202:
+ *         description: Challenge id, expiry and the time a new code may be requested
+ *       401:
+ *         description: Not signed in
+ *       422:
+ *         description: This account does not need an email code
+ *       429:
+ *         description: A code was sent a moment ago, or too many requests
+ */
+passwordRouter.post('/requests', authenticate, ...codeLimits, RecoveryController.requestChangeCode);
+
+/**
+ * @openapi
  * /auth/password:
  *   put:
  *     summary: Change your own password
- *     description: Checks the current password (a wrong one counts toward the account lockout), requires a different new one, ends every session including this one and clears the auth cookies.
+ *     description: Checks the current password (a wrong one counts toward the account lockout), requires a different new one, ends every session including this one and clears the auth cookies. Admin accounts also send the email code from POST /auth/password/requests (challengeId and otp); a missing or wrong code returns 422.
  *     tags: [Auth]
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
- *           schema: { type: object, required: [currentPassword, newPassword], properties: { currentPassword: { type: string, format: password }, newPassword: { type: string, format: password } } }
+ *           schema: { type: object, required: [currentPassword, newPassword], properties: { currentPassword: { type: string, format: password }, newPassword: { type: string, format: password }, challengeId: { type: string, format: uuid }, otp: { type: string, pattern: '^[0-9]{6}$' } } }
  *     responses:
  *       200:
  *         description: Password changed; sign in again

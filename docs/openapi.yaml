@@ -1027,7 +1027,7 @@
           "Identity"
         ],
         "summary": "Change own password",
-        "description": "Current active, email-verified student, faculty or admin (self only) identity; server checks role, permission and resource ownership on every request. Verify current password, enforce new-password policy and difference from current password. Atomically update hash, clear activation flag, revoke all sessions including caller and clear cookies. Login required again. Audit password change.",
+        "description": "Current active, email-verified student, faculty or admin (self only) identity; server checks role, permission and resource ownership on every request. Verify current password, enforce new-password policy and difference from current password. Admin and super_admin accounts also send the email code from POST /auth/password/requests (challengeId and otp); a missing, wrong or expired code is 422. Atomically update hash, clear activation flag, revoke all sessions including caller and clear cookies. Login required again. Audit password change.",
         "x-required-role": "student, faculty or admin (self only)",
         "x-review-status": "ready-for-review",
         "security": [
@@ -1102,6 +1102,73 @@
             }
           }
         }
+      }
+    },
+    "/auth/password/requests": {
+      "post": {
+        "operationId": "requestPasswordChangeCode",
+        "tags": [
+          "Identity"
+        ],
+        "summary": "Send a code to your own email before changing your password",
+        "description": "Current active, email-verified student, faculty or admin (self only) identity; server checks role, permission and resource ownership on every request. Sends a six-digit code to the signed-in account email; no email is accepted in the request. A new request replaces the previous code; asking again inside the resend cooldown returns 429. Only accounts that must confirm a password change by email can ask (admin and super_admin; every role when PASSWORD_CHANGE_OTP_ROLES=all); others get 422. The code is for PUT /auth/password only and cannot be used for password recovery. No OTP in response.",
+        "x-required-role": "student, faculty or admin (self only)",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Send a code to your own email before changing your password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/requestPasswordChangeCodeResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "challengeId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "expiresAt": "2026-10-21T09:00:00Z",
+                    "resendAfter": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ]
       }
     },
     "/auth/recovery/requests": {
@@ -9046,6 +9113,18 @@
             "writeOnly": true,
             "pattern": "^(?=.*[0-9]).{8,72}$",
             "description": "Platform password rule for every role (decided 2026-10-29): minimum 8 characters with at least one number. SOW A1.8 asks for secure password policies without fixing a length. Reject over 72 UTF-8 bytes before bcrypt to avoid truncation. Never log. No example credentials."
+          },
+          "challengeId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "description": "From POST /auth/password/requests. Required, with otp, for admin and super_admin accounts (and for every role when PASSWORD_CHANGE_OTP_ROLES=all)."
+          },
+          "otp": {
+            "type": "string",
+            "pattern": "^[0-9]{6}$",
+            "writeOnly": true,
+            "description": "Email-delivered code for challengeId; omitted from examples and logs."
           }
         },
         "required": [
@@ -10932,6 +11011,31 @@
             "enum": [
               null
             ]
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "requestPasswordChangeCodeResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/Challenge"
           }
         },
         "required": [
