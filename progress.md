@@ -1,5 +1,13 @@
 # Progress Log
 
+## 2026-11-03 — Email interface, OTP logic and registration email OTP (LMS-99)
+
+- `src/infrastructure/email/`: `EmailSender` interface, nodemailer SMTP sender and an in-memory outbox used when `EMAIL_TRANSPORT=memory` (the default under tests). Production requires `SMTP_HOST` and rejects the memory transport. Code bodies are never logged.
+- `src/modules/email-otp/`: `issueEmailOtp` (replaces the live challenge for the email and purpose, cooldown returns 429, `deliver: false` makes an undeliverable decoy), `verifyEmailOtp` (keyed HMAC-SHA256 hash, constant-time compare, attempts, single consumption under concurrency, registration token stored as a SHA-256 hash) and `consumeRegistrationToken`. Uses the existing `email_challenges` table; no migration.
+- New `registration` module with `POST /auth/registration/email-otp/requests` and `/verify`, per the contract.
+- Tests: `tests/modules/registration-otp.test.ts` (16 with the route check). Expiry, attempts, cooldown and the token lifetime are configuration (`OTP_*`, `EMAIL_TOKEN_EXPIRES_MINUTES`).
+- Not yet: per-IP and per-email send limits (the route limiter is on the LMS-100 branch; wire it after that merges), regions, policies, consent and `POST /auth/register`.
+
 ## 2026-10-29 — API contract checks: routes and response shapes (LMS-93)
 
 - `tests/unit/api-contract-routes.test.ts`: every implemented route must be in `docs/openapi.yaml` or in a known-undocumented list with a reason; stale list entries also fail. Runs in `npm run test:unit`, so Bitbucket Pipelines enforces it.

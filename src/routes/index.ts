@@ -10,6 +10,7 @@ import { notificationsRouter } from '@modules/notifications/notifications.routes
 import { adminRouter } from '@modules/admin/admin.routes.js';
 import { uploadsRouter } from '@modules/uploads/uploads.routes.js';
 import { settingsRouter } from '@modules/settings/index.js';
+import { registrationRouter } from '@modules/registration/index.js';
 import { auditLogMiddleware } from '@middleware/audit.middleware';
 
 export const router = Router();
@@ -22,6 +23,7 @@ router.use(auditLogMiddleware);
 // come before a shorter prefix). tests/unit/api-contract-routes.test.ts reads
 // this list to check every implemented route against docs/openapi.yaml.
 export const featureRouters: ReadonlyArray<readonly [path: string, router: Router]> = [
+  ['/auth/registration', registrationRouter],
   ['/auth', authRouter],
   ['/roles', rolesRouter],
   ['/permissions', permissionsRouter],

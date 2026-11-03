@@ -32,6 +32,7 @@ Evidence references: SOW = Software Development Agreement, Annexure 1 (the signe
 | P4  | Do adults see the guardian step?                                                         | LMS-99                                       | Optional for adults                                         | Pending |
 | P5  | Initial platform settings (scoring parameters, thresholds) with limits and defaults      | LMS-90 and each feature that needs a setting | Registry empty until approved                               | Pending |
 | P6  | Pricing model: one exact price per faculty assignment, or rules with precedence (LMS-58) | LMS-58                                       | One price per assignment                                    | Pending |
+| P7  | Registration email already in use: uniform 202 at step 1 (no account enumeration) or an explicit message | LMS-99 | Uniform 202; the person learns at the final submit (409) | Pending |
 
 ## Team (tech lead and frontend)
 
