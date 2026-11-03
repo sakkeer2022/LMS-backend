@@ -66,6 +66,7 @@ describe('Amentorz Domain Schema Integration', () => {
       });
       const studentTerms = await prisma.policyDocument.create({
         data: {
+          country: 'IN',
           type: 'STUDENT_TERMS',
           version: '1.0',
           title: 'Student Terms',
@@ -168,6 +169,7 @@ describe('Amentorz Domain Schema Integration', () => {
       const { studentTerms } = await createLearningCatalogue();
       const terms = await prisma.policyDocument.create({
         data: {
+          country: 'IN',
           type: 'TERMS_OF_USE',
           version: '1.0',
           title: 'Terms of Use',

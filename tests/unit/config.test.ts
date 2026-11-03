@@ -26,6 +26,8 @@ describe('Configuration Schema & Razorpay Validation Unit Tests', () => {
     RAZORPAY_WEBHOOK_SECRET: 'live_webhook_secret_min_16_chars',
     METRICS_TOKEN: 'production-metrics-token-at-least-32-chars',
     SMTP_HOST: 'smtp.example.org',
+    STORAGE_DRIVER: 's3',
+    STORAGE_S3_BUCKET: 'amentorz-consents',
   };
 
   it('Development: allows default Razorpay placeholders without errors', () => {
@@ -156,6 +158,21 @@ describe('Configuration Schema & Razorpay Validation Unit Tests', () => {
       );
       expect(memory.error.issues.map((i) => i.message)).toContain(
         'EMAIL_TRANSPORT=memory is for tests and cannot be used in production'
+      );
+    }
+  });
+
+  it('Production: requires S3 file storage with a bucket', () => {
+    const local = envSchema.safeParse({ ...baseValidProdEnv, STORAGE_DRIVER: 'local' });
+    const noBucket = envSchema.safeParse({ ...baseValidProdEnv, STORAGE_S3_BUCKET: undefined });
+    expect(local.success).toBe(false);
+    expect(noBucket.success).toBe(false);
+    if (!local.success && !noBucket.success) {
+      expect(local.error.issues.map((i) => i.message)).toContain(
+        'STORAGE_DRIVER must be s3 in production'
+      );
+      expect(noBucket.error.issues.map((i) => i.message)).toContain(
+        'STORAGE_S3_BUCKET is required in production'
       );
     }
   });

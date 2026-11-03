@@ -85,6 +85,14 @@ const envSchema = z
     CLAMAV_HOST: z.string().default('localhost'),
     CLAMAV_PORT: z.coerce.number().int().positive().default(3310),
 
+    // File storage for signed consents and policy PDFs (src/infrastructure/storage). `local` and `memory` are
+    // for development and tests; production uses a private S3 bucket of its own.
+    STORAGE_DRIVER: z.enum(['local', 's3', 'memory']).optional(),
+    STORAGE_LOCAL_DIR: z.string().default('.data/storage'),
+    STORAGE_S3_BUCKET: z.string().optional(),
+    STORAGE_S3_REGION: z.string().optional(),
+    STORAGE_S3_PREFIX: z.string().default(''),
+
     // Email: one interface, transport chosen here. `memory` keeps messages in process (tests only).
     EMAIL_TRANSPORT: z.enum(['smtp', 'memory']).optional(),
     EMAIL_FROM: z.string().default('Amentorz <no-reply@amentorz.local>'),
@@ -124,6 +132,20 @@ const envSchema = z
           code: z.ZodIssueCode.custom,
           message: 'COOKIE_SECRET must be at least 32 characters long in production',
           path: ['COOKIE_SECRET'],
+        });
+      }
+      if (env.STORAGE_DRIVER !== 's3') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'STORAGE_DRIVER must be s3 in production',
+          path: ['STORAGE_DRIVER'],
+        });
+      }
+      if (!env.STORAGE_S3_BUCKET) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'STORAGE_S3_BUCKET is required in production',
+          path: ['STORAGE_S3_BUCKET'],
         });
       }
       if (env.EMAIL_TRANSPORT === 'memory') {
@@ -275,6 +297,17 @@ export const config = {
 
   redis: {
     url: env.REDIS_URL,
+  },
+
+  storage: {
+    driver:
+      env.STORAGE_DRIVER ?? (env.NODE_ENV === 'test' ? ('memory' as const) : ('local' as const)),
+    localDir: env.STORAGE_LOCAL_DIR,
+    s3: {
+      bucket: env.STORAGE_S3_BUCKET,
+      region: env.STORAGE_S3_REGION ?? env.AWS_REGION,
+      prefix: env.STORAGE_S3_PREFIX,
+    },
   },
 
   email: {

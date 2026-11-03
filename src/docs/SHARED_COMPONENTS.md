@@ -24,6 +24,7 @@ Building blocks that more than one module uses. **Check this list before writing
 | Contract response checks          | `tests/helpers/contract.ts` (`expectContractResponse`)    | Asserting a response matches `docs/openapi.yaml` in integration tests                                     |
 | Per-route rate limiter            | `src/middleware/rate-limit.ts` (`routeRateLimit`)         | Per-IP and per-email limits on one route (login, refresh, OTP, recovery, consent); 429 with `Retry-After` |
 | Regions (India, UAE)              | `src/modules/regions/index.ts`, pure E.164 helpers in `src/shared/regions/` | Country from a mobile number, mobile validation, default time zone, guardian consent age; `tests/helpers/regions.ts` (`seedCountries`) in tests |
+| File storage                      | `src/infrastructure/storage/index.ts` (`getStorage`, `getTestStorage`)  | Signed consents and policy PDFs behind one interface (local, S3, memory); keys are driver-independent, so moving to S3 is a file copy |
 | Email sending                     | `src/infrastructure/email/` (`getEmailSender`, `getTestOutbox`)      | Sending any email through the interface; SMTP in use, `memory` outbox in tests (`tests/helpers/email.ts` reads the code) |
 | Email one-time codes              | `src/modules/email-otp/index.ts` (`issueEmailOtp`, `verifyEmailOtp`, `consumeRegistrationToken`) | Registration, recovery and email verification; keyed hash, attempts, cooldown, single-use token |
 | Password rule                     | `src/shared/validation/password.ts` (`passwordSchema`)    | The one password policy: 8 characters with a number, at most 72 bytes                          |
@@ -33,5 +34,5 @@ Building blocks that more than one module uses. **Check this list before writing
 
 | Component            | Location                                                                 | Ticket                      | Notes                                                                           |
 | -------------------- | ------------------------------------------------------------------------ | --------------------------- | ------------------------------------------------------------------------------- |
-| File storage         | `src/infrastructure/storage/`                                            | LMS-99                      | Put and get by key with SHA-256; used by consent PDFs, policies, library        |
+| ~~File storage~~     | built (see Available)                                                    | LMS-99                      | Put and get by key with SHA-256; used by consent PDFs, policies, library        |
 | PDF stamping         | `src/infrastructure/pdf/`                                                | LMS-99                      | `pdf-lib` approved                                                              |

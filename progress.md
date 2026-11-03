@@ -1,5 +1,14 @@
 # Progress Log
 
+## 2026-11-03 — Policies, countries list and file storage (LMS-99)
+
+- Contract: `GET /policies/current` takes a required `country`; new public `GET /regions/countries` (code, name, dial code, default time zone) for the mobile picker; new admin `GET /admin/students/{id}/guardian-consent` (consent metadata). `Policy` gains `country`.
+- Migration `20261103110000_policy_country`: `policy_documents.country` (foreign key to `countries`), unique `(type, country, version)`, a partial unique index allowing one current version per type and country.
+- `src/infrastructure/storage/`: `FileStorage` interface with local, S3 and memory drivers (`STORAGE_DRIVER`, production requires `s3` and `STORAGE_S3_BUCKET`). The database keeps only driver-independent keys, so moving to S3 is a file copy. The S3 driver is written and unit tested with a fake client; it is untried against AWS until credentials exist.
+- `policies` module: current policies per country (503 until all four are loaded, 422 for an unsupported country, never another country's text) and the policy PDF (inline, public cache per version, hash re-checked on every read, 503 if the file is missing or altered); `publishPolicy` makes a version current in one transaction and keeps the old one on record.
+- Tests: `policies.test.ts`, `storage.test.ts`, config tests.
+- Next: PDF interface and the signing endpoint, the three consent downloads, the purge job, a policy loader command, then registration.
+
 ## 2026-11-03 — Account recovery and password change (LMS-100)
 
 - New `account-recovery` module: `POST /auth/recovery/requests` (same 202 for unknown, wrong-portal and inactive accounts, decoy challenge, nothing emailed), `/verify` (code to a single-use, five-minute reset credential, hash stored in `password_reset_grants`) and `/reset` (consumes the credential once even under concurrency, sets the password, activates an account waiting for activation, clears the lockout, ends every session, cancels other recovery and verification credentials, audit `password.reset`, clears the cookies, no automatic login). `PUT /auth/password` (current password checked and counted toward the lockout, new one must differ, every session ends including the caller's, audit `password.changed`).
