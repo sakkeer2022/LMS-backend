@@ -9,6 +9,46 @@
 - Regions: `countries` table (migration `20261103090000_countries`, India and UAE rows) with foreign keys from `student_profiles.country` and `boards.country`; the student default country is dropped. `src/modules/regions/` (`countryFromMobile`, `isValidMobile`, `defaultTimezone`, `guardianConsentAge`, cached list) and pure E.164 helpers in `src/shared/regions/`. Tests: `regions.test.ts`, `regions-mobile.test.ts`, `countries-reference.test.ts` (keeps the migration and `prisma/reference-data/countries.ts` equal). Tests insert the rows with `seedCountries()` because the test setup empties every table.
 - Not yet: per-IP and per-email send limits (the route limiter is on the LMS-100 branch; wire it after that merges), regions, policies, consent and `POST /auth/register`.
 
+## 2026-11-02 — Keep me signed in, device replacement, admin profile (LMS-100)
+
+- `rememberMe` on the portal login: a signed `rm` claim in both tokens. Ticked gives a persistent refresh cookie and the 7-day session (`JWT_REFRESH_EXPIRES_IN`); unticked gives a browser-session cookie and a 12-hour session (`JWT_SESSION_EXPIRES_IN`). The choice survives refresh rotation.
+- A new sign-in replaces the earlier sessions of the same user, portal and device fingerprint (`supersedeDeviceSessions`), so one browser never lists several sessions. Other devices are untouched.
+- `npm run create-admin` creates the first verified `super_admin` from `INITIAL_ADMIN_*` env values (idempotent, no defaults).
+- New `admin-profile` module: `PUT /admin/me/profile` (name, mobile in E.164, IANA time zone; email read-only; audited as `profile.updated`) and `GET /admin/me/activity` (the caller's own security events, newest first). `User` gains `timezone` and `lastLoginAt`.
+- Tests: keep-me-signed-in block in `portal-login.test.ts`, replacement test in `sessions.test.ts`, new `admin-profile.test.ts`. 225 tests pass across the auth, contract and unit suites; typecheck, eslint and `contract:validate` are clean.
+- Open: per-country mobile rules wait for the shared region helper (LMS-99); email and password change wait for email verification (LMS-99).
+
+## 2026-11-02 — Generic login removed, dev origins (LMS-100)
+
+- `POST /auth/login` and `AuthService.login` removed; every login is a portal login. `signIn` test helper for users without a portal. Old generic-login tests deleted (covered by `portal-login.test.ts`, which now also checks the HttpOnly and SameSite cookie flags).
+- CORS dev defaults: `http://localhost:3001`, `3002`, `3003` (admin, student, faculty).
+- Full suite: 37 files, 331 tests passing.
+
+## 2026-11-02 — Reauthentication (LMS-100)
+
+- `POST /auth/reauthenticate` (`reauth.service.ts`): password check, session-bound freshness, audit (`reauth.success`, `reauth.failed`), lockout shared with login, per-IP limit `REAUTH_RATE_LIMIT_*`. `requireRecentReauth` guards `PUT /admin/settings/{key}`.
+- Tests: `reauthenticate.test.ts` (contract, session binding, window, survives refresh, wrong password, 429 lockout, freshness not extended by a failed check, 401/403/422); `settings.test.ts` reauthenticates before writing and checks the 403 without it. `reauthenticate()` helper in `tests/helpers/users.ts`.
+
+## 2026-11-02 — Sessions, refresh and /auth/me contract fixes (LMS-100)
+
+- New `session.service.ts`: refresh rotation (keeps portal, family and the original deadline; re-checks account and portal role; reuse revokes the family outside the transaction and is audited), session list (family-based, paginated, `isCurrent`, no IP), revoke one and revoke others (audited, immediate).
+- `GET /auth/me` returns the contract user (`loadContractUser`, shared with the portal login). `POST /auth/refresh` is cookie-only and returns `accessExpiresAt` and `sessionExpiresAt`; it has the `REFRESH_RATE_LIMIT_*` limit.
+- `src/core/security/session-revocation.ts` and a check in `authenticate` stop a revoked session's access tokens at once.
+- Tests: `sessions.test.ts` rewritten (rotation, deadline, reuse, body token, role loss, list, pagination, revoke, 404, revoke others, `/me`); `contract_responses.test.ts` and three refresh tests in `auth.test.ts` now use the portal login. The three routes moved out of the known-mismatch list.
+
+## 2026-11-02 — Portal logins (LMS-100)
+
+- `POST /auth/{student,faculty,admin}/login` in the auth module (`portal-login.service.ts`, `portal-login.controller.ts`), rate limited per IP and per email, audited (`login.success`, `login.failed` with reason, never the password). Response matches the contract (`LoginResult`).
+- Refactor: token issuing moved to `session.ts` (portal and family on the refresh row, absolute deadline option for rotation), cookie helpers to `session-cookies.ts` (refresh cookie max age now follows `JWT_REFRESH_EXPIRES_IN`), impossible-travel check extracted as `assessLoginLocation`, `auth/index.ts` added.
+- Tests: `tests/modules/portal-login.test.ts` (all three portals, wrong portal, super_admin, generic 401, lockout, unverified 403, 422, CSRF, audit) and `portal-login-rate-limit.test.ts` (429 with `Retry-After`). `tests/env-setup.ts` sets high default limits so shared-IP suites never hit them.
+- The sample "unimplemented contract path" in the API docs tests is now `/admin/faculty`.
+
+## 2026-11-02 — Per-route rate limiter (LMS-100)
+
+- `src/middleware/rate-limit.ts` (`routeRateLimit`): per-IP limit and optional per-email limit (normalised `body.email`, falls back to the IP) for one route. Redis store with a per-route key prefix; memory store in tests. A rejected request gets 429 with `Retry-After`.
+- `tests/unit/rate-limit.test.ts`: IP limit, email limit (case and spaces ignored, other emails unaffected), fallback to the IP, separate counters per route.
+- Not applied to any route yet; login and refresh use it in the next commits.
+
 ## 2026-10-29 — API contract checks: routes and response shapes (LMS-93)
 
 - `tests/unit/api-contract-routes.test.ts`: every implemented route must be in `docs/openapi.yaml` or in a known-undocumented list with a reason; stale list entries also fail. Runs in `npm run test:unit`, so Bitbucket Pipelines enforces it.
@@ -83,7 +123,7 @@
 
 - JWT access and refresh tokens are signed and verified with HS256 only (`src/core/security/jwt.ts`).
 - CORS uses the `ALLOWED_ORIGINS` allowlist in every environment; outside production an empty value allows only `http://localhost:3001` (`resolveAllowedOrigins` in `src/config/index.ts`).
-- `src/docs/SECURITY.md` has a verification checklist mapping each baseline control to its test. Open rows: TLS and the Secure cookie (LMS-94), per-route rate limits (LMS-97, LMS-100), student data access (LMS-99, LMS-100).
+- `src/docs/SECURITY.md` has a verification checklist mapping each baseline control to its test. Open rows: TLS and the Secure cookie (LMS-94), per-route rate limits (LMS-99, LMS-100), student data access (LMS-99, LMS-100).
 - New tests: `tests/unit/jwt.test.ts`, `tests/unit/cors.test.ts`, `resolveAllowedOrigins` cases in `tests/unit/config.test.ts`, HttpOnly and SameSite assertions in `tests/modules/auth.test.ts`.
 
 ### Test Results

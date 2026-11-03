@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { successResponse } from '@core/response/index';
-import { authRouter } from '@modules/auth/auth.routes';
+import { authRouter } from '@modules/auth/index';
 import { rolesRouter } from '@modules/roles/roles.routes';
 import { permissionsRouter } from '@modules/permissions/permissions.routes';
 import { usersRouter } from '@modules/users/users.routes';
 import { auditRouter } from '@modules/audit/audit.routes';
 import { featureFlagsRouter } from '@modules/feature-flags/feature-flags.routes.js';
 import { notificationsRouter } from '@modules/notifications/notifications.routes.js';
+import { adminProfileRouter } from '@modules/admin-profile/index.js';
 import { adminRouter } from '@modules/admin/admin.routes.js';
 import { uploadsRouter } from '@modules/uploads/uploads.routes.js';
 import { settingsRouter } from '@modules/settings/index.js';
@@ -32,6 +33,7 @@ export const featureRouters: ReadonlyArray<readonly [path: string, router: Route
   ['/feature-flags', featureFlagsRouter],
   ['/notifications', notificationsRouter],
   ['/admin/settings', settingsRouter],
+  ['/admin/me', adminProfileRouter],
   ['/admin', adminRouter],
   ['/uploads', uploadsRouter],
 ];

@@ -349,6 +349,7 @@ ${routeHandlers}
 import request from 'supertest';
 import { app } from '../helpers/app.js';
 import { getCsrfData } from '../helpers/csrf.js';
+import { signIn } from '../helpers/users.js';
 import { prisma } from '@infrastructure/database/index.js';
 
 describe('${pascalName} API', () => {
@@ -400,11 +401,7 @@ describe('${pascalName} API', () => {
       },
     });
 
-    const loginRes = await request(app)
-      .post('/api/v1/auth/login')
-      .set('Cookie', csrfCookie ?? '')
-      .set('x-csrf-token', csrfToken ?? '')
-      .send({
+    const loginRes = await signIn({
         email: 'super@example.com',
         password: 'Password123!',
       });

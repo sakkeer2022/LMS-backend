@@ -4,6 +4,7 @@ import { UnauthorizedError, ForbiddenError } from '@core/errors/index';
 import { redisClient } from '@infrastructure/redis/connection';
 import { evaluatePolicy, type PolicyRule } from '../core/security/policy.js';
 import { hasPermission } from '../core/security/rbac.js';
+import { isSessionRevoked } from '../core/security/session-revocation.js';
 
 // Extend Express Request with the decoded JWT payload
 declare global {
@@ -41,6 +42,10 @@ export async function authenticate(
       if (isBlacklisted) {
         return next(new UnauthorizedError('Access token has been revoked'));
       }
+    }
+
+    if (payload.sid && (await isSessionRevoked(payload.sid))) {
+      return next(new UnauthorizedError('Session has been revoked'));
     }
 
     req.user = payload;

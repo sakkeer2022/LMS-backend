@@ -25,7 +25,7 @@ describe('CORS allowlist', () => {
 
   it('answers preflight requests from an allowed origin', async () => {
     const res = await request(app)
-      .options('/api/v1/auth/login')
+      .options('/api/v1/auth/student/login')
       .set('Origin', allowedOrigin)
       .set('Access-Control-Request-Method', 'POST');
 

@@ -4,15 +4,14 @@ import { app } from '../helpers/app.js';
 import { getCsrfData } from '../helpers/csrf.js';
 import { contractResponseErrors, expectContractResponse } from '../helpers/contract.js';
 import { prisma } from '@infrastructure/database/index.js';
+import { seedRbac } from '../../prisma/seed-rbac.js';
+import { loginWithRole } from '../helpers/users.js';
 
 /**
  * Response shapes of implemented contract routes (LMS-93). New endpoint tests
  * should call expectContractResponse themselves; this file covers routes that
  * already existed when the check was added.
  */
-
-const EMAIL = 'contract-probe@example.com';
-const PASSWORD = 'Password123!';
 
 interface Session {
   csrfToken: string;
@@ -22,36 +21,15 @@ interface Session {
   refreshCookie: string;
 }
 
-async function registerAndLogin(): Promise<Session> {
-  const { csrfToken, csrfCookie } = await getCsrfData();
-  await request(app)
-    .post('/api/v1/auth/register')
-    .set('Cookie', csrfCookie)
-    .set('x-csrf-token', csrfToken)
-    .send({ email: EMAIL, password: PASSWORD, fullName: 'Contract Probe' });
-
-  const role = await prisma.role.create({ data: { name: 'super_admin' } });
-  const permission = await prisma.permission.create({
-    data: { name: '*', resource: '*', action: '*' },
-  });
-  await prisma.rolePermission.create({ data: { roleId: role.id, permissionId: permission.id } });
-  const user = await prisma.user.findFirstOrThrow({ where: { email: EMAIL } });
-  await prisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
-
-  const login = await request(app)
-    .post('/api/v1/auth/login')
-    .set('Cookie', csrfCookie)
-    .set('x-csrf-token', csrfToken)
-    .send({ email: EMAIL, password: PASSWORD });
-  const cookies = login.headers['set-cookie'] as unknown as string[];
-  const accessCookie = cookies.find((c) => c.startsWith('accessToken='))!.split(';')[0]!;
-  const refreshCookie = cookies.find((c) => c.startsWith('refreshToken='))!.split(';')[0]!;
+async function adminSession(): Promise<Session> {
+  await seedRbac(prisma);
+  const login = await loginWithRole('super_admin', 'contract-probe@example.com');
   return {
-    csrfToken,
-    csrfCookie,
-    bearer: { Authorization: `Bearer ${accessCookie.split('=')[1]}` },
-    accessCookie,
-    refreshCookie,
+    csrfToken: login.csrfToken,
+    csrfCookie: login.csrfCookie,
+    bearer: { Authorization: `Bearer ${login.token}` },
+    accessCookie: login.accessCookie,
+    refreshCookie: login.refreshCookie,
   };
 }
 
@@ -59,13 +37,34 @@ describe('Implemented routes match the contract response schemas', () => {
   let s: Session;
 
   beforeEach(async () => {
-    s = await registerAndLogin();
+    s = await adminSession();
   });
 
   it('GET /auth/csrf-token', async () => {
     const res = await request(app).get('/api/v1/auth/csrf-token');
     expect(res.status).toBe(200);
     expectContractResponse(res, 'get', '/auth/csrf-token');
+  });
+
+  it('GET /auth/me', async () => {
+    const res = await request(app).get('/api/v1/auth/me').set(s.bearer);
+    expect(res.status).toBe(200);
+    expectContractResponse(res, 'get', '/auth/me');
+  });
+
+  it('GET /auth/sessions', async () => {
+    const res = await request(app).get('/api/v1/auth/sessions').set(s.bearer);
+    expect(res.status).toBe(200);
+    expectContractResponse(res, 'get', '/auth/sessions');
+  });
+
+  it('POST /auth/refresh', async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', `${s.csrfCookie}; ${s.refreshCookie}`)
+      .set('x-csrf-token', s.csrfToken);
+    expect(res.status).toBe(200);
+    expectContractResponse(res, 'post', '/auth/refresh');
   });
 
   it('DELETE /auth/sessions', async () => {
@@ -109,7 +108,7 @@ describe('Known contract mismatches', () => {
   let s: Session;
 
   beforeEach(async () => {
-    s = await registerAndLogin();
+    s = await adminSession();
   });
 
   const KNOWN_MISMATCHES: Array<{
@@ -119,31 +118,6 @@ describe('Known contract mismatches', () => {
     method: string;
     path: string;
   }> = [
-    {
-      label: 'GET /auth/me 200',
-      fixedBy: 'LMS-100 (profile shape: mobileNumber, emailVerified, portal role names)',
-      call: (s) => request(app).get('/api/v1/auth/me').set(s.bearer),
-      method: 'get',
-      path: '/auth/me',
-    },
-    {
-      label: 'GET /auth/sessions 200',
-      fixedBy: 'LMS-100 (pagination meta, isCurrent, no IP address)',
-      call: (s) => request(app).get('/api/v1/auth/sessions').set(s.bearer),
-      method: 'get',
-      path: '/auth/sessions',
-    },
-    {
-      label: 'POST /auth/refresh 200',
-      fixedBy: 'LMS-100 (response body shape)',
-      call: (s) =>
-        request(app)
-          .post('/api/v1/auth/refresh')
-          .set('Cookie', `${s.csrfCookie}; ${s.refreshCookie}`)
-          .set('x-csrf-token', s.csrfToken),
-      method: 'post',
-      path: '/auth/refresh',
-    },
     {
       label: 'GET /audit 200',
       fixedBy:

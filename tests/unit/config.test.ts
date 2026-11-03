@@ -38,6 +38,23 @@ describe('Configuration Schema & Razorpay Validation Unit Tests', () => {
     }
   });
 
+  it('route rate limits have defaults and can be overridden', () => {
+    const defaults = envSchema.safeParse(baseValidDevEnv);
+    expect(defaults.success).toBe(true);
+    if (defaults.success) {
+      expect(defaults.data.LOGIN_RATE_LIMIT_MAX_PER_IP).toBe(20);
+      expect(defaults.data.LOGIN_RATE_LIMIT_MAX_PER_EMAIL).toBe(10);
+      expect(defaults.data.REFRESH_RATE_LIMIT_MAX_PER_IP).toBe(60);
+    }
+
+    const custom = envSchema.safeParse({ ...baseValidDevEnv, LOGIN_RATE_LIMIT_MAX_PER_IP: '5' });
+    expect(custom.success && custom.data.LOGIN_RATE_LIMIT_MAX_PER_IP).toBe(5);
+
+    expect(
+      envSchema.safeParse({ ...baseValidDevEnv, REFRESH_RATE_LIMIT_WINDOW_MS: '0' }).success
+    ).toBe(false);
+  });
+
   it('Development: accepts custom rzp_test_ keys', () => {
     const result = envSchema.safeParse({
       ...baseValidDevEnv,
@@ -171,5 +188,10 @@ describe('resolveAllowedOrigins', () => {
 
   it('never allows a wildcard by default', () => {
     expect(DEFAULT_DEV_ALLOWED_ORIGINS).not.toContain('*');
+    expect(DEFAULT_DEV_ALLOWED_ORIGINS).toEqual([
+      'http://localhost:3001',
+      'http://localhost:3002',
+      'http://localhost:3003',
+    ]);
   });
 });
