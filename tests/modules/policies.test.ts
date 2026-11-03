@@ -159,8 +159,20 @@ describe('regions API', () => {
     expectContractResponse(res, 'get', '/regions/countries');
     expect(res.headers['cache-control']).toContain('public');
     expect(res.body.data).toEqual([
-      { code: 'IN', name: 'India', dialCode: '+91', defaultTimezone: 'Asia/Kolkata' },
-      { code: 'AE', name: 'United Arab Emirates', dialCode: '+971', defaultTimezone: 'Asia/Dubai' },
+      {
+        code: 'IN',
+        name: 'India',
+        dialCode: '+91',
+        defaultTimezone: 'Asia/Kolkata',
+        guardianConsentAge: 18,
+      },
+      {
+        code: 'AE',
+        name: 'United Arab Emirates',
+        dialCode: '+971',
+        defaultTimezone: 'Asia/Dubai',
+        guardianConsentAge: 18,
+      },
     ]);
   });
 });
