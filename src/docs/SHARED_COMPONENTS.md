@@ -22,6 +22,7 @@ Building blocks that more than one module uses. **Check this list before writing
 | Platform settings                 | `src/modules/settings/index.ts` (`getSetting`)            | Reading an admin-configurable value; add the key to `settings.registry.ts`                         |
 | Test users by role                | `tests/helpers/users.ts` (`loginWithRole`)                | Creating a user with a role and logging in, in integration tests                                   |
 | Contract response checks          | `tests/helpers/contract.ts` (`expectContractResponse`)    | Asserting a response matches `docs/openapi.yaml` in integration tests                              |
+| Regions (India, UAE)              | `src/modules/regions/index.ts`, pure E.164 helpers in `src/shared/regions/` | Country from a mobile number, mobile validation, default time zone, guardian consent age; `tests/helpers/regions.ts` (`seedCountries`) in tests |
 | Email sending                     | `src/infrastructure/email/` (`getEmailSender`, `getTestOutbox`)      | Sending any email through the interface; SMTP in use, `memory` outbox in tests (`tests/helpers/email.ts` reads the code) |
 | Email one-time codes              | `src/modules/email-otp/index.ts` (`issueEmailOtp`, `verifyEmailOtp`, `consumeRegistrationToken`) | Registration, recovery and email verification; keyed hash, attempts, cooldown, single-use token |
 
@@ -29,7 +30,6 @@ Building blocks that more than one module uses. **Check this list before writing
 
 | Component              | Location                                                                 | Ticket                      | Notes                                                                           |
 | ---------------------- | ------------------------------------------------------------------------ | --------------------------- | ------------------------------------------------------------------------------- |
-| Regions (India, UAE)   | `countries` table, `src/modules/regions/`, pure helpers in `src/shared/` | LMS-97 or LMS-99            | See `REGIONS.md`                                                                |
 | Per-route rate limiter | `src/middleware/`                                                        | LMS-97                      | Reused by login, OTP, recovery and consent                                      |
 | File storage           | `src/infrastructure/storage/`                                            | LMS-98                      | Put and get by key with SHA-256; used by consent PDFs, policies, library        |
 | PDF stamping           | `src/infrastructure/pdf/`                                                | LMS-98                      | `pdf-lib` approved                                                              |

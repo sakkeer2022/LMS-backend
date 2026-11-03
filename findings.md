@@ -7,6 +7,7 @@
 | Hashing | Codes are hashed with HMAC-SHA256 under a key derived from `JWT_SECRET` (no new secret to provision) and bound to the challenge id. A plain hash of a 6-digit code could be enumerated from a database leak. |
 | Uniform answers | An email that already has an account gets a decoy challenge with no email sent, so step 1 reveals nothing (P7, working assumption). A wrong, expired, used or unknown code all return the same 422; only exhausted attempts return 429. |
 | Replacing codes | A new request marks the live challenge for that email and purpose as consumed, and a request inside the cooldown returns 429 without changing anything. |
+| Country defaults | `student_profiles.country` lost its `IN` default (REGIONS rule 1): registration sets it from the mobile number. `boards.country` keeps its default for now because the catalogue API on the unmerged LMS-54 branch creates boards without a country; remove it when that merges. |
 | LMS-99 vs LMS-100 scope | Jira LMS-99 is student registration; forgot-password, reset and change-password are the rest of LMS-100 and need the LMS-100 code (route limiter, session revocation, reauthentication), so they follow once LMS-100 has merged. |
 
 ## 2026-10-29 — API route/contract drift check (LMS-93)

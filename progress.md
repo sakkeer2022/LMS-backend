@@ -6,6 +6,7 @@
 - `src/modules/email-otp/`: `issueEmailOtp` (replaces the live challenge for the email and purpose, cooldown returns 429, `deliver: false` makes an undeliverable decoy), `verifyEmailOtp` (keyed HMAC-SHA256 hash, constant-time compare, attempts, single consumption under concurrency, registration token stored as a SHA-256 hash) and `consumeRegistrationToken`. Uses the existing `email_challenges` table; no migration.
 - New `registration` module with `POST /auth/registration/email-otp/requests` and `/verify`, per the contract.
 - Tests: `tests/modules/registration-otp.test.ts` (16 with the route check). Expiry, attempts, cooldown and the token lifetime are configuration (`OTP_*`, `EMAIL_TOKEN_EXPIRES_MINUTES`).
+- Regions: `countries` table (migration `20261103090000_countries`, India and UAE rows) with foreign keys from `student_profiles.country` and `boards.country`; the student default country is dropped. `src/modules/regions/` (`countryFromMobile`, `isValidMobile`, `defaultTimezone`, `guardianConsentAge`, cached list) and pure E.164 helpers in `src/shared/regions/`. Tests: `regions.test.ts`, `regions-mobile.test.ts`, `countries-reference.test.ts` (keeps the migration and `prisma/reference-data/countries.ts` equal). Tests insert the rows with `seedCountries()` because the test setup empties every table.
 - Not yet: per-IP and per-email send limits (the route limiter is on the LMS-100 branch; wire it after that merges), regions, policies, consent and `POST /auth/register`.
 
 ## 2026-10-29 — API contract checks: routes and response shapes (LMS-93)
