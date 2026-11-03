@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../helpers/app.js';
 import { getCsrfData } from '../helpers/csrf.js';
+import { signIn } from '../helpers/users.js';
 import { prisma } from '@infrastructure/database/index.js';
 
 describe('Admin Portal API', () => {
@@ -108,14 +109,10 @@ describe('Admin Portal API', () => {
     targetUserId = targetUser.id;
 
     // 6. Log in admin to get token
-    const adminLoginRes = await request(app)
-      .post('/api/v1/auth/login')
-      .set('Cookie', csrfCookie ?? '')
-      .set('x-csrf-token', csrfToken ?? '')
-      .send({
-        email: 'admin@example.com',
-        password: 'Password123!',
-      });
+    const adminLoginRes = await signIn({
+      email: 'admin@example.com',
+      password: 'Password123!',
+    });
 
     const adminCookie = (adminLoginRes.headers['set-cookie'] as string[])?.find((c) =>
       c.startsWith('accessToken=')
@@ -123,14 +120,10 @@ describe('Admin Portal API', () => {
     superAdminToken = adminCookie ? adminCookie.split(';')[0].split('=')[1] : '';
 
     // 7. Log in regular user to get token
-    const userLoginRes = await request(app)
-      .post('/api/v1/auth/login')
-      .set('Cookie', csrfCookie ?? '')
-      .set('x-csrf-token', csrfToken ?? '')
-      .send({
-        email: 'user@example.com',
-        password: 'Password123!',
-      });
+    const userLoginRes = await signIn({
+      email: 'user@example.com',
+      password: 'Password123!',
+    });
 
     const userCookie = (userLoginRes.headers['set-cookie'] as string[])?.find((c) =>
       c.startsWith('accessToken=')
@@ -195,7 +188,7 @@ describe('Admin Portal API', () => {
   describe('POST /api/v1/admin/users/:id/unlock', () => {
     it('should successfully unlock a locked user account', async () => {
       const { csrfToken, csrfCookie } = await getCsrfData();
-      
+
       const res = await request(app)
         .post(`/api/v1/admin/users/${targetUserId}/unlock`)
         .set('Cookie', csrfCookie ?? '')

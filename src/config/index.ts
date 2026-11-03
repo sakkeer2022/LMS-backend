@@ -30,10 +30,30 @@ const envSchema = z
         message: 'Invalid format for JWT_REFRESH_EXPIRES_IN. Must be parseable by ms (e.g., "7d")',
       }),
 
+    // Lifetime of a sign-in without "keep me signed in"; its cookie also ends with the browser session
+    JWT_SESSION_EXPIRES_IN: z
+      .string()
+      .default('12h')
+      .refine((val) => typeof ms(val as Parameters<typeof ms>[0]) === 'number', {
+        message: 'Invalid format for JWT_SESSION_EXPIRES_IN. Must be parseable by ms (e.g., "12h")',
+      }),
+
     LOG_LEVEL: z.string().default('info'),
 
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
     RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+
+    // Per-route limits (src/middleware/rate-limit.ts), on top of the global limit above
+    LOGIN_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+    LOGIN_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(20),
+    LOGIN_RATE_LIMIT_MAX_PER_EMAIL: z.coerce.number().int().positive().default(10),
+    REFRESH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+    REFRESH_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(60),
+
+    // Password confirmation for sensitive actions (POST /auth/reauthenticate)
+    REAUTH_WINDOW_MINUTES: z.coerce.number().int().positive().default(5),
+    REAUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+    REAUTH_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(30),
 
     REDIS_URL: z.string().default('redis://localhost:6379'),
 
@@ -134,7 +154,11 @@ const envSchema = z
 export { envSchema };
 
 // Local frontend origin(s) allowed when ALLOWED_ORIGINS is not set outside production.
-export const DEFAULT_DEV_ALLOWED_ORIGINS = ['http://localhost:3001'];
+export const DEFAULT_DEV_ALLOWED_ORIGINS = [
+  'http://localhost:3001', // admin
+  'http://localhost:3002', // student
+  'http://localhost:3003', // faculty
+];
 
 /** Parses ALLOWED_ORIGINS. Outside production an empty value falls back to the local frontend. */
 export function resolveAllowedOrigins(
@@ -173,6 +197,7 @@ export const config = {
     expiresIn: env.JWT_EXPIRES_IN,
     refreshSecret: env.JWT_REFRESH_SECRET,
     refreshExpiresIn: env.JWT_REFRESH_EXPIRES_IN,
+    sessionExpiresIn: env.JWT_SESSION_EXPIRES_IN,
   },
 
   log: {
@@ -184,6 +209,22 @@ export const config = {
     max: env.RATE_LIMIT_MAX,
   },
 
+  routeRateLimit: {
+    login: {
+      windowMs: env.LOGIN_RATE_LIMIT_WINDOW_MS,
+      maxPerIp: env.LOGIN_RATE_LIMIT_MAX_PER_IP,
+      maxPerEmail: env.LOGIN_RATE_LIMIT_MAX_PER_EMAIL,
+    },
+    refresh: {
+      windowMs: env.REFRESH_RATE_LIMIT_WINDOW_MS,
+      maxPerIp: env.REFRESH_RATE_LIMIT_MAX_PER_IP,
+    },
+    reauth: {
+      windowMs: env.REAUTH_RATE_LIMIT_WINDOW_MS,
+      maxPerIp: env.REAUTH_RATE_LIMIT_MAX_PER_IP,
+    },
+  },
+
   redis: {
     url: env.REDIS_URL,
   },
@@ -191,6 +232,7 @@ export const config = {
   security: {
     maxFailedLogins: env.MAX_FAILED_LOGINS,
     lockoutDurationMinutes: env.LOCKOUT_DURATION_MINUTES,
+    reauthWindowMinutes: env.REAUTH_WINDOW_MINUTES,
     cookieSecret: env.COOKIE_SECRET,
     allowedOrigins: resolveAllowedOrigins(env.ALLOWED_ORIGINS, env.NODE_ENV),
   },

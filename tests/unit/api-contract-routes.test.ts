@@ -19,7 +19,6 @@ const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const;
 // tests below fail if an entry goes stale.
 const KNOWN_UNDOCUMENTED: Record<string, string> = {
   'GET /': 'API info route',
-  'POST /auth/login': 'Generic login; replaced by the portal logins in LMS-100',
 
   'GET /roles': 'Template RBAC administration',
   'GET /roles/{}': 'Template RBAC administration',

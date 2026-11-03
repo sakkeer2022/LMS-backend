@@ -160,7 +160,9 @@ describe('API Foundation & Shared Conventions', () => {
       });
 
       it('returns 422 for invalid route params', async () => {
-        const res = await request(buildApp()).post('/items/not-a-uuid').send({ name: 'Alice', age: 25 });
+        const res = await request(buildApp())
+          .post('/items/not-a-uuid')
+          .send({ name: 'Alice', age: 25 });
 
         expect(res.status).toBe(422);
         expect(res.body.errors).toHaveProperty('id');
@@ -198,7 +200,9 @@ describe('API Foundation & Shared Conventions', () => {
       expect(spec.info.title).toContain('Amentorz');
       expect(spec.info.title).toContain('implemented');
       // Routes that really exist must be documented here
-      expect(Object.keys(spec.paths)).toEqual(expect.arrayContaining(['/auth/login', '/auth/csrf-token']));
+      expect(Object.keys(spec.paths)).toEqual(
+        expect.arrayContaining(['/auth/student/login', '/auth/csrf-token'])
+      );
       expect(spec.components.schemas).toBeDefined();
     });
 
@@ -209,8 +213,8 @@ describe('API Foundation & Shared Conventions', () => {
       expect(contract.info.version).toContain('draft');
       // Draft-only paths must not leak into the implemented spec
       const implemented = getImplementedApiSpec() as unknown as Spec;
-      expect(contract.paths).toHaveProperty('/auth/student/login');
-      expect(implemented.paths).not.toHaveProperty('/auth/student/login');
+      expect(contract.paths).toHaveProperty('/admin/faculty');
+      expect(implemented.paths).not.toHaveProperty('/admin/faculty');
     });
   });
 });

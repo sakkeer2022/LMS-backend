@@ -1,5 +1,32 @@
 # Findings & Decisions
 
+## 2026-11-02 — Remember me, device replacement, admin profile (LMS-100)
+
+| Finding / Decision | Detail |
+|---|---|
+| Remember me | Server-side choice carried in a signed `rm` claim, not a client cookie flag, so rotation cannot silently upgrade a 12-hour session to 7 days. Omitted `rememberMe` behaves as unticked. |
+| Duplicate sessions | Each sign-in used to add a session family, so one browser listed many sessions after a day. A sign-in now supersedes earlier families of the same user, portal and fingerprint (hash of UA, language, encoding). The fingerprint is not a security boundary; it only tidies the list. |
+| Profile edits | Admins edit only their own name, mobile and time zone. Email is read-only until verification exists (LMS-99). Mobile is E.164 only for now: users have no country, so India and UAE rules cannot be applied yet. |
+| Activity feed | Own audit rows only, filtered to an allow-list of security actions, `no-store`. IP and user agent are shown to the owner only. |
+
+## 2026-11-02 — Portal logins (LMS-100)
+
+| Finding / Decision | Detail |
+|---|---|
+| Portal roles | `PORTAL_ROLES` in `src/core/security/rbac.ts`: student and faculty accept their own role; the admin portal accepts `admin` and `super_admin` (team decision 2026-11-02, so a super_admin-only account can use amentorz-admin). The contract `User` shows `super_admin` as `admin`. |
+| Failure order | Same 401 and no cookies for unknown, locked, wrong-password, inactive and wrong-portal accounts. The password is compared (against a dummy hash for unknown emails) before the lock and role checks, so timing and wrong-portal responses reveal nothing. Unverified email returns 403 only after the role check. Failure reasons go to the audit log only. |
+| Wrong portal | Not counted as a failed attempt, so using the wrong portal cannot lock an account. |
+| Session columns | `refresh_tokens.portal`, `family_id`, `reauthenticated_at` and `revoked_at` already existed (LMS-95); no migration. Login stores `portal` and a new `family_id`; the portal is also a claim in both tokens. |
+| Not yet derivable | `requiresTermsAcceptance` is always `false` (no terms data until faculty onboarding). `requiresPasswordChange` is true for `PENDING_ACTIVATION` accounts. |
+| Rate limits | Login: per IP and per email, `LOGIN_RATE_LIMIT_*` env settings. Refresh uses `REFRESH_RATE_LIMIT_*` in the next commits. |
+| Generic login | `POST /auth/login` is removed (the contract forbids a bypass). Tests whose users hold custom roles, or come from the legacy register route, use `signIn` in `tests/helpers/users.ts`, which checks the password and mints a session directly; portal roles use the real portal login. The seed creates no users, so the first admin needs a seeded or manual account. |
+| Seed and verified email | Users created by tests set `emailVerifiedAt`. Seeds that create login users (LMS-64 local logins) must set it too, or the portal login returns 403. |
+| Reauthentication | `POST /auth/reauthenticate` confirms the password and sets `refresh_tokens.reauthenticated_at` on the session's live row; nothing transferable is returned. Freshness window `REAUTH_WINDOW_MINUTES` (default 5), carried over on rotation without extending it. `requireRecentReauth` (`src/middleware/require-reauth.ts`) returns 403 "Recent re-authentication required" and is applied to `PUT /admin/settings/{key}` after the permission check. The envelope has no error code, so clients tell this 403 apart by that message. A wrong password counts toward the same lockout as login; a locked account gets 429. Other routes the contract marks "recent reauthentication required" (faculty create, review, publication, status, documents, admin consent download) add the middleware when they are built. |
+| Session family | Both tokens carry `sid`, the session family id; the refresh row keeps `family_id` and `portal`. The contract's session `jti` is the family id, so it stays the same when the refresh token rotates. |
+| Absolute expiry | Rotation copies `expires_at` from the old refresh row, so `sessionExpiresAt` never slides. |
+| Revocation | Revoking a family sets `revoked_at` on its rows and marks `sid` revoked (Redis `rf:<sid>` for one access-token lifetime; in memory without Redis). `authenticate` rejects marked sessions at once. Logout marks the family too. |
+| Refresh checks | Cookie only (a token in the body is a 422). Re-checks the account, its status and its portal role; a row without a portal (old generic-login sessions) is rejected. Reuse of a rotated token revokes the family and is audited (`session.reuse_detected`). The revocation is now written outside the rotation transaction: before, the throw inside it rolled the deletion back (BACKEND_ANALYSIS finding). |
+
 ## 2026-10-29 — API route/contract drift check (LMS-93)
 
 | Finding / Decision | Detail |
@@ -8,7 +35,7 @@
 | Express 5 | A mounted router does not keep its mount path, so `src/routes/index.ts` now declares its mounts as an exported `featureRouters` list and mounts them in a loop |
 | Template routes | 39 routes are not in the Sprint 1 contract (RBAC/user administration, feature flags, notifications, admin dashboard, uploads, `POST /auth/login`, `GET /audit/{id}`, `GET /`). They are listed as known undocumented with a reason, pending the legacy-routes decision; the test fails when an entry goes stale |
 | Response shapes | `tests/helpers/contract.ts` validates response bodies against the contract schema for the operation and status (Ajv 8 with `ajv-formats`, strict mode off for OpenAPI 3.0 keywords; added as dev dependencies with approval). `tests/modules/contract_responses.test.ts` covers the implemented contract routes |
-| Known mismatches | `GET /auth/me`, `GET /auth/sessions` and `POST /auth/refresh` (template versions, rewritten in LMS-100) and `GET /audit`. The audit list returns `correlationId`, `ipAddress`, `userAgent` and `deviceFingerprint`, which the contract's redacted projection excludes, and lacks the contract's filters and date window: needs its own ticket. The test fails when a mismatch is fixed, so the list stays current |
+| Known mismatches | `GET /audit` (`GET /auth/me`, `/auth/sessions` and `POST /auth/refresh` were fixed in LMS-100). The audit list returns `correlationId`, `ipAddress`, `userAgent` and `deviceFingerprint`, which the contract's redacted projection excludes, and lacks the contract's filters and date window: needs its own ticket. The test fails when a mismatch is fixed, so the list stays current |
 | Still open in LMS-93 | Serving the approved contract at `/api/docs` once Sprint 1 endpoints exist |
 
 ---
@@ -65,7 +92,7 @@
 |---|---|
 | JWT algorithm pinned to HS256 | Sign and verify both pass HS256 explicitly. It was already the library default, so existing tokens stay valid; tokens with any other algorithm, including `none`, are rejected |
 | CORS allowlist in every environment | The old development setting (`*` with credentials) is rejected by browsers for cookie requests. `ALLOWED_ORIGINS` now applies everywhere; outside production an empty value allows only `http://localhost:3001`. **Confirm the admin frontend's local port** |
-| Verification checklist | `src/docs/SECURITY.md` maps each baseline control to its test; open rows point to LMS-94 (TLS, Secure cookie), LMS-97/LMS-100 (per-route rate limits) and LMS-99/LMS-100 (student data access) |
+| Verification checklist | `src/docs/SECURITY.md` maps each baseline control to its test; open rows point to LMS-94 (TLS, Secure cookie), LMS-99/LMS-100 (per-route rate limits) and LMS-99/LMS-100 (student data access) |
 | `cors` always sends Allow-Credentials | For an unknown origin it omits `Access-Control-Allow-Origin`, so the browser blocks the response; the credentials header alone has no effect |
 
 ---
@@ -74,12 +101,12 @@
 
 | Finding / Decision | Detail |
 |---|---|
-| Guardian identity (project plan risk R4) | **Accepted.** The consent signature is not identity-verified; the acceptance is to be recorded in writing. Unblocks LMS-98/LMS-99; remove the R4 `DECISION REQUIRED` note from the contract when LMS-98 is built |
+| Guardian identity (project plan risk R4) | **Accepted.** The consent signature is not identity-verified; the acceptance is to be recorded in writing. Unblocks LMS-99; remove the R4 `DECISION REQUIRED` note from the contract when LMS-99 is built |
 | Policy documents | Production documents come from the client. Development uses AI-generated placeholder Student Terms, Terms of Use, Privacy Policy and Child Safety Policy, clearly marked as placeholders and never seeded in production |
-| Password rule | **8 characters with at least one number** (the onboarding UI rule). The SOW (A1.8) only asks for "secure password policies"; the "12-character policy" in our contract notes came from the template DTO (`src/modules/auth/auth.dto.ts`, `.min(12)`), not from a client document. Align the template DTOs and the contract when LMS-99/LMS-101 are built |
-| Email | Gmail SMTP for development; a different provider (SendGrid or similar) for production. Build one email interface with the transport chosen by configuration so switching is a settings change (LMS-97, shared with LMS-79) |
+| Password rule | **8 characters with at least one number** (the onboarding UI rule). The SOW (A1.8) only asks for "secure password policies"; the "12-character policy" in our contract notes came from the template DTO (`src/modules/auth/auth.dto.ts`, `.min(12)`), not from a client document. Align the template DTOs and the contract when LMS-99/LMS-100 are built |
+| Email | Gmail SMTP for development; a different provider (SendGrid or similar) for production. Build one email interface with the transport chosen by configuration so switching is a settings change (LMS-99, shared with LMS-79) |
 | Backups and deployment | LMS-92 and LMS-94 are parked until hosting is decided |
-| Regions | Phase 1 serves India and the UAE. Rules in `src/docs/REGIONS.md`: no hard-coded country rules, E.164 mobiles, UTC storage with user time zone, INR only (project plan), country-specific policies and consent. `policy_documents` needs a `country` column (LMS-98) |
+| Regions | Phase 1 serves India and the UAE. Rules in `src/docs/REGIONS.md`: no hard-coded country rules, E.164 mobiles, UTC storage with user time zone, INR only (project plan), country-specific policies and consent. `policy_documents` needs a `country` column (LMS-99) |
 | Reuse | `src/docs/SHARED_COMPONENTS.md` lists reusable building blocks; check it before writing a helper |
 | Audit against client documents | Done. Corrected in the contract generator, contract review and database docs: packages ("excluded per SOW" → deferred by the draft plan, SOW allows them), Razorpay ("approved" → leading candidate), 60-minute slots and authorize/capture/void (draft plan, not SOW), consent design ("client instructions" → ours to design), boards, review statuses, notification read state. SOW-vs-plan conflicts recorded as pending: 20-minute rule, rescheduling. Missing items recorded: data protection and refund/cancellation policies, region on the student profile |
 | Consent age | Under 18 needs guardian consent in **both India and the UAE** (client confirmation pending, C8) |
@@ -89,7 +116,7 @@
 | Lockout and expiry values | Removed from the contract and docs as requirements; they are configuration values. The lockout and token expiry features themselves are unchanged |
 | Scalability without UI changes | Backend scalability changes must not change what the UI shows or collects; anything that would is raised in `docs/PENDING_DECISIONS.md` (rule added to CLAUDE.md, AGENTS.md, GEMINI.md and the PR checklist) |
 | Pending decisions | `docs/PENDING_DECISIONS.md` lists every open question by owner (client, product and UI, team) with the working assumption |
-| Approvals | `nodemailer` and `pdf-lib` approved as dependencies (LMS-97, LMS-98) |
+| Approvals | `nodemailer` and `pdf-lib` approved as dependencies (LMS-99) |
 | No tenancy | No tenant parameter or invented tenant claims in tokens or APIs. The admin frontend's `tenantIds` gate must be removed or resolved through review during frontend integration |
 
 ---
@@ -119,7 +146,7 @@
 | CI platform | Bitbucket Pipelines is the only CI; the unused GitHub Actions workflows were removed (LMS-52) |
 | Swagger | Implemented spec (JSDoc) and draft contract are served separately so docs match the running API (LMS-41) |
 | Enum contract mismatches | Not only case differences: `documentType`, `scanStatus`, library `kind` vs `LibraryMaterialKind`, plus DB-only `CHANGES_REQUESTED`/`WITHDRAWN`. `createEnumCodec` requires explicit mappings; these need a contract or schema decision before M02/M03 APIs |
-| Legacy template routes | `/auth/login`, `/users`, `/roles`, `/permissions`, `/feature-flags`, `/admin` left mounted until the first business API is approved |
+| Legacy template routes | `/users`, `/roles`, `/permissions`, `/feature-flags`, `/admin` left mounted until the first business API is approved |
 
 ---
 

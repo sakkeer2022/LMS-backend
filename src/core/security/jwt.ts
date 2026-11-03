@@ -10,6 +10,9 @@ export interface TokenPayload {
   roles: string[];
   permissions: string[];
   policies?: PolicyRule[];
+  sid?: string; // session family id, stable across refresh rotation
+  portal?: string; // 'student' | 'faculty' | 'admin' for portal sessions
+  rm?: true; // signed in with "keep me signed in"; decides the cookie and session lifetime
   jti?: string;
   iat?: number;
   exp?: number;
@@ -61,7 +64,9 @@ export function getAccessTokenTtlSeconds(): number {
   return Math.floor(ms(config.jwt.expiresIn as ms.StringValue) / 1000);
 }
 
-export function getRefreshTokenExpiryDate(): Date {
-  const ttlMs = ms(config.jwt.refreshExpiresIn as ms.StringValue);
+export function getRefreshTokenExpiryDate(remember = true): Date {
+  const ttlMs = ms(
+    (remember ? config.jwt.refreshExpiresIn : config.jwt.sessionExpiresIn) as ms.StringValue
+  );
   return new Date(Date.now() + ttlMs);
 }

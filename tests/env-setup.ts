@@ -26,3 +26,9 @@ process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://postgr
 process.env.JWT_SECRET ??= 'test-jwt-secret-deterministic';
 process.env.JWT_REFRESH_SECRET ??= 'test-jwt-refresh-secret-deterministic';
 process.env.COOKIE_SECRET ??= 'test-cookie-secret-deterministic';
+
+// Route limits high enough that suites sharing one app and one IP never hit them;
+// tests that exercise the limits set their own values before importing the app.
+process.env.LOGIN_RATE_LIMIT_MAX_PER_IP ??= '100000';
+process.env.LOGIN_RATE_LIMIT_MAX_PER_EMAIL ??= '100000';
+process.env.REFRESH_RATE_LIMIT_MAX_PER_IP ??= '100000';

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import { app } from '../helpers/app.js';
 import { getCsrfData } from '../helpers/csrf.js';
-import { loginWithRole } from '../helpers/users.js';
+import { loginWithRole, reauthenticate } from '../helpers/users.js';
 import { expectContractResponse } from '../helpers/contract.js';
 import { prisma } from '@infrastructure/database/index.js';
 import { seedRbac } from '../../prisma/seed-rbac.js';
@@ -53,10 +53,9 @@ describe('Platform settings API', () => {
 
   beforeEach(async () => {
     await seedRbac(prisma);
-    ({ token: adminToken, userId: adminId } = await loginWithRole(
-      'admin',
-      'settings-admin@example.com'
-    ));
+    const admin = await loginWithRole('admin', 'settings-admin@example.com');
+    await reauthenticate(admin);
+    ({ token: adminToken, userId: adminId } = admin);
     csrf = await getCsrfData();
   });
 
@@ -226,6 +225,26 @@ describe('Platform settings API', () => {
 
       expect(read.status).toBe(200);
       expect(write.status).toBe(403);
+    });
+
+    it('requires recent re-authentication, even for an admin who can manage settings', async () => {
+      const stale = await loginWithRole('admin', 'settings-stale@example.com');
+
+      const res = await put(
+        'test.mode',
+        { value: 'relaxed', expectedRevision: 1, reason: 'x' },
+        stale.token
+      );
+      expect(res.status).toBe(403);
+      expect(res.body.message).toBe('Recent re-authentication required');
+
+      await reauthenticate(stale);
+      const retry = await put(
+        'test.mode',
+        { value: 'relaxed', expectedRevision: 1, reason: 'x' },
+        stale.token
+      );
+      expect(retry.status).toBe(200);
     });
 
     it('requires a CSRF token', async () => {
