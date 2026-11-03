@@ -382,6 +382,8 @@ model TeachingLanguage {
 model PolicyDocument {
   id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   type        PolicyType
+  // Policies are chosen by the student's country and never fall back to another country's text
+  country     String     @db.VarChar(2)
   version     String     @db.VarChar(20)
   title       String     @db.VarChar(200)
   effectiveAt DateTime   @map("effective_at")
@@ -391,11 +393,14 @@ model PolicyDocument {
   isCurrent   Boolean    @default(false) @map("is_current")
   createdAt   DateTime   @default(now()) @map("created_at")
 
+  countryRef  Country            @relation(fields: [country], references: [code], onDelete: Restrict)
   acceptances PolicyAcceptance[]
   consents    GuardianConsent[]
 
-  @@unique([type, version], name: "uk_policy_type_version")
-  @@index([type, isCurrent])
+  // One current version per (type, country) is enforced by a partial unique index added in SQL
+  // (policy_documents_current_per_type_country); the policies service also checks it in its transaction.
+  @@unique([type, country, version], name: "uk_policy_type_country_version")
+  @@index([type, country, isCurrent])
   @@map("policy_documents")
 }
 
@@ -601,6 +606,7 @@ model Country {
 
   students StudentProfile[]
   boards   Board[]
+  policies PolicyDocument[]
 
   @@map("countries")
 }
