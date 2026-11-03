@@ -3986,6 +3986,318 @@
         ]
       }
     },
+    "/admin/policies": {
+      "get": {
+        "operationId": "listPoliciesAdmin",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "List every policy version",
+        "description": "Current active, email-verified admin; policy.read identity; server checks role, permission and resource ownership on every request. All uploaded versions, newest first, current and past, for the Legal documents screen. Each can be opened with GET /policies/{policyId}/file.",
+        "x-required-role": "admin; policy.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List every policy version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listPoliciesAdminResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "description": "Only this country.",
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 2,
+              "pattern": "^[A-Z]{2}$"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "description": "Only this policy type.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "terms_of_use",
+                "privacy_policy",
+                "child_safety_policy",
+                "student_terms"
+              ]
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "uploadPolicyAdmin",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "Upload a policy version",
+        "description": "Current active, email-verified admin; policy.create identity; server checks role, permission and resource ownership on every request. Recent reauthentication required. Stores the PDF and makes it the current version for its type and country in one transaction; the previous version stays on record because acceptances and consents point at it. 409 when that version already exists for the type and country, 422 for a file that is not a readable PDF or an unsupported country. Audited.",
+        "x-required-role": "admin; policy.create",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Upload a policy version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/uploadPolicyAdminResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "type": "terms_of_use",
+                    "country": "Example value",
+                    "version": "1.0",
+                    "title": "Algebra practice",
+                    "effectiveAt": "2026-10-21T09:00:00Z",
+                    "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+                    "isCurrent": true,
+                    "createdAt": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "415": {
+            "$ref": "#/components/responses/E415"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyUpload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/policies/coverage": {
+      "get": {
+        "operationId": "getPolicyCoverageAdmin",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "Which countries lack current policies",
+        "description": "Current active, email-verified admin; policy.read identity; server checks role, permission and resource ownership on every request. For every active country, the policy types that have no current version. Students of a country with a missing type cannot register (GET /policies/current answers 503), so the admin shows a warning until this is empty.",
+        "x-required-role": "admin; policy.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Which countries lack current policies.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getPolicyCoverageAdminResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
+    "/admin/policies/{policyId}/current": {
+      "put": {
+        "operationId": "setPolicyCurrentAdmin",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "Make an earlier policy version current again",
+        "description": "Current active, email-verified admin; policy.update identity; server checks role, permission and resource ownership on every request. Recent reauthentication required. Switches which version is current for its type and country (to roll back a wrong upload). Audited.",
+        "x-required-role": "admin; policy.update",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Make an earlier policy version current again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/setPolicyCurrentAdminResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "type": "terms_of_use",
+                    "country": "Example value",
+                    "version": "1.0",
+                    "title": "Algebra practice",
+                    "effectiveAt": "2026-10-21T09:00:00Z",
+                    "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+                    "isCurrent": true,
+                    "createdAt": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "policyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ]
+      }
+    },
     "/admin/students/{studentId}/guardian-consent/file": {
       "get": {
         "operationId": "getStudentGuardianConsentFileAdmin",
@@ -8878,6 +9190,162 @@
           "sha256"
         ]
       },
+      "AdminPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "terms_of_use",
+              "privacy_policy",
+              "child_safety_policy",
+              "student_terms"
+            ]
+          },
+          "country": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "pattern": "^[0-9A-Za-z][0-9A-Za-z._-]{0,19}$",
+            "example": "1.0"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "effectiveAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "sha256": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$",
+            "example": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+            "description": "SHA-256 of the stored PDF bytes, hex."
+          },
+          "isCurrent": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "country",
+          "version",
+          "title",
+          "effectiveAt",
+          "sha256",
+          "isCurrent",
+          "createdAt"
+        ]
+      },
+      "PolicyUpload": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "terms_of_use",
+              "privacy_policy",
+              "child_safety_policy",
+              "student_terms"
+            ]
+          },
+          "country": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "pattern": "^[0-9A-Za-z][0-9A-Za-z._-]{0,19}$",
+            "example": "1.0"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "effectiveAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "description": "The policy as a PDF (magic bytes and structure checked; configured size limit)."
+          }
+        },
+        "required": [
+          "type",
+          "country",
+          "version",
+          "title",
+          "effectiveAt",
+          "file"
+        ]
+      },
+      "PolicyCoverage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "country": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "missingTypes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "terms_of_use",
+                "privacy_policy",
+                "child_safety_policy",
+                "student_terms"
+              ]
+            },
+            "maxItems": 4
+          }
+        },
+        "required": [
+          "country",
+          "name",
+          "missingTypes"
+        ]
+      },
       "Country": {
         "type": "object",
         "additionalProperties": false,
@@ -12215,6 +12683,114 @@
           },
           "data": {
             "$ref": "#/components/schemas/GuardianConsentSummary"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "listPoliciesAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminPolicy"
+            },
+            "maxItems": 500
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getPolicyCoverageAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PolicyCoverage"
+            },
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "uploadPolicyAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/AdminPolicy"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "setPolicyCurrentAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/AdminPolicy"
           }
         },
         "required": [

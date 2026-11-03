@@ -79,3 +79,24 @@ describe('PNG check and script runs', () => {
     ]);
   });
 });
+
+describe('text documents', () => {
+  it('renders a readable PDF for a title and paragraphs, over several pages when long', async () => {
+    const short = await getPdfService().renderTextDocument({
+      title: 'Terms',
+      paragraphs: ['One two three.'],
+    });
+    expect((await PDFDocument.load(short)).getPageCount()).toBe(1);
+    const long = await getPdfService().renderTextDocument({
+      title: 'Terms',
+      paragraphs: Array.from({ length: 80 }, (_, i) => `Paragraph ${i} ${'words '.repeat(40)}`),
+    });
+    expect((await PDFDocument.load(long)).getPageCount()).toBeGreaterThan(1);
+    expect((await getPdfService().inspect(short)).pageCount).toBe(1);
+  });
+
+  it('inspects only readable PDFs', async () => {
+    await expect(getPdfService().inspect(Buffer.from('nope'))).rejects.toThrow();
+    await expect(getPdfService().inspect(Buffer.from('%PDF-1.7 broken'))).rejects.toThrow();
+  });
+});

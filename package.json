@@ -21,6 +21,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "create-admin": "tsx prisma/create-admin.ts",
+    "policies:load": "tsx prisma/load-policies.ts",
     "prepare": "husky",
     "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit",

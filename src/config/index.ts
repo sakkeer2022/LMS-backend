@@ -90,6 +90,7 @@ const envSchema = z
     CONSENT_SIGNATURE_MAX_BYTES: z.coerce.number().int().positive().default(1048576),
     CONSENT_SIGN_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(3600000),
     CONSENT_SIGN_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(10),
+    POLICY_MAX_BYTES: z.coerce.number().int().positive().default(10485760),
     // Reverse proxies in front of the app (0 = none). Needed so the client IP in consents and audit is the
     // real one, never the first X-Forwarded-For entry.
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),
@@ -315,6 +316,7 @@ export const config = {
   consent: {
     unlinkedTtlHours: env.CONSENT_UNLINKED_TTL_HOURS,
     signatureMaxBytes: env.CONSENT_SIGNATURE_MAX_BYTES,
+    policyMaxBytes: env.POLICY_MAX_BYTES,
   },
 
   trustProxyHops: env.TRUST_PROXY_HOPS,

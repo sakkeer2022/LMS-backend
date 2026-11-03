@@ -14,7 +14,17 @@ export interface ConsentStamp {
 }
 
 /** PDF work behind one interface, so the library can change without touching the consent service. */
+export interface TextDocument {
+  title: string;
+  paragraphs: string[];
+}
+
 export interface PdfService {
+  /** A simple A4 document of a title and paragraphs (used for clearly marked development placeholders). */
+  renderTextDocument(input: TextDocument): Promise<Buffer>;
+  /** Number of pages of a readable, unencrypted PDF; throws for anything else. */
+  inspect(bytes: Buffer): Promise<{ pageCount: number }>;
+
   /**
    * Appends a final "Guardian consent" page with the signature, the printed name, the UTC time and the
    * IP address, and returns the new PDF. The policy pages are not changed or overlaid.

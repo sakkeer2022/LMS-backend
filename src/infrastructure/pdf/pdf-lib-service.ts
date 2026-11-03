@@ -2,7 +2,7 @@
 import 'regenerator-runtime/runtime.js';
 import fontkit from '@pdf-lib/fontkit';
 import { PDFDocument, PDFFont, PDFPage, rgb } from 'pdf-lib';
-import type { ConsentStamp, PdfService } from './pdf.types.js';
+import type { ConsentStamp, PdfService, TextDocument } from './pdf.types.js';
 import { loadFont, splitRuns, type Script } from './fonts.js';
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -15,6 +15,48 @@ const INK = rgb(0.06, 0.09, 0.16);
 const MUTED = rgb(0.28, 0.33, 0.41);
 
 export class PdfLibService implements PdfService {
+  async renderTextDocument(input: TextDocument): Promise<Buffer> {
+    const doc = await PDFDocument.create();
+    doc.registerFontkit(fontkit);
+    const font = await doc.embedFont(await loadFont('latin'), { subset: true });
+    const width = 595;
+    const height = 842;
+    let page = doc.addPage([width, height]);
+    let y = height - MARGIN;
+    const line = (text: string, size: number): void => {
+      if (y < MARGIN) {
+        page = doc.addPage([width, height]);
+        y = height - MARGIN;
+      }
+      page.drawText(text, { x: MARGIN, y, size, font, color: INK });
+      y -= size * 1.5;
+    };
+    line(input.title, 20);
+    y -= 10;
+    for (const paragraph of input.paragraphs) {
+      let current = '';
+      for (const word of paragraph.split(/\s+/)) {
+        const next = current ? `${current} ${word}` : word;
+        if (font.widthOfTextAtSize(next, 11) > width - MARGIN * 2 && current) {
+          line(current, 11);
+          current = word;
+        } else {
+          current = next;
+        }
+      }
+      if (current) line(current, 11);
+      y -= 8;
+    }
+    return Buffer.from(await doc.save());
+  }
+
+  async inspect(bytes: Buffer): Promise<{ pageCount: number }> {
+    if (bytes.subarray(0, 5).toString('latin1') !== '%PDF-') throw new Error('Not a PDF');
+    const doc = await PDFDocument.load(bytes, { ignoreEncryption: false });
+    if (doc.getPageCount() < 1) throw new Error('The PDF has no pages');
+    return { pageCount: doc.getPageCount() };
+  }
+
   async stampConsent(input: ConsentStamp): Promise<Buffer> {
     const doc = await PDFDocument.load(input.basePdf, { ignoreEncryption: false });
     doc.registerFontkit(fontkit);

@@ -1,5 +1,11 @@
 # Progress Log
 
+## 2026-11-03 — Admin policy upload (LMS-99)
+
+- Contract and endpoints: `GET /admin/policies` (every version, filter by country and type), `GET /admin/policies/coverage` (types missing a current version per active country), `POST /admin/policies` (multipart PDF, type, country, version, title, effective date: checked as a readable PDF, 409 for a version that exists, stored and made current in one transaction, the old version kept) and `PUT /admin/policies/{id}/current` (roll back). New permissions `policy.read`, `policy.create`, `policy.update`; uploads and rollbacks need recent reauthentication and are audited (`policy.published`, `policy.set_current`). `POLICY_MAX_BYTES` (10 MiB) limits the file.
+- `PdfService.inspect` and `renderTextDocument`; `npm run policies:load` loads a folder with a manifest or, in development only, clearly marked placeholder PDFs for any country and type without a current version.
+- Tests: `admin-policies.test.ts` (coverage, upload per country, history and rollback, duplicates, file and field checks, size limit, permission, reauthentication, CSRF), PDF tests.
+
 ## 2026-11-03 — Guardian consent signing, downloads and purge (LMS-99)
 
 - `src/infrastructure/pdf/`: `PdfService.stampConsent` appends a "Parent/guardian consent" page (printed name, UTC time, IP, signature, policy hash). Latin, Devanagari and Arabic names print correctly (checked by rendering).

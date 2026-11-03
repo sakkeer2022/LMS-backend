@@ -1,9 +1,19 @@
 import { Router } from 'express';
+import { authenticate, requirePermission } from '@middleware/authenticate';
+import { requireRecentReauth } from '@middleware/require-reauth';
 import { validateRequest } from '@middleware/validate';
 import * as PoliciesController from './policies.controller.js';
-import { CurrentPoliciesQueryDto, PolicyParamsDto } from './policies.dto.js';
+import {
+  AdminPoliciesQueryDto,
+  CurrentPoliciesQueryDto,
+  PolicyParamsDto,
+  UploadPolicyDto,
+} from './policies.dto.js';
+import { policyUpload } from './policies.upload.js';
 
 export const policiesRouter = Router();
+/** The admin's Legal documents: every version, coverage per country, upload and rollback. */
+export const adminPoliciesRouter = Router();
 
 /**
  * @openapi
@@ -49,4 +59,101 @@ policiesRouter.get(
   '/:policyId/file',
   validateRequest({ params: PolicyParamsDto }),
   PoliciesController.getFile
+);
+
+adminPoliciesRouter.use(authenticate);
+
+/**
+ * @openapi
+ * /admin/policies:
+ *   get:
+ *     summary: List every policy version
+ *     description: All uploaded versions, newest first, current and past. Requires policy.read.
+ *     tags: [Consent]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: query, name: country, schema: { type: string, minLength: 2, maxLength: 2 } }
+ *       - { in: query, name: type, schema: { type: string, enum: [terms_of_use, privacy_policy, child_safety_policy, student_terms] } }
+ *     responses:
+ *       200:
+ *         description: The versions
+ *       403:
+ *         description: Requires policy.read
+ *   post:
+ *     summary: Upload a policy version
+ *     description: Multipart form with the PDF in `file`. Makes it current for its type and country; the old version stays on record. Requires policy.create and recent reauthentication. Audited.
+ *     tags: [Consent]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema: { type: object, required: [type, country, version, title, effectiveAt, file], properties: { type: { type: string }, country: { type: string }, version: { type: string }, title: { type: string }, effectiveAt: { type: string }, file: { type: string, format: binary } } }
+ *     responses:
+ *       201:
+ *         description: The new current version
+ *       403:
+ *         description: Requires policy.create or recent reauthentication
+ *       409:
+ *         description: That version already exists
+ *       413:
+ *         description: The file is too large
+ *       422:
+ *         description: Not a readable PDF, an unsupported country, or a malformed field
+ */
+adminPoliciesRouter.get(
+  '/',
+  requirePermission('policy.read'),
+  validateRequest({ query: AdminPoliciesQueryDto }),
+  PoliciesController.listAll
+);
+adminPoliciesRouter.post(
+  '/',
+  requirePermission('policy.create'),
+  requireRecentReauth,
+  policyUpload,
+  validateRequest({ body: UploadPolicyDto }),
+  PoliciesController.upload
+);
+
+/**
+ * @openapi
+ * /admin/policies/coverage:
+ *   get:
+ *     summary: Which countries lack current policies
+ *     description: For each active country, the policy types with no current version. Requires policy.read.
+ *     tags: [Consent]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Coverage per country
+ *       403:
+ *         description: Requires policy.read
+ */
+adminPoliciesRouter.get('/coverage', requirePermission('policy.read'), PoliciesController.coverage);
+
+/**
+ * @openapi
+ * /admin/policies/{policyId}/current:
+ *   put:
+ *     summary: Make an earlier policy version current again
+ *     description: Switches which version is current for its type and country. Requires policy.update and recent reauthentication. Audited.
+ *     tags: [Consent]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: policyId, required: true, schema: { type: string, format: uuid } }
+ *     responses:
+ *       200:
+ *         description: The version that is now current
+ *       403:
+ *         description: Requires policy.update or recent reauthentication
+ *       404:
+ *         description: Unknown policy
+ */
+adminPoliciesRouter.put(
+  '/:policyId/current',
+  requirePermission('policy.update'),
+  requireRecentReauth,
+  validateRequest({ params: PolicyParamsDto }),
+  PoliciesController.setCurrent
 );

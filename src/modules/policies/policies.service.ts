@@ -1,9 +1,16 @@
 import type { PolicyDocument, PolicyType } from '@prisma/client';
 import { prisma } from '@infrastructure/database/index.js';
 import { getStorage, sha256Hex } from '@infrastructure/storage/index.js';
+import { getPdfService } from '@infrastructure/pdf/index.js';
 import { logger } from '@core/logger/index';
-import { NotFoundError, ServiceUnavailableError, ValidationError } from '@core/errors/index';
-import { getCountry } from '@modules/regions/index.js';
+import {
+  ConflictError,
+  NotFoundError,
+  ServiceUnavailableError,
+  ValidationError,
+} from '@core/errors/index';
+import { getCountry, listCountries } from '@modules/regions/index.js';
+import { logAction, type AuditContext } from '../audit/audit.service.js';
 
 /** The four policies every student sees, one current version each, per country. */
 export const REQUIRED_POLICY_TYPES: readonly PolicyType[] = [
@@ -120,4 +127,133 @@ export async function publishPolicy(input: NewPolicy): Promise<PolicyView> {
     });
   });
   return toView(row);
+}
+
+export interface AdminPolicyView extends PolicyView {
+  isCurrent: boolean;
+  createdAt: Date;
+}
+
+const toAdminView = (row: PolicyDocument): AdminPolicyView => ({
+  ...toView(row),
+  isCurrent: row.isCurrent,
+  createdAt: row.createdAt,
+});
+
+/** Every uploaded version for the Legal documents screen, newest first. */
+export async function listAllPolicies(filter: {
+  country?: string;
+  type?: PolicyType;
+}): Promise<AdminPolicyView[]> {
+  const rows = await prisma.policyDocument.findMany({
+    where: {
+      ...(filter.country && { country: filter.country }),
+      ...(filter.type && { type: filter.type }),
+    },
+    orderBy: [{ country: 'asc' }, { type: 'asc' }, { createdAt: 'desc' }],
+    take: 500,
+  });
+  return rows.map(toAdminView);
+}
+
+export interface PolicyCoverage {
+  country: string;
+  name: string;
+  missingTypes: Lowercase<PolicyType>[];
+}
+
+/** For each active country, the policy types without a current version (students there cannot register). */
+export async function getPolicyCoverage(): Promise<PolicyCoverage[]> {
+  const [countries, current] = await Promise.all([
+    listCountries(),
+    prisma.policyDocument.findMany({
+      where: { isCurrent: true },
+      select: { country: true, type: true },
+    }),
+  ]);
+  return countries.map((country) => {
+    const have = new Set(
+      current.filter((row) => row.country === country.code).map((row) => row.type)
+    );
+    return {
+      country: country.code,
+      name: country.name,
+      missingTypes: REQUIRED_POLICY_TYPES.filter((type) => !have.has(type)).map(
+        (type) => type.toLowerCase() as Lowercase<PolicyType>
+      ),
+    };
+  });
+}
+
+/**
+ * Admin upload: checks the file is a readable PDF, refuses a version that already exists for the type and
+ * country, stores it and makes it current. The old version stays on record. Audited.
+ */
+export async function uploadPolicy(
+  input: NewPolicy,
+  audit: AuditContext
+): Promise<AdminPolicyView> {
+  try {
+    await getPdfService().inspect(input.pdf);
+  } catch {
+    throw new ValidationError('The file is not a readable PDF.');
+  }
+  const exists = await prisma.policyDocument.findUnique({
+    where: {
+      uk_policy_type_country_version: {
+        type: input.type,
+        country: input.country,
+        version: input.version,
+      },
+    },
+    select: { id: true },
+  });
+  if (exists) throw new ConflictError('That version already exists for this policy and country.');
+
+  const published = await publishPolicy(input);
+  await logAction({
+    ...audit,
+    severity: 'SECURITY',
+    entity: 'policy',
+    action: 'policy.published',
+    resourceId: published.id,
+    newValue: {
+      type: input.type,
+      country: input.country,
+      version: input.version,
+      sha256: published.sha256,
+    },
+  });
+  const row = await prisma.policyDocument.findUniqueOrThrow({ where: { id: published.id } });
+  return toAdminView(row);
+}
+
+/** Makes an earlier version current again (to roll back a wrong upload). Audited. */
+export async function setPolicyCurrent(
+  policyId: string,
+  audit: AuditContext
+): Promise<AdminPolicyView> {
+  const target = await prisma.policyDocument.findUnique({ where: { id: policyId } });
+  if (!target) throw new NotFoundError('Policy');
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.policyDocument.updateMany({
+      where: {
+        type: target.type,
+        country: target.country,
+        isCurrent: true,
+        id: { not: target.id },
+      },
+      data: { isCurrent: false },
+    });
+    return tx.policyDocument.update({ where: { id: target.id }, data: { isCurrent: true } });
+  });
+  await logAction({
+    ...audit,
+    severity: 'SECURITY',
+    entity: 'policy',
+    action: 'policy.set_current',
+    resourceId: target.id,
+    newValue: { type: target.type, country: target.country, version: target.version },
+  });
+  return toAdminView(updated);
 }

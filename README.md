@@ -82,6 +82,17 @@ npx prisma db seed
 INITIAL_ADMIN_EMAIL=admin@example.com INITIAL_ADMIN_PASSWORD='<12+ chars, mixed>' npm run create-admin
 ```
 
+### Policy documents
+
+The client's policy PDFs are uploaded per country from the admin **Legal documents** screen (or `POST /admin/policies`, which needs `policy.create` and recent reauthentication). For the first setup without the screen:
+
+```
+npm run policies:load -- --dir ./policies      # ./policies/manifest.json lists { type, country, version, title, effectiveAt, file }
+npm run policies:load -- --placeholders        # development only: marked stand-ins for any country and type without a current version
+```
+
+A version that already exists is skipped. Students of a country that lacks any of the four policies cannot register (`GET /policies/current` answers 503); `GET /admin/policies/coverage` lists what is missing.
+
 > ⚠️ **CRITICAL DATABASE SAFETY INVARIANT:** Destructive commands such as `prisma migrate reset` and `prisma db push` are strictly prohibited. Test suites are protected by an automated WHATWG URL validator (`assertTestDatabaseUrl`) that rejects execution if the parsed database name is not strictly `amentorz_test` on an approved local host.
 
 ---
