@@ -99,6 +99,7 @@ const envSchema = z
     OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().positive().default(60),
     OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
     EMAIL_TOKEN_EXPIRES_MINUTES: z.coerce.number().int().positive().default(30),
+    RESET_GRANT_EXPIRES_MINUTES: z.coerce.number().int().positive().default(5),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production') {
@@ -292,6 +293,7 @@ export const config = {
     resendCooldownSeconds: env.OTP_RESEND_COOLDOWN_SECONDS,
     maxAttempts: env.OTP_MAX_ATTEMPTS,
     emailTokenExpiresMinutes: env.EMAIL_TOKEN_EXPIRES_MINUTES,
+    resetGrantExpiresMinutes: env.RESET_GRANT_EXPIRES_MINUTES,
   },
 
   security: {

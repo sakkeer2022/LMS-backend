@@ -1,5 +1,12 @@
 # Progress Log
 
+## 2026-11-03 — Account recovery and password change (LMS-100)
+
+- New `account-recovery` module: `POST /auth/recovery/requests` (same 202 for unknown, wrong-portal and inactive accounts, decoy challenge, nothing emailed), `/verify` (code to a single-use, five-minute reset credential, hash stored in `password_reset_grants`) and `/reset` (consumes the credential once even under concurrency, sets the password, activates an account waiting for activation, clears the lockout, ends every session, cancels other recovery and verification credentials, audit `password.reset`, clears the cookies, no automatic login). `PUT /auth/password` (current password checked and counted toward the lockout, new one must differ, every session ends including the caller's, audit `password.changed`).
+- `passwordSchema` in `src/shared/validation/password.ts` (8 characters with a number, at most 72 bytes) is the one password rule; `revokeAllSessions` and `clearTokenCookies` are exported from the auth module.
+- Limits reuse the OTP limits (`recovery-send`, `recovery-verify`, `recovery-reset`) and the reauth limit for the change. `RESET_GRANT_EXPIRES_MINUTES` sets the credential lifetime.
+- Tests: `tests/modules/account-recovery.test.ts` (end to end for all three portals, uniform answers, single use, simultaneous resets, expiry, cancellation by a new request, sessions ended, first password for a pending account, audit, password rule, CSRF, change-password cases).
+
 ## 2026-11-03 — Email interface, OTP logic and registration email OTP (LMS-99)
 
 - `src/infrastructure/email/`: `EmailSender` interface, nodemailer SMTP sender and an in-memory outbox used when `EMAIL_TRANSPORT=memory` (the default under tests). Production requires `SMTP_HOST` and rejects the memory transport. Code bodies are never logged.

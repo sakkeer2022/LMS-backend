@@ -26,6 +26,8 @@ Building blocks that more than one module uses. **Check this list before writing
 | Regions (India, UAE)              | `src/modules/regions/index.ts`, pure E.164 helpers in `src/shared/regions/` | Country from a mobile number, mobile validation, default time zone, guardian consent age; `tests/helpers/regions.ts` (`seedCountries`) in tests |
 | Email sending                     | `src/infrastructure/email/` (`getEmailSender`, `getTestOutbox`)      | Sending any email through the interface; SMTP in use, `memory` outbox in tests (`tests/helpers/email.ts` reads the code) |
 | Email one-time codes              | `src/modules/email-otp/index.ts` (`issueEmailOtp`, `verifyEmailOtp`, `consumeRegistrationToken`) | Registration, recovery and email verification; keyed hash, attempts, cooldown, single-use token |
+| Password rule                     | `src/shared/validation/password.ts` (`passwordSchema`)    | The one password policy: 8 characters with a number, at most 72 bytes                          |
+| Ending all sessions               | `src/modules/auth/index.ts` (`revokeAllSessions`)         | After a password reset or change                                                               |
 
 ## Planned
 

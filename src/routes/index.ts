@@ -12,6 +12,7 @@ import { adminRouter } from '@modules/admin/admin.routes.js';
 import { uploadsRouter } from '@modules/uploads/uploads.routes.js';
 import { settingsRouter } from '@modules/settings/index.js';
 import { registrationRouter } from '@modules/registration/index.js';
+import { passwordRouter, recoveryRouter } from '@modules/account-recovery/index.js';
 import { auditLogMiddleware } from '@middleware/audit.middleware';
 
 export const router = Router();
@@ -25,6 +26,8 @@ router.use(auditLogMiddleware);
 // this list to check every implemented route against docs/openapi.yaml.
 export const featureRouters: ReadonlyArray<readonly [path: string, router: Router]> = [
   ['/auth/registration', registrationRouter],
+  ['/auth/recovery', recoveryRouter],
+  ['/auth/password', passwordRouter],
   ['/auth', authRouter],
   ['/roles', rolesRouter],
   ['/permissions', permissionsRouter],

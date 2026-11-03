@@ -154,6 +154,16 @@ async function revokeFamily(userId: string, familyId: string | null): Promise<vo
   }
 }
 
+/** Ends every session of the user (password reset or change), including the caller's. */
+export async function revokeAllSessions(userId: string): Promise<void> {
+  const families = await prisma.refreshToken.findMany({
+    where: { userId, revokedAt: null },
+    select: { familyId: true },
+    distinct: ['familyId'],
+  });
+  for (const { familyId } of families) await revokeFamily(userId, familyId);
+}
+
 export interface SessionView {
   jti: string;
   createdAt: Date;
