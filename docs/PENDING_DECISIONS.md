@@ -33,7 +33,7 @@ Evidence references: SOW = Software Development Agreement, Annexure 1 (the signe
 | P5  | Initial platform settings (scoring parameters, thresholds) with limits and defaults      | LMS-90 and each feature that needs a setting | Registry empty until approved                               | Pending |
 | P6  | Pricing model: one exact price per faculty assignment, or rules with precedence (LMS-58) | LMS-58                                       | One price per assignment                                    | Pending |
 | P7  | Registration email already in use: uniform 202 at step 1 (no account enumeration) or an explicit message | LMS-99 | Uniform 202; the person learns at the final submit (409) | Pending |
-| P8  | Forgot-password flow has frames for the email, new-password and updated screens but none for entering the 6-digit code; the admin change-password dialog has no frame; the "Save and log in" button leads to the updated screen (the contract does not log in after a reset) | LMS-100 | A code step in the same style ("Check your email", Verify code, Resend code) and a settings-style dialog, built for review | Pending |
+| P8  | Forgot-password flow has frames for the email, new-password and updated screens but none for entering the 6-digit code; the admin change-password dialog (two steps: passwords, then an emailed code) has no frame; the "Save and log in" button leads to the updated screen (the contract does not log in after a reset) | LMS-100 | A code step in the same style ("Check your email", Verify code, Resend code) and a settings-style dialog, built for review | Pending |
 
 ## Team (tech lead and frontend)
 
