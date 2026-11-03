@@ -1,5 +1,15 @@
 # Progress Log
 
+## 2026-11-03 — Guardian consent signing, downloads and purge (LMS-99)
+
+- `src/infrastructure/pdf/`: `PdfService.stampConsent` appends a "Parent/guardian consent" page (printed name, UTC time, IP, signature, policy hash). Latin, Devanagari and Arabic names print correctly (checked by rendering).
+- `consent` module: `POST /consent/guardian-signatures` (multipart, PNG magic bytes, 1 MiB, strict per-IP limit; the age rule is the consent age of the policy's country, 18 for India and the UAE; returns a single-use token whose hash is the only copy stored), `GET /consent/guardian-signatures/file` (token in a header, 404 for unknown, expired or linked, does not consume it), `GET /students/me/guardian-consent/file`, and for admins `GET /admin/students/{studentId}/guardian-consent` (record) and `/file` (reauthentication, audit `consent.downloaded`); `student.read` is a new permission. Every file read re-checks its SHA-256 (503 if missing or altered).
+- Purge: `purgeExpiredConsents` deletes only rows still unlinked and expired at the moment of deletion, then their files; an hourly BullMQ job (`purge-expired-consents`) runs it.
+- Retention: migration `20261103120000_consent_retention`: deleting a student profile that holds a consent is refused (was a cascade that left the PDF behind).
+- `TRUST_PROXY_HOPS` sets Express `trust proxy` so the signing IP is the real client IP behind a proxy.
+- Tests: `consent.test.ts` (India and UAE, the day before and the day of the 18th birthday, a country with age 21, names in three scripts, downloads, admin reauth and audit, purge race), `consent-rate-limit.test.ts`, `pdf-stamp.test.ts`, `dates.test.ts`.
+- Next: admin policy upload endpoints, the policy loader command, `POST /auth/register` (needs the catalogue confirmation).
+
 ## 2026-11-03 — Policies, countries list and file storage (LMS-99)
 
 - Contract: `GET /policies/current` takes a required `country`; new public `GET /regions/countries` (code, name, dial code, default time zone) for the mobile picker; new admin `GET /admin/students/{id}/guardian-consent` (consent metadata). `Policy` gains `country`.

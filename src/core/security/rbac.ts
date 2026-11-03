@@ -46,6 +46,7 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   permission('role.assign_permission', 'Grant and revoke role permissions'),
   permission('uploads.create', 'Upload files to quarantine for scanning'),
   permission('user.create', 'Create users'),
+  permission('student.read', 'Read students and their guardian consents'),
   permission('user.read', 'Read users'),
   permission('user.update', 'Update users'),
   permission('user.delete', 'Delete users'),

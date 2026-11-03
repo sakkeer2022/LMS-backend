@@ -444,7 +444,8 @@ model GuardianConsent {
   guardianName         String?               @map("guardian_name") @db.VarChar(150)
   guardianRelationship GuardianRelationship? @map("guardian_relationship")
 
-  student StudentProfile? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  // A signed consent of a minor is a legal record: deleting the student profile is refused while it exists
+  student StudentProfile? @relation(fields: [studentId], references: [id], onDelete: Restrict)
   policy  PolicyDocument  @relation(fields: [policyId], references: [id], onDelete: Restrict)
 
   @@unique([studentId, policyId], name: "uk_student_policy_consent")

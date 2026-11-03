@@ -1,5 +1,6 @@
 import type { PolicyType } from '@prisma/client';
 import { publishPolicy, REQUIRED_POLICY_TYPES, type PolicyView } from '@modules/policies/index.js';
+import { blankPolicyPdf } from './pdf.js';
 
 /** A tiny stand-in PDF whose bytes differ by country, type and version, so tests can tell them apart. */
 export const fakePdf = (label: string): Buffer => Buffer.from(`%PDF-1.7\n% ${label}\n%%EOF`);
@@ -7,7 +8,8 @@ export const fakePdf = (label: string): Buffer => Buffer.from(`%PDF-1.7\n% ${lab
 /** Publishes the four current policies for a country and returns them by type. */
 export async function publishAllPolicies(
   country: string,
-  version = '1.0'
+  version = '1.0',
+  options: { realPdf?: boolean } = {}
 ): Promise<Record<PolicyType, PolicyView>> {
   const result = {} as Record<PolicyType, PolicyView>;
   for (const type of REQUIRED_POLICY_TYPES) {
@@ -17,7 +19,9 @@ export async function publishAllPolicies(
       version,
       title: type.toLowerCase().replaceAll('_', ' '),
       effectiveAt: new Date('2026-09-01T00:00:00Z'),
-      pdf: fakePdf(`${country} ${type} ${version}`),
+      pdf: options.realPdf
+        ? await blankPolicyPdf(2, `${country} ${type} ${version}`)
+        : fakePdf(`${country} ${type} ${version}`),
     });
   }
   return result;

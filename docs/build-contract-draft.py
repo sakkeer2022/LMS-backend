@@ -196,8 +196,8 @@ op=route('/consent/guardian-signatures/file','get','getPendingGuardianConsentFil
 op['responses']['200']=pdf_response('Signed consent PDF bytes.')
 op=route('/students/me/guardian-consent/file','get','getOwnGuardianConsentFile',CONSENT,'Download own signed consent',role='student (self only)',desc='Linked consent of the authenticated student. 404 when none. Cache-Control: private, no-store.')
 op['responses']['200']=pdf_response('Signed consent PDF bytes.')
-route('/admin/students/{studentId}/guardian-consent','get','getStudentGuardianConsentAdmin',CONSENT,'Show a student signed consent record',role='admin; students.read',data=ref('GuardianConsentSummary'),desc='Metadata of the signed guardian consent of an under-18 student: Student Terms version and country, signing time, guardian name and relationship, and the SHA-256 of the signed PDF. The PDF is a separate download. 404 when the student has no consent. Cache-Control: private, no-store.')
-op=route('/admin/students/{studentId}/guardian-consent/file','get','getStudentGuardianConsentFileAdmin',CONSENT,'Download a student signed consent',role='admin; students.read',desc='Recent reauthentication required. Audited. Cache-Control: private, no-store.')
+route('/admin/students/{studentId}/guardian-consent','get','getStudentGuardianConsentAdmin',CONSENT,'Show a student signed consent record',role='admin; student.read',data=ref('GuardianConsentSummary'),desc='Metadata of the signed guardian consent of an under-18 student (studentId is the student profile id): Student Terms version and country, signing time, guardian name and relationship, and the SHA-256 of the signed PDF. The PDF is a separate download. 404 when the student has no consent. Cache-Control: private, no-store.')
+op=route('/admin/students/{studentId}/guardian-consent/file','get','getStudentGuardianConsentFileAdmin',CONSENT,'Download a student signed consent',role='admin; student.read',desc='Recent reauthentication required. Audited. Cache-Control: private, no-store.')
 op['responses']['200']=pdf_response('Signed consent PDF bytes.')
 
 CAT='Catalogue'

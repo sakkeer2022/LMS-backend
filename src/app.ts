@@ -25,6 +25,9 @@ import {
 export function createApp(): Application {
   const app = express();
 
+  // The client IP (consent signing, audit) comes from the trusted proxy chain, never from a client-set header
+  if (config.trustProxyHops > 0) app.set('trust proxy', config.trustProxyHops);
+
   // ── Context ──────────────────────────────────────────────
   app.use(requestContextMiddleware);
 

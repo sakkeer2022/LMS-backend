@@ -39,8 +39,8 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 | POST | `/consent/guardian-signatures` | `signGuardianConsent` | public | decision-required |
 | GET | `/consent/guardian-signatures/file` | `getPendingGuardianConsentFile` | public | ready-for-review |
 | GET | `/students/me/guardian-consent/file` | `getOwnGuardianConsentFile` | student (self only) | ready-for-review |
-| GET | `/admin/students/{studentId}/guardian-consent` | `getStudentGuardianConsentAdmin` | admin; students.read | ready-for-review |
-| GET | `/admin/students/{studentId}/guardian-consent/file` | `getStudentGuardianConsentFileAdmin` | admin; students.read | ready-for-review |
+| GET | `/admin/students/{studentId}/guardian-consent` | `getStudentGuardianConsentAdmin` | admin; student.read | ready-for-review |
+| GET | `/admin/students/{studentId}/guardian-consent/file` | `getStudentGuardianConsentFileAdmin` | admin; student.read | ready-for-review |
 
 ## Regions
 

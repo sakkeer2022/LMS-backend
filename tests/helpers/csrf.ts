@@ -19,8 +19,11 @@ export async function getCsrfData() {
   }
   const setCookieHeader = response.headers['set-cookie'] || [];
   const csrfCookie = Array.isArray(setCookieHeader)
-    ? setCookieHeader.find(c => c.startsWith('_csrf='))
-    : (setCookieHeader as string).startsWith('_csrf=') ? setCookieHeader : undefined;
-  
-  const cleanCookie = csrfCookie ? csrfCookie.split(';')[0] : ''; return { csrfToken, csrfCookie: cleanCookie };
+    ? setCookieHeader.find((c) => c.startsWith('_csrf='))
+    : (setCookieHeader as string).startsWith('_csrf=')
+      ? setCookieHeader
+      : undefined;
+
+  const cleanCookie = csrfCookie ? csrfCookie.split(';')[0] : '';
+  return { csrfToken, csrfCookie: cleanCookie };
 }

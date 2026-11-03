@@ -85,6 +85,15 @@ const envSchema = z
     CLAMAV_HOST: z.string().default('localhost'),
     CLAMAV_PORT: z.coerce.number().int().positive().default(3310),
 
+    // Guardian consent (signed in the date-of-birth popup before the account exists)
+    CONSENT_UNLINKED_TTL_HOURS: z.coerce.number().int().positive().default(24),
+    CONSENT_SIGNATURE_MAX_BYTES: z.coerce.number().int().positive().default(1048576),
+    CONSENT_SIGN_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(3600000),
+    CONSENT_SIGN_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(10),
+    // Reverse proxies in front of the app (0 = none). Needed so the client IP in consents and audit is the
+    // real one, never the first X-Forwarded-For entry.
+    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),
+
     // File storage for signed consents and policy PDFs (src/infrastructure/storage). `local` and `memory` are
     // for development and tests; production uses a private S3 bucket of its own.
     STORAGE_DRIVER: z.enum(['local', 's3', 'memory']).optional(),
@@ -289,6 +298,10 @@ export const config = {
       maxPerIp: env.OTP_SEND_RATE_LIMIT_MAX_PER_IP,
       maxPerEmail: env.OTP_SEND_RATE_LIMIT_MAX_PER_EMAIL,
     },
+    consentSign: {
+      windowMs: env.CONSENT_SIGN_RATE_LIMIT_WINDOW_MS,
+      maxPerIp: env.CONSENT_SIGN_RATE_LIMIT_MAX_PER_IP,
+    },
     otpVerify: {
       windowMs: env.OTP_VERIFY_RATE_LIMIT_WINDOW_MS,
       maxPerIp: env.OTP_VERIFY_RATE_LIMIT_MAX_PER_IP,
@@ -298,6 +311,13 @@ export const config = {
   redis: {
     url: env.REDIS_URL,
   },
+
+  consent: {
+    unlinkedTtlHours: env.CONSENT_UNLINKED_TTL_HOURS,
+    signatureMaxBytes: env.CONSENT_SIGNATURE_MAX_BYTES,
+  },
+
+  trustProxyHops: env.TRUST_PROXY_HOPS,
 
   storage: {
     driver:

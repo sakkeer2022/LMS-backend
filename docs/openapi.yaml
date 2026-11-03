@@ -3914,8 +3914,8 @@
           "Consent"
         ],
         "summary": "Show a student signed consent record",
-        "description": "Current active, email-verified admin; students.read identity; server checks role, permission and resource ownership on every request. Metadata of the signed guardian consent of an under-18 student: Student Terms version and country, signing time, guardian name and relationship, and the SHA-256 of the signed PDF. The PDF is a separate download. 404 when the student has no consent. Cache-Control: private, no-store.",
-        "x-required-role": "admin; students.read",
+        "description": "Current active, email-verified admin; student.read identity; server checks role, permission and resource ownership on every request. Metadata of the signed guardian consent of an under-18 student (studentId is the student profile id): Student Terms version and country, signing time, guardian name and relationship, and the SHA-256 of the signed PDF. The PDF is a separate download. 404 when the student has no consent. Cache-Control: private, no-store.",
+        "x-required-role": "admin; student.read",
         "x-review-status": "ready-for-review",
         "security": [
           {
@@ -3993,8 +3993,8 @@
           "Consent"
         ],
         "summary": "Download a student signed consent",
-        "description": "Current active, email-verified admin; students.read identity; server checks role, permission and resource ownership on every request. Recent reauthentication required. Audited. Cache-Control: private, no-store.",
-        "x-required-role": "admin; students.read",
+        "description": "Current active, email-verified admin; student.read identity; server checks role, permission and resource ownership on every request. Recent reauthentication required. Audited. Cache-Control: private, no-store.",
+        "x-required-role": "admin; student.read",
         "x-review-status": "ready-for-review",
         "security": [
           {

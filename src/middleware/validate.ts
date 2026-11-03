@@ -5,6 +5,8 @@ export interface RequestValidationSchema {
   body?: ZodType;
   query?: ZodType;
   params?: ZodType;
+  /** Checked only (the request headers are left as they are): required headers and their shape */
+  headers?: ZodType;
 }
 
 /**
@@ -30,6 +32,9 @@ function overrideRequestProperty(req: Request, key: 'query' | 'params', value: u
 export function validateRequest(schemas: RequestValidationSchema) {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
+      if (schemas.headers) {
+        await schemas.headers.parseAsync(req.headers);
+      }
       if (schemas.params) {
         overrideRequestProperty(req, 'params', await schemas.params.parseAsync(req.params));
       }
