@@ -1,9 +1,30 @@
 import { Router } from 'express';
+import { config } from '@config/index';
+import { routeRateLimit } from '@middleware/rate-limit';
 import { validateRequest } from '@middleware/validate';
 import * as RegistrationController from './registration.controller.js';
 import { RegistrationEmailRequestDto, RegistrationOtpVerifyDto } from './registration.dto.js';
 
 export const registrationRouter = Router();
+
+const sendLimits = routeRateLimit({
+  name: 'registration-otp-send',
+  ip: {
+    windowMs: config.routeRateLimit.otpSend.windowMs,
+    max: config.routeRateLimit.otpSend.maxPerIp,
+  },
+  email: {
+    windowMs: config.routeRateLimit.otpSend.windowMs,
+    max: config.routeRateLimit.otpSend.maxPerEmail,
+  },
+});
+const verifyLimits = routeRateLimit({
+  name: 'registration-otp-verify',
+  ip: {
+    windowMs: config.routeRateLimit.otpVerify.windowMs,
+    max: config.routeRateLimit.otpVerify.maxPerIp,
+  },
+});
 
 /**
  * @openapi
@@ -27,6 +48,7 @@ export const registrationRouter = Router();
  */
 registrationRouter.post(
   '/email-otp/requests',
+  ...sendLimits,
   validateRequest({ body: RegistrationEmailRequestDto }),
   RegistrationController.requestEmailOtp
 );
@@ -53,6 +75,7 @@ registrationRouter.post(
  */
 registrationRouter.post(
   '/email-otp/verify',
+  ...verifyLimits,
   validateRequest({ body: RegistrationOtpVerifyDto }),
   RegistrationController.verifyEmailOtp
 );

@@ -22,7 +22,9 @@
  */
 
 process.env.NODE_ENV = 'test';
-process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://postgres:password@localhost:5432/amentorz_test?schema=public';
+process.env.DATABASE_URL =
+  process.env.TEST_DATABASE_URL ||
+  'postgresql://postgres:password@localhost:5432/amentorz_test?schema=public';
 process.env.JWT_SECRET ??= 'test-jwt-secret-deterministic';
 process.env.JWT_REFRESH_SECRET ??= 'test-jwt-refresh-secret-deterministic';
 process.env.COOKIE_SECRET ??= 'test-cookie-secret-deterministic';
@@ -32,3 +34,6 @@ process.env.COOKIE_SECRET ??= 'test-cookie-secret-deterministic';
 process.env.LOGIN_RATE_LIMIT_MAX_PER_IP ??= '100000';
 process.env.LOGIN_RATE_LIMIT_MAX_PER_EMAIL ??= '100000';
 process.env.REFRESH_RATE_LIMIT_MAX_PER_IP ??= '100000';
+process.env.OTP_SEND_RATE_LIMIT_MAX_PER_IP ??= '100000';
+process.env.OTP_SEND_RATE_LIMIT_MAX_PER_EMAIL ??= '100000';
+process.env.OTP_VERIFY_RATE_LIMIT_MAX_PER_IP ??= '100000';

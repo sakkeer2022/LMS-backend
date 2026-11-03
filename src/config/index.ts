@@ -50,6 +50,13 @@ const envSchema = z
     REFRESH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
     REFRESH_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(60),
 
+    // Email one-time codes: sending a code (per IP and per email) and checking one (per IP)
+    OTP_SEND_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+    OTP_SEND_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(10),
+    OTP_SEND_RATE_LIMIT_MAX_PER_EMAIL: z.coerce.number().int().positive().default(5),
+    OTP_VERIFY_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+    OTP_VERIFY_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(30),
+
     // Password confirmation for sensitive actions (POST /auth/reauthenticate)
     REAUTH_WINDOW_MINUTES: z.coerce.number().int().positive().default(5),
     REAUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
@@ -251,6 +258,15 @@ export const config = {
     reauth: {
       windowMs: env.REAUTH_RATE_LIMIT_WINDOW_MS,
       maxPerIp: env.REAUTH_RATE_LIMIT_MAX_PER_IP,
+    },
+    otpSend: {
+      windowMs: env.OTP_SEND_RATE_LIMIT_WINDOW_MS,
+      maxPerIp: env.OTP_SEND_RATE_LIMIT_MAX_PER_IP,
+      maxPerEmail: env.OTP_SEND_RATE_LIMIT_MAX_PER_EMAIL,
+    },
+    otpVerify: {
+      windowMs: env.OTP_VERIFY_RATE_LIMIT_WINDOW_MS,
+      maxPerIp: env.OTP_VERIFY_RATE_LIMIT_MAX_PER_IP,
     },
   },
 

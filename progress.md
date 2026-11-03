@@ -7,7 +7,8 @@
 - New `registration` module with `POST /auth/registration/email-otp/requests` and `/verify`, per the contract.
 - Tests: `tests/modules/registration-otp.test.ts` (16 with the route check). Expiry, attempts, cooldown and the token lifetime are configuration (`OTP_*`, `EMAIL_TOKEN_EXPIRES_MINUTES`).
 - Regions: `countries` table (migration `20261103090000_countries`, India and UAE rows) with foreign keys from `student_profiles.country` and `boards.country`; the student default country is dropped. `src/modules/regions/` (`countryFromMobile`, `isValidMobile`, `defaultTimezone`, `guardianConsentAge`, cached list) and pure E.164 helpers in `src/shared/regions/`. Tests: `regions.test.ts`, `regions-mobile.test.ts`, `countries-reference.test.ts` (keeps the migration and `prisma/reference-data/countries.ts` equal). Tests insert the rows with `seedCountries()` because the test setup empties every table.
-- Not yet: per-IP and per-email send limits (the route limiter is on the LMS-100 branch; wire it after that merges), regions, policies, consent and `POST /auth/register`.
+- Send limits: the registration OTP routes use `routeRateLimit` (`OTP_SEND_RATE_LIMIT_*` per IP and per email, `OTP_VERIFY_RATE_LIMIT_*` per IP), tested in `registration-otp-rate-limit.test.ts`.
+- Not yet: policies, consent and `POST /auth/register`.
 
 ## 2026-11-02 — Keep me signed in, device replacement, admin profile (LMS-100)
 
