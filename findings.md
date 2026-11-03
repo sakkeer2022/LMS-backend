@@ -16,7 +16,37 @@
 | No bookings table | The spec's "bookings reference a bookable leaf" has no table yet. `resolveBookableOffering()` (category-tree `index.ts`) is the check a bookings module must call; its trigger should mirror `curricula_category_check` |
 | Prisma engines in the sandbox | `binaries.prisma.sh` was unreachable while this was built, so migrations were applied with `psql` and `prisma migrate diff` was not run. Run `npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script` locally; any output other than the known hand-written objects is drift |
 
-## 2026-10-29 — Audit hash chain breaks on same-millisecond writes (existing bug, LMS-102)
+---
+
+## 2026-10-29 — API route/contract drift check (LMS-93)
+
+| Finding / Decision | Detail |
+|---|---|
+| Check | `tests/unit/api-contract-routes.test.ts` lists every route the API serves (from `featureRouters` in `src/routes/index.ts`) and compares method and path with `docs/openapi.yaml`. It runs with the unit tests, so CI fails on drift |
+| Express 5 | A mounted router does not keep its mount path, so `src/routes/index.ts` now declares its mounts as an exported `featureRouters` list and mounts them in a loop |
+| Template routes | 39 routes are not in the Sprint 1 contract (RBAC/user administration, feature flags, notifications, admin dashboard, uploads, `POST /auth/login`, `GET /audit/{id}`, `GET /`). They are listed as known undocumented with a reason, pending the legacy-routes decision; the test fails when an entry goes stale |
+| Response shapes | `tests/helpers/contract.ts` validates response bodies against the contract schema for the operation and status (Ajv 8 with `ajv-formats`, strict mode off for OpenAPI 3.0 keywords; added as dev dependencies with approval). `tests/modules/contract_responses.test.ts` covers the implemented contract routes |
+| Known mismatches | `GET /auth/me`, `GET /auth/sessions` and `POST /auth/refresh` (template versions, rewritten in LMS-100) and `GET /audit`. The audit list returns `correlationId`, `ipAddress`, `userAgent` and `deviceFingerprint`, which the contract's redacted projection excludes, and lacks the contract's filters and date window: needs its own ticket. The test fails when a mismatch is fixed, so the list stays current |
+| Still open in LMS-93 | Serving the approved contract at `/api/docs` once Sprint 1 endpoints exist |
+
+---
+
+## 2026-10-29 — Platform settings API (LMS-90)
+
+| Finding / Decision | Detail |
+|---|---|
+| Registry in code, values in the database | `src/modules/settings/settings.registry.ts` defines each key's type, bounds, allowed values and default; `system_settings` (existing table, no migration) stores only the value and revision. Unregistered keys return 404 even if a row exists |
+| Registry starts empty | The initial keys are `DECISION REQUIRED` in the contract. Keys are added, once approved, in the PR of the feature that reads them. Tests use a mocked registry |
+| No cache | `getSetting(key)` reads the database each time, so changes apply without a restart and there is nothing to invalidate |
+| Defaults stored on first read | Reading or updating a registered key creates its row with the default (revision 1), so `expectedRevision` always has a value to compare |
+| Optimistic concurrency | `PUT` updates only where `revision = expectedRevision`; otherwise 409. Wrong type, bounds or allowed value is 422 |
+| Audit | `setting.updated` (SECURITY) with the actor, old and new value, revision and reason, written after the commit |
+| Re-authentication deferred | The contract requires recent re-authentication for `PUT`; `/auth/reauthenticate` comes with LMS-100, which adds the check |
+| Test fixtures | `tests/helpers/users.ts` creates users through Prisma (low bcrypt cost) and logs in through the real endpoint, instead of registering through the API |
+
+---
+
+## 2026-10-29 — Audit hash chain breaks on same-millisecond writes (LMS-102, fixed)
 
 | Finding / Decision | Detail |
 |---|---|
@@ -24,7 +54,10 @@
 | Cause | `logAction` links each record to the latest one found by `createdAt DESC, id DESC`, and `verifyAuditChain` walks `createdAt ASC, id ASC`. `createdAt` has millisecond precision and `id` is a random UUID, so records written in the same millisecond are linked and verified in different orders. Concurrent writes (the audit middleware is fire-and-forget) can also read the same "latest" record and fork the chain |
 | Evidence | Probe on development: 3 sequential writes, 200 times. Same millisecond in 153 of 200; an untampered chain reported as broken in 78 of 200 |
 | Impact | `npm run audit:verify` can report tampering that did not happen, which undermines the LMS-41 audit baseline |
-| Proposed fix | LMS-102: add a monotonic sequence column (for example `BIGSERIAL`) used for both linking and verification, and serialise chain writes (for example a Postgres advisory lock in `logAction`). Needs a migration |
+| Fix (LMS-102) | New `audit_logs.sequence` (BIGINT, unique, sequence default) used for linking and verification. `logAction` takes `pg_advisory_xact_lock` inside a transaction, reads the latest record by `sequence` and inserts, so writes are serialised. Migration `20261029120000_audit_chain_sequence` numbers existing rows in their previous verification order (`created_at`, `id`) |
+| Existing rows | Not re-hashed. Rows written before the fix may already form a broken chain (for example in dev databases); production has no audit data yet. If `audit:verify` reports an old break on a dev database, clear its audit logs |
+| Cost | Audit writes are serialised by one lock. Acceptable at current volume; revisit if audit writes become a bottleneck |
+| Result | Probe after the fix: same millisecond in 115 of 200 runs, untampered chain reported as broken in 0 of 200 |
 
 ---
 

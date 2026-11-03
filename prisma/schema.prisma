@@ -236,6 +236,9 @@ model AuditLog {
   newValue          Json?    @map("new_value") @db.Json
   hash              String   @db.VarChar(64)
   previousHash      String   @map("previous_hash") @db.VarChar(64)
+  // Position in the hash chain. Links and verification follow this, never created_at,
+  // because several records can share a millisecond (LMS-102).
+  sequence          BigInt   @unique @default(autoincrement())
   createdAt         DateTime @default(now()) @map("created_at")
 
   user User? @relation(fields: [actorId], references: [id], onDelete: SetNull)

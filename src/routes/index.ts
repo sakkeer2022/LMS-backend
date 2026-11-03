@@ -9,6 +9,7 @@ import { featureFlagsRouter } from '@modules/feature-flags/index.js';
 import { notificationsRouter } from '@modules/notifications/notifications.routes.js';
 import { adminRouter } from '@modules/admin/admin.routes.js';
 import { uploadsRouter } from '@modules/uploads/uploads.routes.js';
+import { settingsRouter } from '@modules/settings/index.js';
 import { auditLogMiddleware } from '@middleware/audit.middleware';
 import { catalogueRouter, adminCatalogueRouter } from '@modules/catalogue/index.js';
 import { pricesRouter, adminPricesRouter } from '@modules/pricing/index.js';
@@ -23,27 +24,34 @@ export const router = Router();
 router.use(auditLogMiddleware);
 
 // ── Feature routers ───────────────────────────────────────────
-router.use('/auth', authRouter);
-router.use('/roles', rolesRouter);
-router.use('/permissions', permissionsRouter);
-router.use('/users', usersRouter);
-router.use('/audit', auditRouter);
-router.use('/feature-flags', featureFlagsRouter);
-router.use('/notifications', notificationsRouter);
+// Mount path of every feature router, in mount order (a more specific path must
+// come before a shorter prefix). tests/unit/api-contract-routes.test.ts reads
+// this list to check every implemented route against docs/openapi.yaml.
+export const featureRouters: ReadonlyArray<readonly [path: string, router: Router]> = [
+  ['/auth', authRouter],
+  ['/roles', rolesRouter],
+  ['/permissions', permissionsRouter],
+  ['/users', usersRouter],
+  ['/audit', auditRouter],
+  ['/feature-flags', featureFlagsRouter],
+  ['/notifications', notificationsRouter],
+  // Catalogue (LMS-54) and pricing (LMS-58) come before '/admin', whose router
+  // authenticates every path. The category tree (ADR-0005) comes before
+  // '/catalogue', whose router has no '/category-tree' paths.
+  ['/catalogue/category-tree', learnerCategoryTreeRouter],
+  ['/catalogue', catalogueRouter],
+  ['/admin/category-tree', adminCategoryTreeRouter],
+  ['/admin/catalogue', adminCatalogueRouter],
+  ['/prices', pricesRouter],
+  ['/admin/prices', adminPricesRouter],
+  ['/admin/settings', settingsRouter],
+  ['/admin', adminRouter],
+  ['/uploads', uploadsRouter],
+];
 
-// ── Catalogue (LMS-54). Mounted before '/admin', whose router authenticates every path ──
-// Category tree (ADR-0005) before '/catalogue', whose router has no '/category-tree' paths
-router.use('/catalogue/category-tree', learnerCategoryTreeRouter);
-router.use('/catalogue', catalogueRouter);
-router.use('/admin/category-tree', adminCategoryTreeRouter);
-router.use('/admin/catalogue', adminCatalogueRouter);
-
-// ── Pricing (LMS-58). Also mounted before '/admin' ──
-router.use('/prices', pricesRouter);
-router.use('/admin/prices', adminPricesRouter);
-
-router.use('/admin', adminRouter);
-router.use('/uploads', uploadsRouter);
+for (const [path, featureRouter] of featureRouters) {
+  router.use(path, featureRouter);
+}
 
 // ── API info ──────────────────────────────────────────────────
 router.get('/', (_req, res) => {
