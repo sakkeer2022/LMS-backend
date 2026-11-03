@@ -32,12 +32,15 @@ Evidence references: SOW = Software Development Agreement, Annexure 1 (the signe
 | P4  | Do adults see the guardian step?                                                         | LMS-99                                       | Optional for adults                                         | Pending |
 | P5  | Initial platform settings (scoring parameters, thresholds) with limits and defaults      | LMS-90 and each feature that needs a setting | Registry empty until approved                               | Pending |
 | P6  | Pricing model: one exact price per faculty assignment, or rules with precedence (LMS-58) | LMS-58                                       | One price per assignment                                    | Pending |
+| F1  | Faculty onboarding route: invitation links point to `/faculty/onboarding?token=…`, a placeholder until the onboarding screens exist. Accepting an invitation (creating the user and profile) is not built yet | LMS-79, LMS-81 | Placeholder route; acceptance built with LMS-81 | Pending |
+| F2  | Required verification documents: the Faculty list shows "uploaded of 4" (screen 27b shows four). Which documents are required? | LMS-78, LMS-83, LMS-86 | 4 (`REQUIRED_VERIFICATION_DOCUMENTS`) | Pending |
+| F3  | Rejected tutors and expired invitations have no tab on screen 27; they show under "All" only | LMS-78 | Shown under All | Pending |
 
 ## Team (tech lead and frontend)
 
 | ID  | Question                                                                                 | Affects           | Working assumption                                       | Status  |
 | --- | ---------------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------- | ------- |
-| T1  | Production email provider (Gmail SMTP for development)                                   | LMS-97, LMS-79    | SMTP transport; provider set in configuration            | Pending |
+| T1  | Production email provider. A SendGrid adapter now exists (LMS-79, `EMAIL_TRANSPORT=sendgrid`); confirm SendGrid for production and whether an SMTP adapter is still needed for development | LMS-97, LMS-79    | `log` in development, `sendgrid` where configured; provider set in configuration | Pending |
 | T4  | Keep, document or remove the 39 template routes not in the contract                      | Contract, LMS-100 | Kept, listed in `tests/unit/api-contract-routes.test.ts` | Pending |
 | T5  | Should `npm audit` (high severity) fail the build?                                       | CI                | Advisory                                                 | Pending |
 | T6  | Who owns the frontend parts of LMS-41 (settings screen, shared UI components, admin CI)? | LMS-40 UI work    | Unassigned                                               | Pending |

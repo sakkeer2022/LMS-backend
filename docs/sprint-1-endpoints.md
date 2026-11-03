@@ -44,6 +44,8 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 |---|---|---|---|---|
 | POST | `/admin/faculty` | `createFaculty` | admin; faculty.create | ready-for-review |
 | GET | `/admin/faculty` | `listFacultyAdmin` | admin; faculty.read | ready-for-review |
+| GET | `/admin/faculty/status-counts` | `getFacultyStatusCounts` | admin; faculty.read | ready-for-review |
+| POST | `/admin/faculty/invitations` | `inviteFaculty` | admin; faculty.create | ready-for-review |
 | GET | `/admin/faculty/{facultyId}` | `getFacultyAdmin` | admin; faculty.read | ready-for-review |
 | PUT | `/admin/faculty/{facultyId}/profile` | `setFacultyProfileAdmin` | admin; faculty.update | ready-for-review |
 | GET | `/faculty/me` | `getOwnFacultyProfile` | faculty (self only) | ready-for-review |

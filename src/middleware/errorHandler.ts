@@ -64,7 +64,8 @@ export function globalErrorHandler(
 
     // Operational errors expose their code so clients can map them; system errors stay generic
     const code = isSystemError ? undefined : err.code;
-    res.status(err.statusCode).json(errorResponse(message, undefined, err.traceId, code));
+    const fieldErrors = isSystemError ? undefined : err.fieldErrors;
+    res.status(err.statusCode).json(errorResponse(message, fieldErrors, err.traceId, code));
     return;
   }
 

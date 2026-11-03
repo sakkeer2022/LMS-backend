@@ -10,6 +10,7 @@ import { notificationsRouter } from '@modules/notifications/notifications.routes
 import { adminRouter } from '@modules/admin/admin.routes.js';
 import { uploadsRouter } from '@modules/uploads/uploads.routes.js';
 import { settingsRouter } from '@modules/settings/index.js';
+import { adminFacultyRouter } from '@modules/faculty/index.js';
 import { auditLogMiddleware } from '@middleware/audit.middleware';
 import { catalogueRouter, adminCatalogueRouter } from '@modules/catalogue/index.js';
 import { pricesRouter, adminPricesRouter } from '@modules/pricing/index.js';
@@ -45,6 +46,7 @@ export const featureRouters: ReadonlyArray<readonly [path: string, router: Route
   ['/prices', pricesRouter],
   ['/admin/prices', adminPricesRouter],
   ['/admin/settings', settingsRouter],
+  ['/admin/faculty', adminFacultyRouter],
   ['/admin', adminRouter],
   ['/uploads', uploadsRouter],
 ];

@@ -558,6 +558,34 @@
 
 ---
 
+### 4.7 `faculty_invitations`
+- **Purpose:** Admin invitations to join as a tutor (LMS-79). The user and faculty profile are created when the invitee completes onboarding.
+- **Physical Table:** `faculty_invitations`
+
+| Column | Type | Nullable | Default | Description & Constraints | Enforcement |
+|---|---|:---:|---|---|---|
+| `id` | `UUID` | No | `gen_random_uuid()` | Primary Key | Database |
+| `email` | `VARCHAR(255)` | No | — | Invitee email, trimmed and lowercased | Database (`faculty_invitations_email_normalized_check`) |
+| `token_hash` | `VARCHAR(64)` | No | — | SHA-256 hex of the single-use token; the token itself is never stored | Database (unique, hex CHECK) |
+| `status` | `FacultyInvitationStatus` | No | `PENDING` | PENDING, ACCEPTED, REVOKED, EXPIRED | Database |
+| `delivery_method` | `FacultyInvitationDelivery` | No | `EMAIL` | EMAIL (sent) or LINK (Copy link) | Database |
+| `sent_at` | `TIMESTAMP(3)` | Yes | `NULL` | When the provider accepted the email | Application |
+| `expires_at` | `TIMESTAMP(3)` | No | — | Creation + `FACULTY_INVITE_TTL_HOURS` | Database (`faculty_invitations_expiry_check`) |
+| `accepted_at` | `TIMESTAMP(3)` | Yes | `NULL` | Set when onboarding completes (LMS-81) | Application |
+| `revoked_at` | `TIMESTAMP(3)` | Yes | `NULL` | Revocation time | Application |
+| `revoked_reason` | `VARCHAR(50)` | Yes | `NULL` | e.g. `DELIVERY_FAILED` | Application |
+| `delivery_error` | `VARCHAR(255)` | Yes | `NULL` | Provider error summary, no secrets | Application |
+| `invited_by_id` | `UUID` | Yes | `NULL` | Foreign Key to `users` (inviting admin) | Database (`faculty_invitations_invited_by_id_fkey`, ON DELETE SET NULL) |
+| `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Creation timestamp | Database |
+| `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
+
+- **Indexes & Constraints:**
+  - `faculty_invitations_token_hash_key` (UNIQUE, `token_hash`)
+  - `faculty_invitations_one_pending_per_email` (UNIQUE partial, `email` WHERE `status = 'PENDING'`; hand-written, not in `schema.prisma`)
+  - `faculty_invitations_email_status_idx`, `faculty_invitations_status_expires_at_idx` (INDEX)
+
+---
+
 ## 5. Domain 4: Catalogue & Pricing
 
 ### 5.1 `categories`

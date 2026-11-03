@@ -1653,8 +1653,8 @@
         "tags": [
           "Faculty"
         ],
-        "summary": "List private faculty profiles",
-        "description": "Current active, email-verified admin; faculty.read identity; server checks role, permission and resource ownership on every request. ",
+        "summary": "List tutors and outstanding invitations",
+        "description": "Current active, email-verified admin; faculty.read identity; server checks role, permission and resource ownership on every request. Admin Faculty screen (LMS-78). One row per faculty profile or PENDING invitation; accepted and revoked invitations are not listed. Cache-Control: no-store.",
         "x-required-role": "admin; faculty.read",
         "x-review-status": "ready-for-review",
         "security": [
@@ -1664,7 +1664,7 @@
         ],
         "responses": {
           "200": {
-            "description": "List private faculty profiles.",
+            "description": "List tutors and outstanding invitations.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1708,35 +1708,57 @@
         },
         "parameters": [
           {
-            "name": "approvalStatus",
+            "name": "status",
             "in": "query",
             "required": false,
-            "description": "approvalStatus",
+            "description": "Tab: pending = invited + pending; all also includes rejected and expired.",
             "schema": {
               "type": "string",
               "enum": [
+                "all",
                 "pending",
-                "approved",
-                "rejected"
-              ]
+                "verified",
+                "published",
+                "suspended"
+              ],
+              "default": "all"
             }
           },
           {
-            "name": "isActive",
+            "name": "search",
             "in": "query",
             "required": false,
-            "description": "isActive",
+            "description": "Name or email contains, case-insensitive.",
             "schema": {
-              "type": "boolean"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
             }
           },
           {
-            "name": "isPublished",
+            "name": "categoryId",
             "in": "query",
             "required": false,
-            "description": "isPublished",
+            "description": "Tutors with an active assignment in this category or below it; hides invitations. Unknown id 422.",
             "schema": {
-              "type": "boolean"
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "recent/oldest by appliedAt, then id; name by full name or email.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "recent",
+                "oldest",
+                "name"
+              ],
+              "default": "recent"
             }
           },
           {
@@ -1764,6 +1786,180 @@
             }
           }
         ]
+      }
+    },
+    "/admin/faculty/status-counts": {
+      "get": {
+        "operationId": "getFacultyStatusCounts",
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Count tutors per Faculty screen tab",
+        "description": "Current active, email-verified admin; faculty.read identity; server checks role, permission and resource ownership on every request. Badge counts for the tabs, narrowed by the same search and categoryId as the list.",
+        "x-required-role": "admin; faculty.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Count tutors per Faculty screen tab.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getFacultyStatusCountsResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "all": 0,
+                    "pending": 0,
+                    "verified": 0,
+                    "published": 0,
+                    "suspended": 0
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "description": "Name or email contains, case-insensitive.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": false,
+            "description": "Tutors with an active assignment in this category or below it; hides invitations. Unknown id 422.",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      }
+    },
+    "/admin/faculty/invitations": {
+      "post": {
+        "operationId": "inviteFaculty",
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Invite tutors by email",
+        "description": "Current active, email-verified admin; faculty.create identity; server checks role, permission and resource ownership on every request. LMS-79. All or nothing: an address with any account or an unexpired pending invitation makes the whole request 409 FACULTY_INVITE_CONFLICT with one message per address in errors.emails; expired invitations are expired first so the address can be invited again. One pending invitation per email is enforced by a partial unique index. Token: 32 random bytes, base64url, single use, SHA-256 hash stored, lifetime FACULTY_INVITE_TTL_HOURS. Emails are sent through the configured provider after commit; an undeliverable invitation is revoked (delivered=false), and 502 EMAIL_DELIVERY_FAILED is returned when none could be sent. Rate-limited per admin (429 with Retry-After). Every invitation and delivery failure is audited without the token.",
+        "x-required-role": "admin; faculty.create",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Invite tutors by email.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/inviteFacultyResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "invitations": [],
+                    "inviteUrl": "https://example.org/learning/algebra"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          },
+          "502": {
+            "description": "EMAIL_DELIVERY_FAILED: no invitation email could be sent; the invitations were revoked so they can be sent again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FacultyInvite"
+              }
+            }
+          }
+        }
       }
     },
     "/admin/faculty/{facultyId}": {
@@ -11629,6 +11825,296 @@
           "revision"
         ]
       },
+      "FacultyListItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "description": "faculty_profiles.id for profile rows; faculty_invitations.id for invitation rows."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "profile",
+              "invitation"
+            ]
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Null for invitations (the invitee has not onboarded yet).",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "format": "email",
+            "example": "learner@example.org",
+            "description": "Trim and lowercase before uniqueness and lookup. No provider-specific dot or plus rewriting."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "invited",
+              "expired",
+              "pending",
+              "verified",
+              "published",
+              "rejected",
+              "suspended"
+            ],
+            "description": "Profile: suspended (profile or account inactive/suspended) > published (approved and published) > verified (approved) > rejected > pending. Invitation: invited, or expired once expiresAt has passed."
+          },
+          "subjects": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "maxItems": 50,
+            "description": "Distinct subject names from active catalogue assignments."
+          },
+          "qualification": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 400,
+            "example": "Ph.D. \u00b7 IIT Bombay",
+            "nullable": true,
+            "description": "Most recent qualification: degree \u00b7 institution."
+          },
+          "documents": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "uploaded": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
+              },
+              "required": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
+              }
+            },
+            "required": [
+              "uploaded",
+              "required"
+            ],
+            "nullable": true,
+            "description": "Verification documents uploaded and expected. Null for invitations. The required checklist is a pending decision."
+          },
+          "appliedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z",
+            "description": "Profile or invitation creation time."
+          },
+          "invitation": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sentAt": {
+                "type": "string",
+                "format": "date-time",
+                "example": "2026-10-21T09:00:00Z",
+                "nullable": true
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time",
+                "example": "2026-10-21T09:00:00Z"
+              },
+              "deliveryMethod": {
+                "type": "string",
+                "enum": [
+                  "email",
+                  "link"
+                ]
+              }
+            },
+            "required": [
+              "sentAt",
+              "expiresAt",
+              "deliveryMethod"
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "fullName",
+          "email",
+          "status",
+          "subjects",
+          "qualification",
+          "documents",
+          "appliedAt",
+          "invitation"
+        ]
+      },
+      "FacultyStatusCounts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "all": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "pending": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "verified": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "published": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "suspended": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "all",
+          "pending",
+          "verified",
+          "published",
+          "suspended"
+        ]
+      },
+      "FacultyInvite": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "emails": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 254,
+              "format": "email",
+              "example": "tutor@example.org",
+              "description": "Trimmed and lowercased. RFC 5322 dot-atom addr-spec with an alphabetic TLD; quoted local parts and IP literals are rejected."
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "description": "Duplicates are removed."
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "email",
+              "link"
+            ],
+            "default": "email",
+            "description": "email: send the invitation email. link: send nothing and return inviteUrl once (\"Copy link\"); exactly one email."
+          }
+        },
+        "required": [
+          "emails"
+        ]
+      },
+      "FacultyInvitation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 254,
+            "format": "email",
+            "example": "tutor@example.org",
+            "description": "Trimmed and lowercased. RFC 5322 dot-atom addr-spec with an alphabetic TLD; quoted local parts and IP literals are rejected."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "revoked"
+            ],
+            "description": "revoked: the email could not be delivered, so the invitation was withdrawn and the address can be invited again."
+          },
+          "deliveryMethod": {
+            "type": "string",
+            "enum": [
+              "email",
+              "link"
+            ]
+          },
+          "delivered": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Null for link invitations."
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z",
+            "nullable": true
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "status",
+          "deliveryMethod",
+          "delivered",
+          "sentAt",
+          "expiresAt"
+        ]
+      },
+      "FacultyInviteResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "invitations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacultyInvitation"
+            },
+            "maxItems": 20
+          },
+          "inviteUrl": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "format": "uri",
+            "nullable": true,
+            "description": "APP_BASE_URL/faculty/onboarding?token=... for delivery=link only. Returned once; only the token hash is stored. Never log."
+          }
+        },
+        "required": [
+          "invitations",
+          "inviteUrl"
+        ]
+      },
       "FacultyCreate": {
         "type": "object",
         "additionalProperties": false,
@@ -14477,7 +14963,7 @@
           "data": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/FacultyProfile"
+              "$ref": "#/components/schemas/FacultyListItem"
             },
             "maxItems": 100
           },
@@ -14490,6 +14976,56 @@
           "message",
           "data",
           "meta"
+        ]
+      },
+      "getFacultyStatusCountsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/FacultyStatusCounts"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "inviteFacultyResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/FacultyInviteResult"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
         ]
       },
       "getFacultyAdminResponse": {

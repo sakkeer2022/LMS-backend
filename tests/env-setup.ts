@@ -26,3 +26,7 @@ process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://postgr
 process.env.JWT_SECRET ??= 'test-jwt-secret-deterministic';
 process.env.JWT_REFRESH_SECRET ??= 'test-jwt-refresh-secret-deterministic';
 process.env.COOKIE_SECRET ??= 'test-cookie-secret-deterministic';
+
+// Faculty invitations (LMS-79): a small per-admin budget so the 429 path is testable.
+// Each integration test logs in a new admin, so every test starts with a full budget.
+process.env.FACULTY_INVITE_RATE_LIMIT_MAX ??= '5';

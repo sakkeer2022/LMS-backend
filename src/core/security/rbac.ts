@@ -27,6 +27,8 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   permission('audit.read', 'Read audit log entries'),
   permission('configuration.read', 'Read platform settings'),
   permission('configuration.manage', 'Change platform settings'),
+  permission('faculty.create', 'Invite tutors and create faculty accounts'),
+  permission('faculty.read', 'Read private faculty profiles and invitations'),
   permission('feature_flags.create', 'Create feature flags'),
   permission('feature_flags.read', 'Read feature flags'),
   permission('feature_flags.update', 'Update feature flags'),

@@ -1,5 +1,24 @@
 # Progress Log
 
+## 2026-11-03 — Faculty list and tutor invitations (LMS-78, LMS-79)
+
+- New module `src/modules/faculty`: `GET /admin/faculty` (roster of profiles and pending invitations with a derived status, tabs, search, category subtree, sort, pagination), `GET /admin/faculty/status-counts` (tab badges), `POST /admin/faculty/invitations` (invite 1-20 emails, or Copy link with `delivery=link`). Guards `faculty.read` and `faculty.create` added to `rbac.ts` (granted to admin).
+- New table `faculty_invitations` (migration `20261103090000_faculty_invitations`): SHA-256 token hash only, PENDING/ACCEPTED/REVOKED/EXPIRED, delivery method, sent and expiry times, inviter. A partial unique index allows one PENDING invitation per email.
+- Email: `src/infrastructure/email` with a SendGrid v3 adapter (fetch, no new dependency), a log-only development adapter and an in-memory test double; chosen by `EMAIL_TRANSPORT`. New settings `SENDGRID_*`, `APP_BASE_URL`, `FACULTY_INVITE_*` in `.env.example`.
+- `src/middleware/rate-limit.ts`: per-route, per-user rate limiter. Operational errors can now return per-field `errors` (`fieldErrors`), used for 409 conflicts per email.
+- Contract: generator updated and `docs/openapi.yaml` regenerated (`listFacultyAdmin` now returns `FacultyListItem`; new `getFacultyStatusCounts`, `inviteFaculty`).
+- **After pulling:** `npx prisma migrate deploy`, `npx prisma generate`, `npx prisma db seed` (new permissions).
+
+### Test Results
+
+| Check | Result |
+|---|---|
+| `npm run typecheck`, `npm run build` | ✅ Pass |
+| `npm run lint` | ✅ 0 errors (warnings: existing pattern, typed-map object-injection and the documented email regex) |
+| `npx vitest run` (unit + integration, PostgreSQL 16 test DB) | ✅ 594 passed; ❌ 2 pre-existing `tests/unit/rbac.test.ts` failures (`catalogue.*`, `pricing.*`, unchanged) |
+| New suites | `tests/modules/faculty.test.ts` (39), `tests/unit/faculty.test.ts`, `email-providers.test.ts`, `email-config.test.ts`, `rate-limit.test.ts` |
+| `python3 docs/check-contract-structure.py` | ✅ 102 paths, 117 operations |
+
 ## 2026-11-02 — Category tree (ADR-0005, LMS-0: ticket number to be assigned)
 
 - `categories` is now the tree (path, depth, bookable leaves, version), superseding ADR-0003. Board, subject and level stay lookups; `category_levels` lists a leaf's levels.

@@ -57,8 +57,43 @@ const envSchema = z
       .default(false),
     CLAMAV_HOST: z.string().default('localhost'),
     CLAMAV_PORT: z.coerce.number().int().positive().default(3310),
+
+    // ── Email (LMS-97, LMS-79) ──
+    // log: development, records that a message would be sent; memory: tests;
+    // sendgrid: SendGrid v3 HTTP API. Defaults to memory under NODE_ENV=test.
+    EMAIL_TRANSPORT: z.enum(['log', 'memory', 'sendgrid']).optional(),
+    SENDGRID_API_KEY: z.string().optional(),
+    SENDGRID_FROM_EMAIL: z.email().optional(),
+    SENDGRID_FROM_NAME: z.string().min(1).max(100).default('Amentorz'),
+
+    // Public web app origin used to build links in emails (no trailing slash)
+    APP_BASE_URL: z
+      .url()
+      .default('http://localhost:3001')
+      .transform((url) => url.replace(/\/+$/, '')),
+
+    // ── Faculty invitations (LMS-79) ──
+    FACULTY_INVITE_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(72),
+    FACULTY_INVITE_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+    FACULTY_INVITE_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
   })
   .superRefine((env, ctx) => {
+    if (env.EMAIL_TRANSPORT === 'sendgrid') {
+      if (!env.SENDGRID_API_KEY || env.SENDGRID_API_KEY.trim() === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'SENDGRID_API_KEY is required when EMAIL_TRANSPORT=sendgrid',
+          path: ['SENDGRID_API_KEY'],
+        });
+      }
+      if (!env.SENDGRID_FROM_EMAIL) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'SENDGRID_FROM_EMAIL is required when EMAIL_TRANSPORT=sendgrid',
+          path: ['SENDGRID_FROM_EMAIL'],
+        });
+      }
+    }
     if (env.NODE_ENV === 'production') {
       if (env.JWT_SECRET.length < 32) {
         ctx.addIssue({
@@ -86,6 +121,20 @@ const envSchema = z
           code: z.ZodIssueCode.custom,
           message: 'ALLOWED_ORIGINS is required in production',
           path: ['ALLOWED_ORIGINS'],
+        });
+      }
+      if (env.EMAIL_TRANSPORT === 'memory') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'EMAIL_TRANSPORT=memory is for tests and cannot be used in production',
+          path: ['EMAIL_TRANSPORT'],
+        });
+      }
+      if (!env.APP_BASE_URL.startsWith('https://')) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'APP_BASE_URL must use https in production',
+          path: ['APP_BASE_URL'],
         });
       }
       if (!env.METRICS_TOKEN || env.METRICS_TOKEN.length < 32) {
@@ -222,6 +271,21 @@ export const config = {
 
   metrics: {
     token: env.METRICS_TOKEN,
+  },
+
+  email: {
+    transport: env.EMAIL_TRANSPORT ?? (env.NODE_ENV === 'test' ? 'memory' : 'log'),
+    sendgridApiKey: env.SENDGRID_API_KEY,
+    fromEmail: env.SENDGRID_FROM_EMAIL,
+    fromName: env.SENDGRID_FROM_NAME,
+  },
+
+  appBaseUrl: env.APP_BASE_URL,
+
+  facultyInvitations: {
+    ttlHours: env.FACULTY_INVITE_TTL_HOURS,
+    rateLimitWindowMs: env.FACULTY_INVITE_RATE_LIMIT_WINDOW_MS,
+    rateLimitMax: env.FACULTY_INVITE_RATE_LIMIT_MAX,
   },
 } as const;
 

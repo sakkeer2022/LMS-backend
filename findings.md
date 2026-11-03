@@ -1,5 +1,17 @@
 # Findings & Decisions
 
+
+## 2026-11-03 — Faculty invitations (LMS-78, LMS-79)
+
+| Finding / Decision | Detail |
+|---|---|
+| Invitation-only model | Inviting creates a `faculty_invitations` row only; the user and faculty profile are created when the invitee completes onboarding (LMS-81). Chosen by the developer over creating a placeholder user (Jira LMS-79), which would need a dummy name and password hash |
+| Email transport | `EmailProvider` interface with SendGrid (v3 HTTP API through fetch, so no SDK dependency), log and in-memory adapters, chosen by `EMAIL_TRANSPORT`. Keeps the LMS-97 "one interface, transport by configuration" decision; SendGrid for production still pending (T1) |
+| All-or-nothing invites | Any address with an account or a pending invitation fails the whole request with 409 and a message per address; nothing is created |
+| Delivery failures | Emails are sent after the commit. An invitation whose email fails is revoked (`DELIVERY_FAILED`) so it can be re-sent; 502 when none could be sent |
+| Copy link | `delivery=link` creates one invitation and returns its link once without emailing |
+| Email rule | RFC 5322 dot-atom only (no quoted local parts or IP literals), RFC 5321 lengths, alphabetic TLD; shared with the admin frontend |
+
 ## 2026-11-02 — Category tree (ADR-0005, LMS-0)
 
 | Finding / Decision | Detail |
