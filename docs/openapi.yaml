@@ -3986,6 +3986,228 @@
         ]
       }
     },
+    "/admin/students": {
+      "get": {
+        "operationId": "listStudentsAdmin",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "List students with their consent status",
+        "description": "Current active, email-verified admin; student.read identity; server checks role, permission and resource ownership on every request. Newest first. A student is a minor when their age is below the guardian consent age of their country (read from the country table). The guardian contact and the consent status are shown against every minor; the signed PDF and its record are fetched per student (see the guardian-consent routes). Cache-Control: private, no-store.",
+        "x-required-role": "admin; student.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List students with their consent status.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listStudentsAdminResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": [],
+                  "meta": {
+                    "page": 1,
+                    "limit": 1,
+                    "total": 0,
+                    "totalPages": 0
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Part of the name, email or mobile number.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "description": "Only students of this country.",
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 2,
+              "pattern": "^[A-Z]{2}$"
+            }
+          },
+          {
+            "name": "minor",
+            "in": "query",
+            "required": false,
+            "description": "true: only students below their country's consent age; false: only the others.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "consent",
+            "in": "query",
+            "required": false,
+            "description": "Only students with this consent status.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "signed",
+                "missing",
+                "not_required"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "One-based page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ]
+      }
+    },
+    "/admin/students/{studentId}": {
+      "get": {
+        "operationId": "getStudentAdmin",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "Show one student",
+        "description": "Current active, email-verified admin; student.read identity; server checks role, permission and resource ownership on every request. The student, the learning profile chosen at registration (names only), the guardian contact and, for a minor with a signed consent, the consent record. studentId is the student profile id. 404 for an unknown student. Cache-Control: private, no-store.",
+        "x-required-role": "admin; student.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Show one student.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getStudentAdminResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "userId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "fullName": "Ananya Rao",
+                    "email": "learner@example.org",
+                    "isActive": true,
+                    "country": "Example value",
+                    "dateOfBirth": "2012-05-15",
+                    "age": 0,
+                    "isMinor": true,
+                    "consentStatus": "signed",
+                    "registeredAt": "2026-10-21T09:00:00Z",
+                    "learningProfile": {
+                      "category": "Example value",
+                      "board": "Example value",
+                      "level": "Example value",
+                      "teachingLanguage": "Example value",
+                      "subjects": []
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "studentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      }
+    },
     "/admin/policies": {
       "get": {
         "operationId": "listPoliciesAdmin",
@@ -9190,6 +9412,271 @@
           "sha256"
         ]
       },
+      "AdminStudent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "description": "The student profile id (the {studentId} of the guardian consent routes)."
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
+          },
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "format": "email",
+            "example": "learner@example.org",
+            "description": "Trim and lowercase before uniqueness and lookup. No provider-specific dot or plus rewriting."
+          },
+          "mobileNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "pattern": "^\\+[1-9][0-9]{7,14}$",
+            "example": "+919876543210",
+            "description": "E.164. The UI defaults to +91. Not OTP-verified in Phase 1. Not unique: siblings may share a parent number.",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "country": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$"
+          },
+          "dateOfBirth": {
+            "type": "string",
+            "format": "date",
+            "example": "2012-05-15"
+          },
+          "age": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 150
+          },
+          "isMinor": {
+            "type": "boolean",
+            "description": "Below the consent age of the student's country (read from the country, never fixed)."
+          },
+          "consentStatus": {
+            "type": "string",
+            "enum": [
+              "signed",
+              "missing",
+              "not_required"
+            ],
+            "description": "signed: a guardian consent is linked. missing: the student is a minor and none is linked. not_required: the student is not a minor."
+          },
+          "guardian": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GuardianContact"
+              },
+              {
+                "type": "object",
+                "nullable": true,
+                "enum": [
+                  null
+                ]
+              }
+            ]
+          },
+          "registeredAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "fullName",
+          "email",
+          "isActive",
+          "country",
+          "dateOfBirth",
+          "age",
+          "isMinor",
+          "consentStatus",
+          "registeredAt"
+        ]
+      },
+      "AdminStudentDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
+          },
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "format": "email",
+            "example": "learner@example.org",
+            "description": "Trim and lowercase before uniqueness and lookup. No provider-specific dot or plus rewriting."
+          },
+          "mobileNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "pattern": "^\\+[1-9][0-9]{7,14}$",
+            "example": "+919876543210",
+            "description": "E.164. The UI defaults to +91. Not OTP-verified in Phase 1. Not unique: siblings may share a parent number.",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "country": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$"
+          },
+          "dateOfBirth": {
+            "type": "string",
+            "format": "date",
+            "example": "2012-05-15"
+          },
+          "age": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 150
+          },
+          "isMinor": {
+            "type": "boolean"
+          },
+          "consentStatus": {
+            "type": "string",
+            "enum": [
+              "signed",
+              "missing",
+              "not_required"
+            ]
+          },
+          "guardian": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GuardianContact"
+              },
+              {
+                "type": "object",
+                "nullable": true,
+                "enum": [
+                  null
+                ]
+              }
+            ]
+          },
+          "registeredAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "learningProfile": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "category": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "board": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "nullable": true
+              },
+              "level": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "teachingLanguage": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "subjects": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "maxItems": 20
+              }
+            },
+            "required": [
+              "category",
+              "board",
+              "level",
+              "teachingLanguage",
+              "subjects"
+            ]
+          },
+          "consent": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GuardianConsentSummary"
+              },
+              {
+                "type": "object",
+                "nullable": true,
+                "enum": [
+                  null
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "fullName",
+          "email",
+          "isActive",
+          "country",
+          "dateOfBirth",
+          "age",
+          "isMinor",
+          "consentStatus",
+          "registeredAt",
+          "learningProfile"
+        ]
+      },
       "AdminPolicy": {
         "type": "object",
         "additionalProperties": false,
@@ -12689,6 +13176,64 @@
           },
           "data": {
             "$ref": "#/components/schemas/GuardianConsentSummary"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "listStudentsAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminStudent"
+            },
+            "maxItems": 100
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data",
+          "meta"
+        ]
+      },
+      "getStudentAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/AdminStudentDetail"
           }
         },
         "required": [

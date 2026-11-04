@@ -1,5 +1,12 @@
 # Progress Log
 
+## 2026-11-04 — Admin students list and detail (LMS-99)
+
+- Contract and endpoints: `GET /admin/students` (newest first, paginated; filters `q` for name, email or mobile, `country`, `minor`, `consent` = signed, missing or not_required) and `GET /admin/students/{studentId}` (student profile id: learning profile names, guardian contact, and for a minor with a signed consent the consent record). Both need `student.read` and are private, no-store.
+- A student is a minor when below the consent age of their own country, read from the `countries` table. The database filter uses a per-country birth-date cut-off (`latestBirthDateForAge`), tested to agree with `completedYears` on every day of a leap year and its neighbours, including 29 February. `consentStatus`: signed when a consent is linked, missing for a minor without one, not_required otherwise.
+- New `students` module. Tests: `students.test.ts` (India, the UAE and a country set to 21; the day before and the day of the 18th birthday; each filter, search, pagination, detail, 404 and 422, 401 and 403) and the cut-off test.
+- For the admin screens (next): the list with a consent column, the detail with the guardian contact, and the consent download (needs the reauthentication modal).
+
 ## 2026-11-03 — Admin policy upload (LMS-99)
 
 - Contract and endpoints: `GET /admin/policies` (every version, filter by country and type), `GET /admin/policies/coverage` (types missing a current version per active country), `POST /admin/policies` (multipart PDF, type, country, version, title, effective date: checked as a readable PDF, 409 for a version that exists, stored and made current in one transaction, the old version kept) and `PUT /admin/policies/{id}/current` (roll back). New permissions `policy.read`, `policy.create`, `policy.update`; uploads and rollbacks need recent reauthentication and are audited (`policy.published`, `policy.set_current`). `POLICY_MAX_BYTES` (10 MiB) limits the file.

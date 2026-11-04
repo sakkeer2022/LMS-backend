@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { completedYears, parseCalendarDate } from '@shared/dates';
+import { completedYears, latestBirthDateForAge, parseCalendarDate } from '@shared/dates';
 
 const on = (iso: string): Date => new Date(`${iso}T12:00:00Z`);
 
@@ -26,5 +26,28 @@ describe('calendar dates', () => {
 
   it('is null for an invalid date of birth', () => {
     expect(completedYears('2026-02-30', new Date())).toBeNull();
+  });
+});
+
+describe('birth date cut-off for an age', () => {
+  it('is the same day years earlier, and the last day of the month for 29 February', () => {
+    expect(latestBirthDateForAge(18, on('2026-11-03'))).toBe('2008-11-03');
+    expect(latestBirthDateForAge(18, on('2028-02-29'))).toBe('2010-02-28');
+    expect(latestBirthDateForAge(21, on('2026-02-28'))).toBe('2005-02-28');
+  });
+
+  it('agrees with completedYears for every day of a leap year and its neighbours', () => {
+    for (const age of [18, 21]) {
+      for (let offset = 0; offset < 366 * 3; offset++) {
+        const today = new Date(Date.UTC(2027, 11, 20 + offset, 12));
+        const cutoff = latestBirthDateForAge(age, today);
+        const born = (days: number): string => {
+          const [y, m, d] = cutoff.split('-').map(Number) as [number, number, number];
+          return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+        };
+        expect(completedYears(cutoff, today)).toBeGreaterThanOrEqual(age);
+        expect(completedYears(born(1), today)).toBeLessThan(age);
+      }
+    }
   });
 });

@@ -13,6 +13,7 @@ import { uploadsRouter } from '@modules/uploads/uploads.routes.js';
 import { settingsRouter } from '@modules/settings/index.js';
 import { registrationRouter } from '@modules/registration/index.js';
 import { adminPoliciesRouter, policiesRouter } from '@modules/policies/index.js';
+import { adminStudentsRouter } from '@modules/students/index.js';
 import { adminConsentRouter, consentRouter, studentConsentRouter } from '@modules/consent/index.js';
 import { regionsRouter } from '@modules/regions/index.js';
 import { passwordRouter, recoveryRouter } from '@modules/account-recovery/index.js';
@@ -33,6 +34,7 @@ export const featureRouters: ReadonlyArray<readonly [path: string, router: Route
   ['/policies', policiesRouter],
   ['/consent', consentRouter],
   ['/students/me', studentConsentRouter],
+  ['/admin/students', adminStudentsRouter],
   ['/admin/students', adminConsentRouter],
   ['/admin/policies', adminPoliciesRouter],
   ['/auth/recovery', recoveryRouter],

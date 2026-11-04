@@ -22,3 +22,16 @@ export function completedYears(dateOfBirth: string, on: Date): number | null {
   if (monthDiff < 0 || (monthDiff === 0 && on.getUTCDate() < born.day)) years -= 1;
   return years;
 }
+
+/**
+ * The latest date of birth that has completed `age` years on `on`: the same month and day `age` years
+ * earlier, or that month's last day when it does not exist (29 February). Someone born after it is younger
+ * than `age`; it is the cut-off a database filter needs, and it agrees with `completedYears` on every day.
+ */
+export function latestBirthDateForAge(age: number, on: Date): string {
+  const year = on.getUTCFullYear() - age;
+  const month = on.getUTCMonth();
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const day = Math.min(on.getUTCDate(), lastDay);
+  return new Date(Date.UTC(year, month, day)).toISOString().slice(0, 10);
+}

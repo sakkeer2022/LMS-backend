@@ -233,3 +233,13 @@ export async function purgeExpiredConsents(now: Date = new Date()): Promise<numb
   if (purged > 0) logger.info({ purged }, 'purged expired guardian consents');
   return purged;
 }
+
+/** The consent record, or null when the student has none (for screens that show it when it exists). */
+export async function findConsentSummary(studentId: string): Promise<ConsentSummary | null> {
+  try {
+    return await getConsentSummary(studentId);
+  } catch (error) {
+    if (error instanceof NotFoundError) return null;
+    throw error;
+  }
+}
