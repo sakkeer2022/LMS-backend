@@ -55,8 +55,17 @@ beforeAll(async () => {
   // Throws a sanitized Error without leaking credentials if invalid.
   assertTestDatabaseUrl(config.databaseUrl);
 
-  // Connect to the DB
-  await connectDatabase();
+  // Connect to the DB; name the target (without credentials) when it cannot be reached
+  try {
+    await connectDatabase();
+  } catch (err) {
+    const target = new URL(config.databaseUrl);
+    throw new Error(
+      `[TEST SETUP] Cannot reach the test database at ${target.hostname}:${target.port || '5432'}${target.pathname}. ` +
+        'Start PostgreSQL, or set TEST_DATABASE_URL (in the shell or in .env) to your test database.',
+      { cause: err }
+    );
+  }
   await assertMigrationsApplied();
 
   // Truncate every migrated table so newly added models are never missed

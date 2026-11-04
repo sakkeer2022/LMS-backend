@@ -88,14 +88,21 @@ Login sets HttpOnly `accessToken` / `refreshToken` cookies; `GET /auth/me` retur
 
 ## Tests
 
+Integration suites truncate their database, so they use a separate one. Set it in `.env`
+(the port matches `POSTGRES_PORT`, so `5434` if you started compose with it):
+
 ```bash
-npm run test:unit
-# Integration suites truncate their database; point them at a separate one:
-TEST_DATABASE_URL=postgresql://postgres:password@127.0.0.1:5432/amentorz_test?schema=public npm run test:integration
+TEST_DATABASE_URL=postgresql://postgres:password@127.0.0.1:5434/amentorz_test?schema=public
 ```
 
-The compose Postgres creates `amentorz_test` on first start (`scripts/init-test-db.sql`); migrate it once
-with `DATABASE_URL=<TEST_DATABASE_URL> npx prisma migrate deploy`.
+The tests read it from the shell or from `.env`; without it they use `localhost:5432`.
+The compose Postgres creates `amentorz_test` on first start (`scripts/init-test-db.sql`).
+Apply the migrations to it after every pull that adds one, then run the tests:
+
+```bash
+npm run test:db:migrate   # prisma migrate deploy against TEST_DATABASE_URL (works in PowerShell too)
+npm run test              # or test:unit / test:integration
+```
 
 ## Troubleshooting
 

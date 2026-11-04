@@ -1,5 +1,12 @@
 # Progress Log
 
+## 2026-11-04 — Tests use TEST_DATABASE_URL from .env
+
+- `tests/env-setup.ts` now reads `TEST_DATABASE_URL` from `.env` as well as the shell. Before, a value in `.env` was ignored and every integration suite tried `localhost:5432`, which fails when compose Postgres runs on `POSTGRES_PORT=5434`.
+- `tests/setup.ts` names the unreachable host and database instead of a bare connection error.
+- `npm run test:db:migrate` (`scripts/migrate-test-db.ts`): `prisma migrate deploy` against the test database, guarded by `assertTestDatabaseUrl`; works in PowerShell. `LOCAL_SETUP.md` updated.
+- `npx vitest run`: ✅ 60 files, 710 passed (TEST_DATABASE_URL set in `.env`).
+
 ## 2026-11-03 — Merge development (LMS-99, LMS-100) into the faculty branch (LMS-78, LMS-79)
 
 - Conflicts resolved keeping both sides: category tree (`CategoryLevel`, `Board.nodes`) and countries in `schema.prisma`; the dev seed scripts and `create-admin` in `package.json`; faculty and registration/recovery/admin-profile routers.

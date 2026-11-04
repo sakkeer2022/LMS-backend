@@ -17,6 +17,7 @@
     "test:unit": "vitest run --config vitest.unit.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:watch": "vitest",
+    "test:db:migrate": "tsx scripts/migrate-test-db.ts",
     "test:coverage": "vitest run --coverage",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",

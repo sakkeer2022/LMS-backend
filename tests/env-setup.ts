@@ -21,10 +21,25 @@
  * not need to be listed here (e.g. DB_HOST, PORT, REDIS_URL).
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
+import dotenv from 'dotenv';
+
+/**
+ * TEST_DATABASE_URL from the shell, else from `.env`. Only this one key is read here:
+ * `src/config/index.ts` loads the rest of `.env` later, and it must not replace the test
+ * DATABASE_URL set below with the development database.
+ */
+function testDatabaseUrl(): string | undefined {
+  if (process.env.TEST_DATABASE_URL) return process.env.TEST_DATABASE_URL;
+  const envFile = path.resolve(__dirname, '../.env');
+  if (!fs.existsSync(envFile)) return undefined;
+  return dotenv.parse(fs.readFileSync(envFile)).TEST_DATABASE_URL || undefined;
+}
+
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL =
-  process.env.TEST_DATABASE_URL ||
-  'postgresql://postgres:password@localhost:5432/amentorz_test?schema=public';
+  testDatabaseUrl() || 'postgresql://postgres:password@localhost:5432/amentorz_test?schema=public';
 process.env.JWT_SECRET ??= 'test-jwt-secret-deterministic';
 process.env.JWT_REFRESH_SECRET ??= 'test-jwt-refresh-secret-deterministic';
 process.env.COOKIE_SECRET ??= 'test-cookie-secret-deterministic';
