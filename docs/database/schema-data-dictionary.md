@@ -42,7 +42,7 @@
    - [levels](#54-levels)
    - [curricula](#55-curricula)
    - [faculty_assignments](#56-faculty_assignments)
-   - [session_prices](#57-session_prices)
+   - [price_rules](#57-price_rules)
 6. [Domain 5: Library & Moderation](#6-domain-5-library--moderation)
    - [library_materials](#61-library_materials)
    - [library_reviews](#62-library_reviews)
@@ -558,6 +558,34 @@
 
 ---
 
+### 4.7 `faculty_invitations`
+- **Purpose:** Admin invitations to join as a tutor (LMS-79). The user and faculty profile are created when the invitee completes onboarding.
+- **Physical Table:** `faculty_invitations`
+
+| Column | Type | Nullable | Default | Description & Constraints | Enforcement |
+|---|---|:---:|---|---|---|
+| `id` | `UUID` | No | `gen_random_uuid()` | Primary Key | Database |
+| `email` | `VARCHAR(255)` | No | — | Invitee email, trimmed and lowercased | Database (`faculty_invitations_email_normalized_check`) |
+| `token_hash` | `VARCHAR(64)` | No | — | SHA-256 hex of the single-use token; the token itself is never stored | Database (unique, hex CHECK) |
+| `status` | `FacultyInvitationStatus` | No | `PENDING` | PENDING, ACCEPTED, REVOKED, EXPIRED | Database |
+| `delivery_method` | `FacultyInvitationDelivery` | No | `EMAIL` | EMAIL (sent) or LINK (Copy link) | Database |
+| `sent_at` | `TIMESTAMP(3)` | Yes | `NULL` | When the provider accepted the email | Application |
+| `expires_at` | `TIMESTAMP(3)` | No | — | Creation + `FACULTY_INVITE_TTL_HOURS` | Database (`faculty_invitations_expiry_check`) |
+| `accepted_at` | `TIMESTAMP(3)` | Yes | `NULL` | Set when onboarding completes (LMS-81) | Application |
+| `revoked_at` | `TIMESTAMP(3)` | Yes | `NULL` | Revocation time | Application |
+| `revoked_reason` | `VARCHAR(50)` | Yes | `NULL` | e.g. `DELIVERY_FAILED` | Application |
+| `delivery_error` | `VARCHAR(255)` | Yes | `NULL` | Provider error summary, no secrets | Application |
+| `invited_by_id` | `UUID` | Yes | `NULL` | Foreign Key to `users` (inviting admin) | Database (`faculty_invitations_invited_by_id_fkey`, ON DELETE SET NULL) |
+| `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Creation timestamp | Database |
+| `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
+
+- **Indexes & Constraints:**
+  - `faculty_invitations_token_hash_key` (UNIQUE, `token_hash`)
+  - `faculty_invitations_one_pending_per_email` (UNIQUE partial, `email` WHERE `status = 'PENDING'`; hand-written, not in `schema.prisma`)
+  - `faculty_invitations_email_status_idx`, `faculty_invitations_status_expires_at_idx` (INDEX)
+
+---
+
 ## 5. Domain 4: Catalogue & Pricing
 
 ### 5.1 `categories`
@@ -594,6 +622,7 @@
 | `country` | `VARCHAR(2)` | No | `'IN'` | ISO country code | Database |
 | `state` | `VARCHAR(100)` | Yes | `NULL` | Applicable state for State Boards | Application |
 | `is_active` | `BOOLEAN` | No | `true` | Active flag | Database |
+| `sort_order` | `INTEGER` | No | `0` | Dropdown order; ties sort by name (LMS-53) | Application |
 | `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Creation timestamp | Database |
 | `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
 
@@ -614,6 +643,7 @@
 | `name` | `VARCHAR(100)` | No | — | Subject title | Application |
 | `description` | `TEXT` | Yes | `NULL` | Subject summary | Application |
 | `is_active` | `BOOLEAN` | No | `true` | Active flag | Database |
+| `sort_order` | `INTEGER` | No | `0` | Dropdown order; ties sort by name (LMS-53) | Application |
 | `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Creation timestamp | Database |
 | `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
 
@@ -634,12 +664,16 @@
 | `name` | `VARCHAR(100)` | No | — | Level title | Application |
 | `description` | `TEXT` | Yes | `NULL` | Level scope | Application |
 | `is_active` | `BOOLEAN` | No | `true` | Active flag | Database |
+| `category_id` | `UUID` | Yes | `NULL` | Optional category scope for dropdowns; Foreign Key to `categories` (LMS-53) | Database (`levels_category_id_fkey`) |
+| `sort_order` | `INTEGER` | No | `0` | Order within the category, so Class 2 sorts before Class 10 (LMS-53) | Application |
 | `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Creation timestamp | Database |
 | `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
 
 - **Indexes & Constraints:**
   - `levels_pkey` (PRIMARY KEY, `id`)
   - `levels_code_key` (UNIQUE, `code`)
+  - `levels_category_id_sort_order_idx` (INDEX, `[category_id, sort_order]`)
+  - `levels_category_id_fkey` (FOREIGN KEY, `category_id` → `categories.id`, ON DELETE RESTRICT)
 
 ---
 
@@ -656,6 +690,7 @@
 | `level_id` | `UUID` | No | — | Foreign Key to `levels` | Database (`curricula_level_id_fkey`) |
 | `syllabus` | `TEXT` | Yes | `NULL` | Syllabus outline text | Application |
 | `is_active` | `BOOLEAN` | No | `true` | Active flag | Database |
+| `node_id` | `UUID` | Yes | `NULL` | LEVEL leaf in `catalogue_nodes` that owns this offering; tuple columns are copied from its ancestors by the catalogue service (ADR 0003) | Database (`curricula_node_id_key`, `curricula_node_id_fkey`) |
 | `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Creation timestamp | Database |
 | `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
 
@@ -666,6 +701,43 @@
   - `curricula_board_id_fkey` (FOREIGN KEY, `board_id` → `boards.id`, ON DELETE RESTRICT)
   - `curricula_subject_id_fkey` (FOREIGN KEY, `subject_id` → `subjects.id`, ON DELETE RESTRICT)
   - `curricula_level_id_fkey` (FOREIGN KEY, `level_id` → `levels.id`, ON DELETE RESTRICT)
+  - `curricula_node_id_key` (UNIQUE, `node_id`): one curriculum per leaf
+  - `curricula_node_id_fkey` (FOREIGN KEY, `node_id` → `catalogue_nodes.id`, ON DELETE RESTRICT)
+
+
+---
+
+### 5.5.1 `catalogue_nodes`
+- **Purpose:** Categories & Content tree (screen 28): category → subsection → board → subject → level. SUBSECTION and BOARD may be skipped. Each LEVEL leaf owns one `curricula` row. See ADR 0003.
+- **Physical Table:** `catalogue_nodes`
+
+| Column | Type | Nullable | Default | Description & Constraints | Enforcement |
+|---|---|:---:|---|---|---|
+| `id` | `UUID` | No | `gen_random_uuid()` | Primary Key | Database |
+| `parent_id` | `UUID` | Yes | `NULL` | Parent node; null only for CATEGORY roots | Database (`catalogue_nodes_parent_id_fkey`, `catalogue_nodes_parent_check`) |
+| `root_id` | `UUID` | No | — | CATEGORY node this node belongs to; equals `id` for roots; never changes | Database (`catalogue_nodes_root_id_fkey`, `catalogue_nodes_root_check`) |
+| `type` | `CatalogueNodeType` | No | — | `CATEGORY`, `SUBSECTION`, `BOARD`, `SUBJECT`, `LEVEL`; a child's type comes after its parent's | Database enum / Application order |
+| `name` | `VARCHAR(200)` | No | — | Display name | Application |
+| `slug` | `VARCHAR(64)` | No | — | Unique among siblings | Database (`catalogue_nodes_parent_id_slug_key`) |
+| `status` | `CatalogueNodeStatus` | No | `DRAFT` | `DRAFT`, `PUBLISHED`, `ARCHIVED`; public reads need the node and every ancestor PUBLISHED | Database enum / Application |
+| `sort_order` | `INTEGER` | No | `0` | Order among siblings, ≥ 0 | Database (`catalogue_nodes_sort_order_check`) |
+| `category_id` | `UUID` | Yes | `NULL` | Set only on CATEGORY nodes; one node per category | Database (`catalogue_nodes_category_id_key`, `catalogue_nodes_master_ref_check`) |
+| `board_id` | `UUID` | Yes | `NULL` | Set only on BOARD nodes | Database (`catalogue_nodes_master_ref_check`) |
+| `subject_id` | `UUID` | Yes | `NULL` | Set only on SUBJECT nodes | Database (`catalogue_nodes_master_ref_check`) |
+| `level_id` | `UUID` | Yes | `NULL` | Set only on LEVEL nodes | Database (`catalogue_nodes_master_ref_check`) |
+| `booking_enabled` | `BOOLEAN` | No | `true` | "Book a session" option; meaningful on CATEGORY nodes | Application |
+| `archived_at` | `TIMESTAMP(3)` | Yes | `NULL` | Set when archived; nothing is hard-deleted | Application |
+| `created_by_id` | `UUID` | Yes | `NULL` | Acting user; no FK, users are never deleted | Application |
+| `updated_by_id` | `UUID` | Yes | `NULL` | Acting user; no FK | Application |
+| `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Creation timestamp | Database |
+| `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
+
+- **Indexes & Constraints:**
+  - `catalogue_nodes_pkey` (PRIMARY KEY, `id`)
+  - `catalogue_nodes_parent_id_slug_key`, `catalogue_nodes_parent_id_board_id_key`, `catalogue_nodes_parent_id_subject_id_key`, `catalogue_nodes_parent_id_level_id_key` (UNIQUE): one node per slug and per master value among siblings
+  - `catalogue_nodes_root_id_parent_id_sort_order_idx` (INDEX): loads a whole category in one query
+  - `catalogue_nodes_parent_check`, `catalogue_nodes_master_ref_check`, `catalogue_nodes_root_check`, `catalogue_nodes_sort_order_check` (CHECK, hand-written in migration `20261029090000_catalogue_tree`)
+  - All foreign keys ON DELETE RESTRICT
 
 ---
 
@@ -690,26 +762,35 @@
 
 ---
 
-### 5.7 `session_prices`
-- **Purpose:** Admin-configured price for an assigned faculty-curriculum tuple. Fixed 60-min, INR paise.
-- **Physical Table:** `session_prices`
+### 5.7 `price_rules`
+- **Purpose:** Admin-set session price for one offering (curriculum), optionally for one tutor. `faculty_id` null is the default price for the offering. Replaces `session_prices` (ADR 0004). Currency INR and 60-minute sessions are fixed and not stored.
+- **Physical Table:** `price_rules`
 
 | Column | Type | Nullable | Default | Description & Constraints | Enforcement |
 |---|---|:---:|---|---|---|
 | `id` | `UUID` | No | `gen_random_uuid()` | Primary Key | Database |
-| `assignment_id` | `UUID` | No | — | 1:1 Unique Foreign Key to `faculty_assignments` | Database (`session_prices_assignment_id_key`) |
-| `price_paise` | `INTEGER` | No | — | Price in paise (e.g. 50000 = ₹500.00). Must be > 0 | Application |
-| `currency` | `VARCHAR(3)` | No | `'INR'` | Currency code (single currency platform) | Database |
-| `duration_minutes`| `INTEGER` | No | `60` | Fixed session slot duration | Database |
-| `is_active` | `BOOLEAN` | No | `true` | Active status | Database |
+| `curriculum_id` | `UUID` | No | — | Offering priced; Foreign Key to `curricula` | Database (`price_rules_curriculum_id_fkey`) |
+| `faculty_id` | `UUID` | Yes | `NULL` | Tutor (`faculty_profiles.id`); null = default price | Database (`price_rules_faculty_id_fkey`) |
+| `session_price_paise` | `INTEGER` | No | — | Pre-GST price set by admin; 1 to 100,000,000 | Database (`price_rules_session_price_check`) |
+| `gst_rate_bps` | `INTEGER` | No | `1800` | GST rate in basis points (1800 = 18%); 0 to 10000 | Database (`price_rules_gst_rate_check`) |
+| `gst_paise` | `INTEGER` | No | — | Server-computed: round_half_up(price × rate / 10000) | Database (`price_rules_amounts_check`) |
+| `student_pays_paise` | `INTEGER` | No | — | Server-computed: price + GST | Database (`price_rules_amounts_check`) |
+| `effective_from` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Start of the window (inclusive) | Application |
+| `effective_to` | `TIMESTAMP(3)` | Yes | `NULL` | End of the window (exclusive); null = open-ended | Database (`price_rules_window_check`) |
+| `is_active` | `BOOLEAN` | No | `true` | Inactive rules never resolve and never block others | Application |
+| `revision` | `INTEGER` | No | `1` | Optimistic concurrency; writes send `expectedRevision` | Database (`price_rules_revision_check`) / Application |
+| `created_by_id` | `UUID` | Yes | `NULL` | Acting user; no FK | Application |
+| `updated_by_id` | `UUID` | Yes | `NULL` | Acting user; no FK | Application |
 | `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Creation timestamp | Database |
 | `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
 
 - **Indexes & Constraints:**
-  - `session_prices_pkey` (PRIMARY KEY, `id`)
-  - `session_prices_assignment_id_key` (UNIQUE, `assignment_id`)
-  - `session_prices_assignment_id_fkey` (FOREIGN KEY, `assignment_id` → `faculty_assignments.id`, ON DELETE CASCADE)
-
+  - `price_rules_pkey` (PRIMARY KEY, `id`)
+  - `price_rules_curriculum_id_faculty_id_is_active_idx` (INDEX): resolution lookups
+  - `price_rules_faculty_id_idx` (INDEX)
+  - `price_rules_curriculum_id_fkey`, `price_rules_faculty_id_fkey` (FOREIGN KEY, ON DELETE RESTRICT)
+  - CHECK constraints listed above (hand-written in migration `20261029100000_price_rules`)
+  - At most one active rule per curriculum and tutor for any overlapping window: enforced by the pricing service under a row lock on the curriculum
 ---
 
 ## 6. Domain 5: Library & Moderation
