@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../helpers/app.js';
 import { getCsrfData } from '../helpers/csrf.js';
-import { signIn } from '../helpers/users.js';
+import { signIn, registerTestUser } from '../helpers/users.js';
 import { prisma } from '@infrastructure/database/index.js';
 
 describe('Admin Portal API', () => {
@@ -11,8 +11,6 @@ describe('Admin Portal API', () => {
   let targetUserId: string;
 
   beforeEach(async () => {
-    const { csrfToken, csrfCookie } = await getCsrfData();
-
     // 1. Create permissions
     const globalAdminPerm = await prisma.permission.create({
       data: {
@@ -58,15 +56,11 @@ describe('Admin Portal API', () => {
     });
 
     // 3. Register super admin user
-    await request(app)
-      .post('/api/v1/auth/register')
-      .set('Cookie', csrfCookie ?? '')
-      .set('x-csrf-token', csrfToken ?? '')
-      .send({
-        email: 'admin@example.com',
-        password: 'Password123!',
-        fullName: 'System Admin',
-      });
+    await registerTestUser({
+      email: 'admin@example.com',
+      password: 'Password123!',
+      fullName: 'System Admin',
+    });
 
     const superAdminUser = await prisma.user.findFirst({ where: { email: 'admin@example.com' } });
     await prisma.userRole.create({
@@ -77,15 +71,11 @@ describe('Admin Portal API', () => {
     });
 
     // 4. Register regular user
-    await request(app)
-      .post('/api/v1/auth/register')
-      .set('Cookie', csrfCookie ?? '')
-      .set('x-csrf-token', csrfToken ?? '')
-      .send({
-        email: 'user@example.com',
-        password: 'Password123!',
-        fullName: 'Regular User',
-      });
+    await registerTestUser({
+      email: 'user@example.com',
+      password: 'Password123!',
+      fullName: 'Regular User',
+    });
 
     const regularUser = await prisma.user.findFirst({ where: { email: 'user@example.com' } });
     await prisma.userRole.create({

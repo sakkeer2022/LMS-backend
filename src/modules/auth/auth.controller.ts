@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import { RegisterDto } from './auth.dto.js';
 import * as AuthService from './auth.service.js';
 import * as SessionService from './session.service.js';
 import { loadContractUser } from './contract-user.js';
@@ -12,19 +11,6 @@ import { successResponse } from '@core/response/index';
 import { UnauthorizedError, ValidationError } from '@core/errors/index';
 import { config } from '@config/index';
 import { setTokenCookies, clearTokenCookies, getRequestContext } from './session-cookies.js';
-
-export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const dto = RegisterDto.parse(req.body);
-    const context = getRequestContext(req);
-    const result = await AuthService.register(dto, context);
-
-    setTokenCookies(res, result.tokens);
-    res.status(201).json(successResponse({ user: result.user }, 'Registration successful'));
-  } catch (err) {
-    next(err);
-  }
-}
 
 export async function refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {

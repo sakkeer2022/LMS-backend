@@ -1,16 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../helpers/app.js';
-import { getCsrfData } from '../helpers/csrf.js';
-import { signIn } from '../helpers/users.js';
+import { signIn, registerTestUser } from '../helpers/users.js';
 import { prisma } from '@infrastructure/database/index.js';
+import { logAction } from '@modules/audit/index.js';
 
 describe('Audit Logs API', () => {
   let adminToken: string;
 
   beforeEach(async () => {
-    const { csrfToken, csrfCookie } = await getCsrfData();
-
     // 1. Create a super_admin role
     const adminRole = await prisma.role.create({
       data: {
@@ -36,18 +34,21 @@ describe('Audit Logs API', () => {
       },
     });
 
-    // 2. Register an admin user (this action generates an audit log)
-    await request(app)
-      .post('/api/v1/auth/register')
-      .set('Cookie', typeof csrfCookie !== 'undefined' ? csrfCookie : '')
-      .set('x-csrf-token', typeof csrfToken !== 'undefined' ? csrfToken : '')
-      .send({
-        email: 'audit_admin@example.com',
-        password: 'Password123!',
-        fullName: 'Audit Admin',
-      });
+    // 2. Create an admin user
+    await registerTestUser({
+      email: 'audit_admin@example.com',
+      password: 'Password123!',
+      fullName: 'Audit Admin',
+    });
 
     const user = await prisma.user.findFirst({ where: { email: 'audit_admin@example.com' } });
+    // The list needs at least one record; the sign-in below goes through no HTTP route
+    await logAction({
+      actorId: user!.id,
+      entity: 'user',
+      action: 'user.created',
+      resourceId: user!.id,
+    });
 
     // 3. Assign the super_admin role
     await prisma.userRole.create({
@@ -116,17 +117,12 @@ describe('Audit Logs API', () => {
   });
 
   it('should prevent non-admins from viewing audit logs', async () => {
-    const { csrfToken, csrfCookie } = await getCsrfData();
     // 1. Create a normal user
-    const res = await request(app)
-      .post('/api/v1/auth/register')
-      .set('Cookie', typeof csrfCookie !== 'undefined' ? csrfCookie : '')
-      .set('x-csrf-token', typeof csrfToken !== 'undefined' ? csrfToken : '')
-      .send({
-        email: 'normal@example.com',
-        password: 'Password123!',
-        fullName: 'Normal User',
-      });
+    const res = await registerTestUser({
+      email: 'normal@example.com',
+      password: 'Password123!',
+      fullName: 'Normal User',
+    });
     const userAccessTokenCookie = (res.headers['set-cookie'] as unknown as string[])?.find(
       (c: string) => c.startsWith('accessToken=')
     );

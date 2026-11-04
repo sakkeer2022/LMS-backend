@@ -3,7 +3,11 @@ import { config } from '@config/index';
 import { routeRateLimit } from '@middleware/rate-limit';
 import { validateRequest } from '@middleware/validate';
 import * as RegistrationController from './registration.controller.js';
-import { RegistrationEmailRequestDto, RegistrationOtpVerifyDto } from './registration.dto.js';
+import {
+  RegisterStudentDto,
+  RegistrationEmailRequestDto,
+  RegistrationOtpVerifyDto,
+} from './registration.dto.js';
 
 export const registrationRouter = Router();
 
@@ -78,4 +82,29 @@ registrationRouter.post(
   ...verifyLimits,
   validateRequest({ body: RegistrationOtpVerifyDto }),
   RegistrationController.verifyEmailOtp
+);
+
+/** Mounted at /auth/register: the final onboarding step, which creates the student account. */
+export const studentRegisterRouter = Router();
+
+/**
+ * @openapi
+ * /auth/register:
+ *   post:
+ *     summary: Create a student account from the four onboarding steps
+ *     description: One transaction. Consumes the email verification token, creates the user with the student role only, the profile, subjects and guardian contact, records the policy acceptances and links the guardian consent. The caller is not signed in. Duplicate email returns 409; unknown fields return 422.
+ *     tags: [Registration]
+ *     responses:
+ *       201:
+ *         description: The new user id
+ *       409:
+ *         description: Email already registered
+ *       422:
+ *         description: Invalid input, expired verification, or an invalid consent or policy choice
+ */
+studentRegisterRouter.post(
+  '/',
+  ...verifyLimits,
+  validateRequest({ body: RegisterStudentDto }),
+  RegistrationController.registerStudent
 );

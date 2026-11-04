@@ -12,7 +12,7 @@ import { adminRouter } from '@modules/admin/admin.routes.js';
 import { uploadsRouter } from '@modules/uploads/uploads.routes.js';
 import { settingsRouter } from '@modules/settings/index.js';
 import { adminFacultyRouter } from '@modules/faculty/index.js';
-import { registrationRouter } from '@modules/registration/index.js';
+import { registrationRouter, studentRegisterRouter } from '@modules/registration/index.js';
 import { adminPoliciesRouter, policiesRouter } from '@modules/policies/index.js';
 import { adminStudentsRouter } from '@modules/students/index.js';
 import { adminConsentRouter, consentRouter, studentConsentRouter } from '@modules/consent/index.js';
@@ -37,6 +37,7 @@ router.use(auditLogMiddleware);
 // this list to check every implemented route against docs/openapi.yaml.
 export const featureRouters: ReadonlyArray<readonly [path: string, router: Router]> = [
   ['/auth/registration', registrationRouter],
+  ['/auth/register', studentRegisterRouter],
   ['/regions', regionsRouter],
   ['/policies', policiesRouter],
   ['/consent', consentRouter],
