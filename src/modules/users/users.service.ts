@@ -7,8 +7,10 @@ import type { PaginationQueryInput } from '@modules/roles/roles.dto.js';
 import type { Prisma } from '@prisma/client';
 import { logAction, type AuditContext } from '@modules/audit/audit.service.js';
 import { logger } from '@core/logger/index';
+import { resolvePermissionsForRoles } from '@modules/roles/roles.service.js';
 import {
   includesAdminRole,
+  requireHeld,
   requireSuperAdmin,
   type Actor,
 } from '@modules/roles/system-role-guard.js';
@@ -222,6 +224,12 @@ export async function assignRoles(
         resourceId: userId,
       });
 
+    await requireHeld(actor, await resolvePermissionsForRoles(dto.roleIds), {
+      entity: 'user',
+      action: 'user.roles_changed',
+      resourceId: userId,
+    });
+
     await tx.userRole.createMany({
       data: dto.roleIds.map((roleId) => ({
         userId,
@@ -356,6 +364,16 @@ export async function setRoles(
         action: 'user.roles_changed',
         resourceId: userId,
       });
+
+    await requireHeld(
+      actor,
+      await resolvePermissionsForRoles(dto.roleIds.filter((id) => !currentIds.includes(id))),
+      {
+        entity: 'user',
+        action: 'user.roles_changed',
+        resourceId: userId,
+      }
+    );
 
     await tx.userRole.deleteMany({
       where: { userId },

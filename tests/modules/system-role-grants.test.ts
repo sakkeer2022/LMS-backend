@@ -106,6 +106,44 @@ describe('System role grants (LMS-104)', () => {
     ).toBe(200);
   });
 
+  it('stops an admin handing out a permission it does not hold', async () => {
+    const flags = await prisma.permission.findFirstOrThrow({
+      where: { resource: 'feature_flags' },
+    });
+    const held = await prisma.permission.findFirstOrThrow({ where: { resource: 'user' } });
+    const custom = await prisma.role.create({ data: { name: 'flag_keeper' } });
+    const withFlags = await prisma.role.create({ data: { name: 'flag_holder' } });
+    await prisma.rolePermission.create({ data: { roleId: withFlags.id, permissionId: flags.id } });
+
+    const grant = (permissionId: string) => ({ permissionIds: [permissionId] });
+    expect(
+      (await call(admin, 'post', `/roles/${custom.id}/permissions`, grant(flags.id))).status
+    ).toBe(403);
+    expect(
+      (await call(admin, 'put', `/roles/${custom.id}/permissions`, grant(flags.id))).status
+    ).toBe(403);
+    expect(
+      (await call(admin, 'post', `/users/${target}/roles`, { roleIds: [withFlags.id] })).status
+    ).toBe(403);
+    expect(
+      (await call(admin, 'put', `/users/${target}/roles`, { roleIds: [withFlags.id] })).status
+    ).toBe(403);
+    expect(
+      (await call(admin, 'post', '/roles', { name: 'child', parentId: withFlags.id })).status
+    ).toBe(403);
+    expect(
+      (await call(admin, 'patch', `/roles/${custom.id}`, { parentId: withFlags.id })).status
+    ).toBe(403);
+    expect(await prisma.rolePermission.count({ where: { roleId: custom.id } })).toBe(0);
+
+    expect(
+      (await call(admin, 'post', `/roles/${custom.id}/permissions`, grant(held.id))).status
+    ).toBe(200);
+    expect(
+      (await call(superAdmin, 'post', `/users/${target}/roles`, { roleIds: [withFlags.id] })).status
+    ).toBe(200);
+  });
+
   it('lets super_admin do all of it', async () => {
     const adminRole = await roleId('admin');
     const student = await roleId('student');

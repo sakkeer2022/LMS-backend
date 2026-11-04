@@ -9,7 +9,12 @@ import type {
 } from './roles.dto.js';
 import type { Prisma } from '@prisma/client';
 import type { PolicyRule } from '../../core/security/policy.js';
-import { includesAdminRole, requireSuperAdmin, type Actor } from './system-role-guard.js';
+import {
+  includesAdminRole,
+  requireHeld,
+  requireSuperAdmin,
+  type Actor,
+} from './system-role-guard.js';
 
 // ── Shapes returned to controllers ───────────────────────────────
 export interface RoleSummary {
@@ -155,6 +160,11 @@ export async function createRole(dto: CreateRoleInput, actor: Actor): Promise<Ro
         action: 'role.system_changed',
         resourceId: dto.parentId,
       });
+    await requireHeld(actor, await resolvePermissionsForRoles([dto.parentId]), {
+      entity: 'role',
+      action: 'role.permissions_granted',
+      resourceId: dto.parentId,
+    });
   }
 
   const role = await prisma.role.create({
@@ -215,6 +225,11 @@ export async function updateRole(
           action: 'role.system_changed',
           resourceId: id,
         });
+      await requireHeld(actor, await resolvePermissionsForRoles([dto.parentId]), {
+        entity: 'role',
+        action: 'role.permissions_granted',
+        resourceId: dto.parentId,
+      });
       const hasCycle = await checkCycle(id, dto.parentId);
       if (hasCycle) {
         throw new ValidationError('Role inheritance cycle detected');
@@ -276,6 +291,11 @@ export async function assignPermissions(
       const missing = dto.permissionIds.filter((id) => !found.includes(id));
       throw new ValidationError(`Permissions not found: ${missing.join(', ')}`);
     }
+    await requireHeld(
+      actor,
+      permissions.map((p) => p.name),
+      { entity: 'role', action: 'role.permissions_granted', resourceId: roleId }
+    );
 
     await tx.rolePermission.createMany({
       data: dto.permissionIds.map((permissionId) => ({
@@ -402,6 +422,11 @@ export async function setPermissions(
       const missing = dto.permissionIds.filter((id) => !found.includes(id));
       throw new ValidationError(`Permissions not found: ${missing.join(', ')}`);
     }
+    await requireHeld(
+      actor,
+      permissions.map((p) => p.name),
+      { entity: 'role', action: 'role.permissions_granted', resourceId: roleId }
+    );
 
     await tx.rolePermission.deleteMany({
       where: { roleId },

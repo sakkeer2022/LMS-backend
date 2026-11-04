@@ -44,8 +44,12 @@ describe('Authorization & Hierarchy Integration', () => {
 
     // 4. Resolve policies for grandchild_role
     const resolvedPolicies = await resolvePoliciesForRoles([grandchildRole.id]);
-    expect(resolvedPolicies.some((p) => p.subject === 'document' && p.action === 'read')).toBe(true);
-    expect(resolvedPolicies.some((p) => p.subject === 'document' && p.action === 'write')).toBe(true);
+    expect(resolvedPolicies.some((p) => p.subject === 'document' && p.action === 'read')).toBe(
+      true
+    );
+    expect(resolvedPolicies.some((p) => p.subject === 'document' && p.action === 'write')).toBe(
+      true
+    );
   });
 
   it('should reject cyclic parent relationships via HTTP API', async () => {
@@ -63,9 +67,13 @@ describe('Authorization & Hierarchy Integration', () => {
     // Test cycle validation error in the service layer by calling it indirectly
     // Or we can just call updateRole service method directly
     const { updateRole } = await import('../../src/modules/roles/roles.service.js');
-    await expect(updateRole(roleA.id, { parentId: roleB.id })).rejects.toThrow(
-      'Role inheritance cycle detected'
-    );
+    await expect(
+      updateRole(
+        roleA.id,
+        { parentId: roleB.id },
+        { roles: ['super_admin'], permissions: [], audit: {} }
+      )
+    ).rejects.toThrow('Role inheritance cycle detected');
   });
 
   it('should enforce ABAC policy conditions in requirePermission middleware', async () => {
