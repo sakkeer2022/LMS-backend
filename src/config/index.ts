@@ -103,8 +103,9 @@ const envSchema = z
     STORAGE_S3_REGION: z.string().optional(),
     STORAGE_S3_PREFIX: z.string().default(''),
 
-    // Email: one interface, transport chosen here. `memory` keeps messages in process (tests only).
-    EMAIL_TRANSPORT: z.enum(['smtp', 'memory']).optional(),
+    // Email transport. smtp (default): SMTP_*; sendgrid: SendGrid v3 HTTP API (SENDGRID_*);
+    // log: development, records that a message would be sent; memory: in process (tests only).
+    EMAIL_TRANSPORT: z.enum(['smtp', 'sendgrid', 'log', 'memory']).optional(),
     EMAIL_FROM: z.string().default('Amentorz <no-reply@amentorz.local>'),
     SMTP_HOST: z.string().optional(),
     SMTP_PORT: z.coerce.number().int().positive().default(587),
@@ -120,8 +121,39 @@ const envSchema = z
     // Who must confirm a password change with an email code: admin and super_admin accounts, or every role
     PASSWORD_CHANGE_OTP_ROLES: z.enum(['admin', 'all']).default('admin'),
     RESET_GRANT_EXPIRES_MINUTES: z.coerce.number().int().positive().default(5),
+    // SendGrid v3 HTTP API, used when EMAIL_TRANSPORT=sendgrid (LMS-79)
+    SENDGRID_API_KEY: z.string().optional(),
+    SENDGRID_FROM_EMAIL: z.email().optional(),
+    SENDGRID_FROM_NAME: z.string().min(1).max(100).default('Amentorz'),
+
+    // Public web app origin used to build links in emails (no trailing slash)
+    APP_BASE_URL: z
+      .url()
+      .default('http://localhost:3001')
+      .transform((url) => url.replace(/\/+$/, '')),
+
+    // ── Faculty invitations (LMS-79) ──
+    FACULTY_INVITE_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(72),
+    FACULTY_INVITE_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+    FACULTY_INVITE_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
   })
   .superRefine((env, ctx) => {
+    if (env.EMAIL_TRANSPORT === 'sendgrid') {
+      if (!env.SENDGRID_API_KEY || env.SENDGRID_API_KEY.trim() === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'SENDGRID_API_KEY is required when EMAIL_TRANSPORT=sendgrid',
+          path: ['SENDGRID_API_KEY'],
+        });
+      }
+      if (!env.SENDGRID_FROM_EMAIL) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'SENDGRID_FROM_EMAIL is required when EMAIL_TRANSPORT=sendgrid',
+          path: ['SENDGRID_FROM_EMAIL'],
+        });
+      }
+    }
     if (env.NODE_ENV === 'production') {
       if (env.JWT_SECRET.length < 32) {
         ctx.addIssue({
@@ -165,7 +197,8 @@ const envSchema = z
           path: ['EMAIL_TRANSPORT'],
         });
       }
-      if (!env.SMTP_HOST) {
+      // SMTP is the default transport, so it needs a host unless another transport is chosen
+      if ((env.EMAIL_TRANSPORT ?? 'smtp') === 'smtp' && !env.SMTP_HOST) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: 'SMTP_HOST is required in production',
@@ -177,6 +210,13 @@ const envSchema = z
           code: z.ZodIssueCode.custom,
           message: 'ALLOWED_ORIGINS is required in production',
           path: ['ALLOWED_ORIGINS'],
+        });
+      }
+      if (!env.APP_BASE_URL.startsWith('https://')) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'APP_BASE_URL must use https in production',
+          path: ['APP_BASE_URL'],
         });
       }
       if (!env.METRICS_TOKEN || env.METRICS_TOKEN.length < 32) {
@@ -343,6 +383,10 @@ export const config = {
       user: env.SMTP_USER,
       pass: env.SMTP_PASS,
     },
+    // SendGrid (EMAIL_TRANSPORT=sendgrid)
+    sendgridApiKey: env.SENDGRID_API_KEY,
+    fromEmail: env.SENDGRID_FROM_EMAIL,
+    fromName: env.SENDGRID_FROM_NAME,
   },
 
   otp: {
@@ -389,6 +433,14 @@ export const config = {
 
   metrics: {
     token: env.METRICS_TOKEN,
+  },
+
+  appBaseUrl: env.APP_BASE_URL,
+
+  facultyInvitations: {
+    ttlHours: env.FACULTY_INVITE_TTL_HOURS,
+    rateLimitWindowMs: env.FACULTY_INVITE_RATE_LIMIT_WINDOW_MS,
+    rateLimitMax: env.FACULTY_INVITE_RATE_LIMIT_MAX,
   },
 } as const;
 

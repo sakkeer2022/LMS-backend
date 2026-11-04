@@ -32,6 +32,68 @@
 - Tests: `policies.test.ts`, `storage.test.ts`, config tests.
 - Next: PDF interface and the signing endpoint, the three consent downloads, the purge job, a policy loader command, then registration.
 
+## 2026-11-04 — Tests use TEST_DATABASE_URL from .env
+
+- `tests/env-setup.ts` now reads `TEST_DATABASE_URL` from `.env` as well as the shell. Before, a value in `.env` was ignored and every integration suite tried `localhost:5432`, which fails when compose Postgres runs on `POSTGRES_PORT=5434`.
+- `tests/setup.ts` names the unreachable host and database instead of a bare connection error.
+- `npm run test:db:migrate` (`scripts/migrate-test-db.ts`): `prisma migrate deploy` against the test database, guarded by `assertTestDatabaseUrl`; works in PowerShell. `LOCAL_SETUP.md` updated.
+- `npx vitest run`: ✅ 60 files, 710 passed (TEST_DATABASE_URL set in `.env`).
+
+## 2026-11-03 — Merge development (LMS-99, LMS-100) into the faculty branch (LMS-78, LMS-79)
+
+- Conflicts resolved keeping both sides: category tree (`CategoryLevel`, `Board.nodes`) and countries in `schema.prisma`; the dev seed scripts and `create-admin` in `package.json`; faculty and registration/recovery/admin-profile routers.
+- Email: one `EmailMessage` (`html` and `category` optional) shared by `EmailSender` (OTP codes) and `EmailProvider` (invitations). `EMAIL_TRANSPORT` is now `smtp` (default), `sendgrid`, `log` or `memory`; `SMTP_HOST` is required in production only for `smtp`. Consolidating the two interfaces is T8 in `docs/PENDING_DECISIONS.md`.
+- Rate limits: `routeRateLimit` (per IP and email) and `createRouteRateLimiter` (per user) live together in `src/middleware/rate-limit.ts`.
+- Tests: `tests/setup.ts` re-inserts the countries reference rows after each truncate (boards now reference `countries`); the draft-only path in the API docs tests is now `/faculty/me/profile`, since `/admin/faculty` is implemented.
+
+### Test Results
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | ✅ Pass |
+| `npm run lint` | ✅ 0 errors |
+| `npx vitest run` (unit + integration, PostgreSQL 16 test DB) | ✅ 60 files, 710 passed |
+
+## 2026-11-03 — Faculty list and tutor invitations (LMS-78, LMS-79)
+
+- New module `src/modules/faculty`: `GET /admin/faculty` (roster of profiles and pending invitations with a derived status, tabs, search, category subtree, sort, pagination), `GET /admin/faculty/status-counts` (tab badges), `POST /admin/faculty/invitations` (invite 1-20 emails, or Copy link with `delivery=link`). Guards `faculty.read` and `faculty.create` added to `rbac.ts` (granted to admin).
+- New table `faculty_invitations` (migration `20261103090000_faculty_invitations`): SHA-256 token hash only, PENDING/ACCEPTED/REVOKED/EXPIRED, delivery method, sent and expiry times, inviter. A partial unique index allows one PENDING invitation per email.
+- Email: `src/infrastructure/email` with a SendGrid v3 adapter (fetch, no new dependency), a log-only development adapter and an in-memory test double; chosen by `EMAIL_TRANSPORT`. New settings `SENDGRID_*`, `APP_BASE_URL`, `FACULTY_INVITE_*` in `.env.example`.
+- `src/middleware/rate-limit.ts`: per-route, per-user rate limiter. Operational errors can now return per-field `errors` (`fieldErrors`), used for 409 conflicts per email.
+- Contract: generator updated and `docs/openapi.yaml` regenerated (`listFacultyAdmin` now returns `FacultyListItem`; new `getFacultyStatusCounts`, `inviteFaculty`).
+- **After pulling:** `npx prisma migrate deploy`, `npx prisma generate`, `npx prisma db seed` (new permissions).
+
+### Test Results
+
+| Check | Result |
+|---|---|
+| `npm run typecheck`, `npm run build` | ✅ Pass |
+| `npm run lint` | ✅ 0 errors (warnings: existing pattern, typed-map object-injection and the documented email regex) |
+| `npx vitest run` (unit + integration, PostgreSQL 16 test DB) | ✅ 594 passed; ❌ 2 pre-existing `tests/unit/rbac.test.ts` failures (`catalogue.*`, `pricing.*`, unchanged) |
+| New suites | `tests/modules/faculty.test.ts` (39), `tests/unit/faculty.test.ts`, `email-providers.test.ts`, `email-config.test.ts`, `rate-limit.test.ts` |
+| `python3 docs/check-contract-structure.py` | ✅ 102 paths, 117 operations |
+
+## 2026-11-02 — Category tree (ADR-0005, LMS-0: ticket number to be assigned)
+
+- `categories` is now the tree (path, depth, bookable leaves, version), superseding ADR-0003. Board, subject and level stay lookups; `category_levels` lists a leaf's levels.
+- Migrations: `20261102090000_category_tree_expand` (additive, backfill, verification) and `20261102100000_category_tree_contract` (nullable `curricula.level_id`, reference triggers, level FK). Rollback scripts and runbook in `prisma/rollbacks/`.
+- New module `src/modules/category-tree`: admin API at `/admin/category-tree` (tree, children, detail, create root/child, update, leaf settings, reorder, move, delete, offerings) and the learner API at `/catalogue/category-tree` behind the `catalogue.category_tree` feature flag.
+- The legacy `catalogue_nodes` writes are frozen (409 `CATALOGUE_TREE_MIGRATED`); reads, pricing and the onboarding lists keep working through subtree-aware filters.
+- Error responses carry a `code`.
+- **After pulling:** `npx prisma migrate deploy`, `npx prisma db seed`, then enable the `catalogue.category_tree` flag where the learner catalogue should show.
+
+### Test Results
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | ✅ Pass |
+| `npm run lint` | ✅ 0 errors, 38 warnings (33 pre-existing; 5 `detect-object-injection` on typed maps) |
+| `npm run build` | ✅ Pass |
+| `npx vitest run` (unit + integration, amentorz_test) | ✅ 395 passed; ❌ 2 pre-existing `tests/unit/rbac.test.ts` failures (`catalogue.*` and `pricing.*` missing from `rbac.ts` on this base branch, fixed by the uncommitted LMS-64 change) |
+| `tests/modules/category-tree-performance.test.ts` | Admin tree, 5,044 nodes, uncached p95 ≈ 70 ms (target < 200 ms); learner leaves page ≈ 20 ms; moving 1,241 nodes ≈ 0.7 s |
+| `tests/modules/category-tree-migration.test.ts` | Expand → verify → contract → both rollbacks restore the exact schema and data |
+| `python3 docs/check-contract-structure.py` | ✅ 100 paths, 115 operations |
+| Not run here | `prisma migrate diff` (Prisma engine host blocked in the build sandbox); run it locally, see `findings.md` |
 ## 2026-11-03 — Account recovery and password change (LMS-100)
 
 - New `account-recovery` module: `POST /auth/recovery/requests` (same 202 for unknown, wrong-portal and inactive accounts, decoy challenge, nothing emailed), `/verify` (code to a single-use, five-minute reset credential, hash stored in `password_reset_grants`) and `/reset` (consumes the credential once even under concurrency, sets the password, activates an account waiting for activation, clears the lockout, ends every session, cancels other recovery and verification credentials, audit `password.reset`, clears the cookies, no automatic login). `PUT /auth/password` (current password checked and counted toward the lockout, new one must differ, every session ends including the caller's, audit `password.changed`).

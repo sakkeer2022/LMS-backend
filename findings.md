@@ -8,6 +8,35 @@
 | Other Indian scripts | Tamil, Telugu, Kannada, Malayalam, Bengali, Gujarati and Gurmukhi names have no font yet and would print as empty boxes on the stamp page (the name is still stored exactly in the database). Add the Noto font file and a line in `src/infrastructure/pdf/fonts.ts` per script when the client wants them. |
 | Where the stamp goes | A new last page is appended ("Parent/guardian consent": name, UTC time, IP, signature, and the policy file's SHA-256), so the stamp can never overlap the policy text. The policy pages are not altered. |
 
+
+## 2026-11-03 — Faculty invitations (LMS-78, LMS-79)
+
+| Finding / Decision | Detail |
+|---|---|
+| Invitation-only model | Inviting creates a `faculty_invitations` row only; the user and faculty profile are created when the invitee completes onboarding (LMS-81). Chosen by the developer over creating a placeholder user (Jira LMS-79), which would need a dummy name and password hash |
+| Email transport | `EmailProvider` interface with SendGrid (v3 HTTP API through fetch, so no SDK dependency), log and in-memory adapters, chosen by `EMAIL_TRANSPORT`. Keeps the LMS-97 "one interface, transport by configuration" decision; SendGrid for production still pending (T1) |
+| All-or-nothing invites | Any address with an account or a pending invitation fails the whole request with 409 and a message per address; nothing is created |
+| Delivery failures | Emails are sent after the commit. An invitation whose email fails is revoked (`DELIVERY_FAILED`) so it can be re-sent; 502 when none could be sent |
+| Copy link | `delivery=link` creates one invitation and returns its link once without emailing |
+| Email rule | RFC 5322 dot-atom only (no quoted local parts or IP literals), RFC 5321 lengths, alphabetic TLD; shared with the admin frontend |
+
+## 2026-11-02 — Category tree (ADR-0005, LMS-0)
+
+| Finding / Decision | Detail |
+|---|---|
+| Source of truth | The spec in the ticket (no separate DBML file exists in either repository) |
+| Tree storage | `categories` itself: `parent_id`, materialised `path` (unique, `text_pattern_ops` index), `depth`, `is_bookable`, `requires_level`, `version`. Supersedes ADR-0003 (`catalogue_nodes`) |
+| Codes | Unique among siblings (`categories_parent_id_code_key`, NULLS NOT DISTINCT). The global `categories_code_key` was dropped in the expand phase because two sub-sections may share a code. Use `path` or `(parentId, code)` to find a category, never `code` alone |
+| Database invariants | CHECK constraints plus deferred constraint triggers: `categories_tree_check` (path/depth versus the parent and children, no children under a bookable node), `curricula_category_check` and `student_profiles_category_check` (bookable leaf, board and level rules), `categories_reference_check`. Composite FK `curricula(category_id, level_id) → category_levels` |
+| Deferred trigger errors | A deferred trigger that fails at COMMIT reaches Prisma only as P2028 "Transaction already closed", which hides the reason. Write paths run `SET CONSTRAINTS ALL IMMEDIATE` as the last statement (`checkDeferredConstraints`) so the error keeps its `category_tree:<CODE>` message, which `toTreeError` maps |
+| Migration drift by design | Prisma cannot express the CHECK constraints, triggers, `text_pattern_ops` and partial indexes, or the NULLS NOT DISTINCT sibling index. Remove any statement `migrate dev --create-only` generates to drop or rebuild them |
+| Legacy tree frozen | `catalogue_nodes` writes return 409 `CATALOGUE_TREE_MIGRATED`: `syncCurricula` would point curricula back at the tabs. Its reads stay. `/catalogue/categories` lists only depth 1 (the tabs), and category filters on curricula and price rules match the whole subtree (`categoryScope`) |
+| Error code in the envelope | Operational errors now return `code` next to `message` (for example `STALE_VERSION`). System errors stay generic |
+| Admin tree cache | `appCache` (Redis, or in memory in tests), keyed by a generation token that every write replaces. A reader that loaded the tree before a write cannot repopulate the current key |
+| No bookings table | The spec's "bookings reference a bookable leaf" has no table yet. `resolveBookableOffering()` (category-tree `index.ts`) is the check a bookings module must call; its trigger should mirror `curricula_category_check` |
+| Prisma engines in the sandbox | `binaries.prisma.sh` was unreachable while this was built, so migrations were applied with `psql` and `prisma migrate diff` was not run. Run `npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script` locally; any output other than the known hand-written objects is drift |
+
+---
 ## 2026-11-03 — Email code on password change (LMS-100)
 
 | Finding / Decision | Detail |

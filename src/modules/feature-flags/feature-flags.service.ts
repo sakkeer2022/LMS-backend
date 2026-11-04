@@ -145,3 +145,17 @@ function _toFeatureFlagDetail(flag: {
     updatedAt: flag.updatedAt,
   };
 }
+
+// ── Evaluation ────────────────────────────────────────────────────
+/**
+ * True when the named flag exists and is enabled. A missing flag is off, so a new code
+ * path stays dark until an admin creates and enables its flag. rolloutPercentage and
+ * conditions are not evaluated yet; a flag is all-or-nothing.
+ */
+export async function isFeatureEnabled(name: string): Promise<boolean> {
+  const flag = await prisma.featureFlag.findUnique({
+    where: { name },
+    select: { isEnabled: true },
+  });
+  return flag?.isEnabled ?? false;
+}

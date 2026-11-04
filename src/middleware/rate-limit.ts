@@ -67,3 +67,52 @@ export function routeRateLimit(options: RouteRateLimitOptions): RequestHandler[]
   if (options.email) handlers.push(limiter(options.name, 'email', options.email, emailOrIp));
   return handlers;
 }
+
+export interface UserRouteRateLimitOptions {
+  /** Unique name; separates this limiter's counters from every other limiter. */
+  name: string;
+  windowMs: number;
+  max: number;
+  /**
+   * user: one budget per authenticated user (falls back to the IP when there is none);
+   * ip: one budget per client IP.
+   */
+  keyBy: 'user' | 'ip';
+  message?: string;
+}
+
+/** Counter key for a request; exported for tests. */
+export function rateLimitKey(req: Request, keyBy: UserRouteRateLimitOptions['keyBy']): string {
+  const userId = req.user?.sub;
+  if (keyBy === 'user' && userId) return `user:${userId}`;
+  return `ip:${clientIp(req)}`;
+}
+
+/**
+ * Single per-route limiter keyed by the authenticated user (or the IP). Use it for
+ * authenticated admin actions such as faculty invitations; mount it after `authenticate`
+ * when keying by user. Pre-auth routes keyed by IP and email use `routeRateLimit` above.
+ */
+export function createRouteRateLimiter(options: UserRouteRateLimitOptions): RequestHandler {
+  const prefix = `rl:${options.name}:`;
+  return rateLimit({
+    windowMs: options.windowMs,
+    limit: options.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: redisClient
+      ? new RedisStore({
+          prefix,
+          // @ts-expect-error - rate-limit-redis types differ slightly from ioredis
+          sendCommand: (...args: string[]): unknown => redisClient?.call(...args),
+        })
+      : undefined,
+    keyGenerator: (req) => `${prefix}${rateLimitKey(req, options.keyBy)}`,
+    handler: (req, _res, next) => {
+      logger.warn({ type: 'security', route: options.name, ip: req.ip }, 'Route rate limit hit');
+      next(
+        new TooManyRequestsError(options.message ?? 'Too many requests, please try again later.')
+      );
+    },
+  });
+}
