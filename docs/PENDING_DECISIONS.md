@@ -37,6 +37,7 @@ Evidence references: SOW = Software Development Agreement, Annexure 1 (the signe
 | P9  | Student onboarding workflow (decided 2026-11-03 over the frames): step 1's button reads "Continue to verification" and opens an email-code popup; right after a successful verification the consent popup opens for an under-18 student; adults skip the consent popup and step 3 (guardian contact) is optional for them; the last screen shows no hard-coded policy wording (policy titles link to the current texts; the "20 minutes billable" sentence is dropped) | LMS-99 | As decided | Decided |
 | P10 | Frame 1 shows email-verification boxes under the mobile field (a copied component); mobile is not verified in Phase 1, so the mobile field is plain | LMS-99 | Mobile has no code step | Decided (contract) |
 | P11 | Signed consent PDF: the stamp is appended as a new last page (it never covers the policy text); scripts without a bundled font (Tamil, Telugu, Kannada, Malayalam, Bengali, Gujarati, Gurmukhi) print as empty boxes on that page until a font is added | LMS-99 | Add fonts when the client wants those scripts | Pending |
+| P12 | Admin consent and legal screens have no Figma frame: "Students" (People) and "Legal documents" (Account) were added to the sidebar, built in the existing settings and table style (the navigation test now expects 13 destinations) | LMS-99 | As built; replace with the frames when they exist | Pending |
 
 ## Team (tech lead and frontend)
 
