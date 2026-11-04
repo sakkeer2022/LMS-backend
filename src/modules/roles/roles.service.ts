@@ -9,6 +9,7 @@ import type {
 } from './roles.dto.js';
 import type { Prisma } from '@prisma/client';
 import type { PolicyRule } from '../../core/security/policy.js';
+import { includesAdminRole, requireSuperAdmin, type Actor } from './system-role-guard.js';
 
 // ── Shapes returned to controllers ───────────────────────────────
 export interface RoleSummary {
@@ -134,7 +135,7 @@ export async function getRoleById(id: string): Promise<RoleDetail> {
 }
 
 // ── Create ────────────────────────────────────────────────────────
-export async function createRole(dto: CreateRoleInput): Promise<RoleDetail> {
+export async function createRole(dto: CreateRoleInput, actor: Actor): Promise<RoleDetail> {
   const existing = await prisma.role.findFirst({
     where: { name: dto.name, deletedAt: null },
   });
@@ -147,6 +148,13 @@ export async function createRole(dto: CreateRoleInput): Promise<RoleDetail> {
     if (!parentRole) {
       throw new NotFoundError('Parent role');
     }
+    // A role inheriting from an admin role would carry its permissions
+    if (await includesAdminRole(prisma, [dto.parentId]))
+      await requireSuperAdmin(actor, {
+        entity: 'role',
+        action: 'role.system_changed',
+        resourceId: dto.parentId,
+      });
   }
 
   const role = await prisma.role.create({
@@ -163,11 +171,21 @@ export async function createRole(dto: CreateRoleInput): Promise<RoleDetail> {
 }
 
 // ── Update ────────────────────────────────────────────────────────
-export async function updateRole(id: string, dto: UpdateRoleInput): Promise<RoleDetail> {
+export async function updateRole(
+  id: string,
+  dto: UpdateRoleInput,
+  actor: Actor
+): Promise<RoleDetail> {
   const role = await prisma.role.findFirst({
     where: { id, deletedAt: null },
   });
   if (!role) throw new NotFoundError('Role');
+  if (role.isSystem)
+    await requireSuperAdmin(actor, {
+      entity: 'role',
+      action: 'role.system_changed',
+      resourceId: id,
+    });
 
   if (role.isSystem && dto.name && dto.name !== role.name) {
     throw new ForbiddenError('Cannot rename a system role');
@@ -191,6 +209,12 @@ export async function updateRole(id: string, dto: UpdateRoleInput): Promise<Role
       if (!parentRole) {
         throw new NotFoundError('Parent role');
       }
+      if (await includesAdminRole(prisma, [dto.parentId]))
+        await requireSuperAdmin(actor, {
+          entity: 'role',
+          action: 'role.system_changed',
+          resourceId: id,
+        });
       const hasCycle = await checkCycle(id, dto.parentId);
       if (hasCycle) {
         throw new ValidationError('Role inheritance cycle detected');
@@ -228,13 +252,20 @@ export async function deleteRole(id: string): Promise<void> {
 // ── Assign permissions (additive) ─────────────────────────────────
 export async function assignPermissions(
   roleId: string,
-  dto: AssignPermissionsInput
+  dto: AssignPermissionsInput,
+  actor: Actor
 ): Promise<RoleDetail> {
   return prisma.$transaction(async (tx) => {
     const role = await tx.role.findFirst({
       where: { id: roleId, deletedAt: null },
     });
     if (!role) throw new NotFoundError('Role');
+    if (role.isSystem)
+      await requireSuperAdmin(actor, {
+        entity: 'role',
+        action: 'role.system_changed',
+        resourceId: roleId,
+      });
 
     const permissions = await tx.permission.findMany({
       where: { id: { in: dto.permissionIds } },
@@ -290,13 +321,20 @@ export async function assignPermissions(
 // ── Remove permissions ────────────────────────────────────────────
 export async function removePermissions(
   roleId: string,
-  dto: AssignPermissionsInput
+  dto: AssignPermissionsInput,
+  actor: Actor
 ): Promise<RoleDetail> {
   return prisma.$transaction(async (tx) => {
     const role = await tx.role.findFirst({
       where: { id: roleId, deletedAt: null },
     });
     if (!role) throw new NotFoundError('Role');
+    if (role.isSystem)
+      await requireSuperAdmin(actor, {
+        entity: 'role',
+        action: 'role.system_changed',
+        resourceId: roleId,
+      });
 
     await tx.rolePermission.deleteMany({
       where: {
@@ -340,13 +378,20 @@ export async function removePermissions(
 // ── Set permissions (replace all) ─────────────────────────────────
 export async function setPermissions(
   roleId: string,
-  dto: AssignPermissionsInput
+  dto: AssignPermissionsInput,
+  actor: Actor
 ): Promise<RoleDetail> {
   return prisma.$transaction(async (tx) => {
     const role = await tx.role.findFirst({
       where: { id: roleId, deletedAt: null },
     });
     if (!role) throw new NotFoundError('Role');
+    if (role.isSystem)
+      await requireSuperAdmin(actor, {
+        entity: 'role',
+        action: 'role.system_changed',
+        resourceId: roleId,
+      });
 
     const permissions = await tx.permission.findMany({
       where: { id: { in: dto.permissionIds } },

@@ -7,6 +7,11 @@ import type { PaginationQueryInput } from '@modules/roles/roles.dto.js';
 import type { Prisma } from '@prisma/client';
 import { logAction, type AuditContext } from '@modules/audit/audit.service.js';
 import { logger } from '@core/logger/index';
+import {
+  includesAdminRole,
+  requireSuperAdmin,
+  type Actor,
+} from '@modules/roles/system-role-guard.js';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -190,7 +195,7 @@ async function recordRoleChange(
 export async function assignRoles(
   userId: string,
   dto: AssignRolesInput,
-  audit?: AuditContext
+  actor: Actor
 ): Promise<UserDetail> {
   let previousRoles: string[] = [];
   const result = await prisma.$transaction(async (tx) => {
@@ -209,6 +214,13 @@ export async function assignRoles(
       const missing = dto.roleIds.filter((id) => !found.includes(id));
       throw new ValidationError(`Roles not found: ${missing.join(', ')}`);
     }
+
+    if (await includesAdminRole(tx, dto.roleIds))
+      await requireSuperAdmin(actor, {
+        entity: 'user',
+        action: 'user.roles_changed',
+        resourceId: userId,
+      });
 
     await tx.userRole.createMany({
       data: dto.roleIds.map((roleId) => ({
@@ -246,14 +258,14 @@ export async function assignRoles(
     };
   });
 
-  await recordRoleChange('user.roles_assigned', userId, previousRoles, result, audit);
+  await recordRoleChange('user.roles_assigned', userId, previousRoles, result, actor.audit);
   return result;
 }
 
 export async function removeRoles(
   userId: string,
   dto: AssignRolesInput,
-  audit?: AuditContext
+  actor: Actor
 ): Promise<UserDetail> {
   let previousRoles: string[] = [];
   const result = await prisma.$transaction(async (tx) => {
@@ -262,6 +274,13 @@ export async function removeRoles(
     });
     if (!user) throw new NotFoundError('User');
     previousRoles = await currentRoleNames(tx, userId);
+
+    if (await includesAdminRole(tx, dto.roleIds))
+      await requireSuperAdmin(actor, {
+        entity: 'user',
+        action: 'user.roles_changed',
+        resourceId: userId,
+      });
 
     await tx.userRole.deleteMany({
       where: {
@@ -297,14 +316,14 @@ export async function removeRoles(
     };
   });
 
-  await recordRoleChange('user.roles_removed', userId, previousRoles, result, audit);
+  await recordRoleChange('user.roles_removed', userId, previousRoles, result, actor.audit);
   return result;
 }
 
 export async function setRoles(
   userId: string,
   dto: AssignRolesInput,
-  audit?: AuditContext
+  actor: Actor
 ): Promise<UserDetail> {
   let previousRoles: string[] = [];
   const result = await prisma.$transaction(async (tx) => {
@@ -323,6 +342,20 @@ export async function setRoles(
       const missing = dto.roleIds.filter((id) => !found.includes(id));
       throw new ValidationError(`Roles not found: ${missing.join(', ')}`);
     }
+
+    const currentIds = (
+      await tx.userRole.findMany({ where: { userId }, select: { roleId: true } })
+    ).map((r) => r.roleId);
+    const changedIds = [
+      ...dto.roleIds.filter((id) => !currentIds.includes(id)),
+      ...currentIds.filter((id) => !dto.roleIds.includes(id)),
+    ];
+    if (await includesAdminRole(tx, changedIds))
+      await requireSuperAdmin(actor, {
+        entity: 'user',
+        action: 'user.roles_changed',
+        resourceId: userId,
+      });
 
     await tx.userRole.deleteMany({
       where: { userId },
@@ -362,6 +395,6 @@ export async function setRoles(
     };
   });
 
-  await recordRoleChange('user.roles_replaced', userId, previousRoles, result, audit);
+  await recordRoleChange('user.roles_replaced', userId, previousRoles, result, actor.audit);
   return result;
 }
