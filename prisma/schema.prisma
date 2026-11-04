@@ -347,7 +347,8 @@ model StudentProfile {
   categoryId              String                @map("category_id") @db.Uuid
   // Required only when the category requires a board (School); enforced by the service
   boardId                 String?               @map("board_id") @db.Uuid
-  levelId                 String                @map("level_id") @db.Uuid
+  // Null only when the category does not require a level; enforced by a deferred trigger
+  levelId                 String?               @map("level_id") @db.Uuid
   teachingLanguageId      String                @map("teaching_language_id") @db.Uuid
   // Guardian contact, required while the student is under 18. Contact only, not an account.
   guardianName            String?               @map("guardian_name") @db.VarChar(150)
@@ -365,7 +366,7 @@ model StudentProfile {
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   category         Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   board            Board?            @relation(fields: [boardId], references: [id], onDelete: Restrict)
-  level            Level             @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  level            Level?            @relation(fields: [levelId], references: [id], onDelete: Restrict)
   teachingLanguage TeachingLanguage  @relation(fields: [teachingLanguageId], references: [id], onDelete: Restrict)
   subjects         StudentSubject[]
   guardianConsents GuardianConsent[]

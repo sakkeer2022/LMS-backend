@@ -12019,7 +12019,9 @@
           "levelId": {
             "type": "string",
             "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true,
+            "description": "Required when the category has requiresLevel=true; otherwise null."
           },
           "teachingLanguageId": {
             "type": "string",
@@ -12036,7 +12038,7 @@
             "maxItems": 20,
             "minItems": 1,
             "uniqueItems": true,
-            "description": "Subjects multi-select (\"Pick at least one\"). Each curriculum must be active and match categoryId, boardId and levelId."
+            "description": "Subjects multi-select (\"Pick at least one\"). Each curriculum must be active and match categoryId, boardId and levelId (null matches null)."
           }
         },
         "required": [
@@ -12469,7 +12471,8 @@
               "level": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 100
+                "maxLength": 100,
+                "nullable": true
               },
               "teachingLanguage": {
                 "type": "string",

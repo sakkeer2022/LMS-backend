@@ -37,7 +37,7 @@ export interface StudentDetailView extends StudentView {
   learningProfile: {
     category: string;
     board: string | null;
-    level: string;
+    level: string | null;
     teachingLanguage: string;
     subjects: string[];
   };
@@ -174,7 +174,7 @@ export async function getStudent(studentId: string): Promise<StudentDetailView> 
     learningProfile: {
       category: profile.category.name,
       board: profile.board?.name ?? null,
-      level: profile.level.name,
+      level: profile.level?.name ?? null,
       teachingLanguage: profile.teachingLanguage.name,
       subjects: profile.subjects.map((item) => item.curriculum.subject.name).sort(),
     },
