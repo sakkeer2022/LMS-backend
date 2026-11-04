@@ -45,6 +45,12 @@ enum FacultyDocumentType {
   EXPERIENCE_LETTER
   BACKGROUND_CHECK
   OTHER
+  PAN_CARD
+}
+
+enum FacultyPriceConsentDecision {
+  ACCEPTED
+  REJECTED
 }
 
 enum DocumentScanStatus {
@@ -492,11 +498,28 @@ model FacultyProfile {
   revision        Int                   @default(1)
   ratingsAverage  Decimal               @default(0.00) @map("ratings_average") @db.Decimal(3, 2)
   ratingsCount    Int                   @default(0) @map("ratings_count")
+  // Onboarding (screens 43b-43e). Collected once from the invitation link.
+  city                  String?   @db.VarChar(100)
+  highestQualification  String?   @map("highest_qualification") @db.VarChar(150)
+  studiedAt             String?   @map("studied_at") @db.VarChar(200)
+  // Range code from the "Years of teaching" select: 0-1, 1-3, 3-5, 5-10, 10+
+  teachingExperience    String?   @map("teaching_experience") @db.VarChar(10)
+  offersOfflineClasses  Boolean   @default(false) @map("offers_offline_classes")
+  // "AMZ-T-4471", shown on the submitted screen
+  applicationReference  String?   @unique @map("application_reference") @db.VarChar(20)
+  submittedAt           DateTime? @map("submitted_at")
+  declarationAcceptedAt DateTime? @map("declaration_accepted_at")
+  invitationId          String?   @unique @map("invitation_id") @db.Uuid
+  // First time the tutor was approved with every subject priced (sign-in allowed); the
+  // "you can sign in" email is sent once, at that moment
+  accessReadyAt         DateTime? @map("access_ready_at")
   createdAt       DateTime              @default(now()) @map("created_at")
   updatedAt       DateTime              @updatedAt @map("updated_at")
 
-  user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  approver User? @relation("FacultyApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approver   User?              @relation("FacultyApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
+  invitation FacultyInvitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+  priceConsents FacultyPriceConsent[]
 
   qualifications   FacultyQualification[]
   experiences      FacultyExperience[]
@@ -530,10 +553,29 @@ model FacultyInvitation {
   updatedAt      DateTime                  @updatedAt @map("updated_at")
 
   invitedBy User? @relation("FacultyInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+  profile   FacultyProfile?
 
   @@index([email, status])
   @@index([status, expiresAt])
   @@map("faculty_invitations")
+}
+
+// The tutor's answer on the price consent screen (after first login). priceSnapshot is
+// the list of prices shown; snapshotHash identifies it, so a later price change asks again.
+model FacultyPriceConsent {
+  id            String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facultyId     String                      @map("faculty_id") @db.Uuid
+  decision      FacultyPriceConsentDecision
+  snapshotHash  String                      @map("snapshot_hash") @db.VarChar(64)
+  priceSnapshot Json                        @map("price_snapshot")
+  ipAddress     String?                     @map("ip_address") @db.VarChar(45)
+  userAgent     String?                     @map("user_agent") @db.Text
+  decidedAt     DateTime                    @default(now()) @map("decided_at")
+
+  faculty FacultyProfile @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+
+  @@index([facultyId, decidedAt])
+  @@map("faculty_price_consents")
 }
 
 model FacultyQualification {

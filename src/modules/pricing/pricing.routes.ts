@@ -116,6 +116,20 @@ const manage = requirePermission('pricing.manage');
  *       409: { description: Overlapping active rule }
  *       422: { description: Unknown curriculum or faculty, or invalid amount or window }
  */
+/**
+ * @openapi
+ * /admin/prices/awaiting:
+ *   get:
+ *     summary: Approved tutors' subjects that still need a tutor price (screen 29)
+ *     description: One entry per subject card the tutor chose at onboarding with no active tutor price. Create the price with POST /admin/prices (curriculumId and the tutor's facultyId). A tutor can sign in once none of their entries remain. defaultPrice is the offering's all-tutor price, when one exists. Requires pricing.read.
+ *     tags: [Pricing]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Entries awaiting a price, oldest approval first }
+ *       401: { description: Missing or invalid token }
+ *       403: { description: Missing pricing.read }
+ */
+adminPricesRouter.get('/awaiting', read, Pricing.listAwaiting);
 adminPricesRouter.get('/', read, Pricing.listPriceRules);
 adminPricesRouter.post('/', manage, Pricing.createPriceRule);
 

@@ -44,3 +44,4 @@ Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
+/storage/

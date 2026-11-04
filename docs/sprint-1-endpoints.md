@@ -55,7 +55,8 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 | PUT | `/faculty/me/profile` | `setOwnFacultyProfile` | faculty (self only); faculty.update_self | ready-for-review |
 | GET | `/faculty/terms` | `getFacultyTerms` | faculty or admin | decision-required |
 | POST | `/faculty/me/terms-acceptance` | `acceptFacultyTerms` | faculty (self only) | decision-required |
-| PUT | `/admin/faculty/{facultyId}/review` | `reviewFaculty` | admin; faculty.approve | decision-required |
+| PUT | `/admin/faculty/{facultyId}/review` | `reviewFaculty` | admin; faculty.approve | ready-for-review |
+| PUT | `/admin/faculty/{facultyId}/documents/{documentId}/verification` | `setFacultyDocumentVerification` | admin; faculty.approve | ready-for-review |
 | PUT | `/admin/faculty/{facultyId}/publication` | `setFacultyPublication` | admin; faculty.publish | ready-for-review |
 | PUT | `/admin/faculty/{facultyId}/status` | `setFacultyActiveStatus` | admin; faculty.update | ready-for-review |
 | GET | `/admin/faculty/{facultyId}/documents` | `listFacultyDocumentsAdmin` | admin; faculty.documents | ready-for-review |
@@ -65,6 +66,16 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 | GET | `/faculty/me/documents/{documentId}/file` | `getFacultyDocumentFileSelf` | faculty (self only) | ready-for-review |
 | GET | `/faculty` | `listPublishedFaculty` | public | ready-for-review |
 | GET | `/faculty/{facultyId}` | `getPublishedFaculty` | public | ready-for-review |
+| GET | `/faculty/me/price-consent` | `getFacultyPriceConsent` | faculty (self only); faculty.read_self | ready-for-review |
+| POST | `/faculty/me/price-consent` | `decideFacultyPriceConsent` | faculty (self only); faculty.update_self | ready-for-review |
+
+## Faculty onboarding
+
+| Method | Path | Operation ID | Access | Review status |
+|---|---|---|---|---|
+| POST | `/faculty/onboarding/session` | `startFacultyOnboarding` | public | ready-for-review |
+| GET | `/faculty/onboarding/catalogue` | `getFacultyOnboardingCatalogue` | public | ready-for-review |
+| POST | `/faculty/onboarding/applications` | `submitFacultyApplication` | public | ready-for-review |
 
 ## Catalogue
 
@@ -112,6 +123,7 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 |---|---|---|---|---|
 | GET | `/admin/prices` | `listPriceRules` | admin; pricing.read | ready-for-review |
 | POST | `/admin/prices` | `createPriceRule` | admin; pricing.manage | ready-for-review |
+| GET | `/admin/prices/awaiting` | `listAwaitingTutorPrices` | admin; pricing.read | ready-for-review |
 | PUT | `/admin/prices/bulk` | `bulkUpdatePriceRules` | admin; pricing.manage | ready-for-review |
 | PUT | `/admin/prices/{priceId}` | `updatePriceRule` | admin; pricing.manage | ready-for-review |
 | GET | `/prices/resolve` | `resolveSessionPrice` | public | decision-required |
@@ -123,6 +135,7 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 |---|---|---|---|---|
 | GET | `/admin/category-tree` | `getCategoryTree` | admin; catalogue.read | ready-for-review |
 | GET | `/admin/category-tree/status` | `getCategoryTreeStatus` | admin; catalogue.read | ready-for-review |
+| GET | `/admin/category-tree/picker` | `getCategoryTreePicker` | admin; catalogue.read | ready-for-review |
 | POST | `/admin/category-tree/roots` | `createCategoryRoot` | admin; catalogue.manage | ready-for-review |
 | PUT | `/admin/category-tree/reorder` | `reorderCategories` | admin; catalogue.manage | ready-for-review |
 | GET | `/admin/category-tree/{categoryId}` | `getCategoryTreeNode` | admin; catalogue.read | ready-for-review |

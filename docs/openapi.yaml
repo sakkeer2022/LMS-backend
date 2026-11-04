@@ -25,6 +25,10 @@
       "description": "Task 2: faculty onboarding and minimal publication reads."
     },
     {
+      "name": "Faculty onboarding",
+      "description": "LMS-39: the invitation link onboarding (screens 43b-43e), public with CSRF."
+    },
+    {
       "name": "Catalogue",
       "description": "Task 3: configurable catalogue and faculty assignments."
     },
@@ -1694,7 +1698,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -2206,8 +2210,8 @@
         "tags": [
           "Faculty"
         ],
-        "summary": "Read private faculty profile",
-        "description": "Current active, email-verified admin; faculty.read identity; server checks role, permission and resource ownership on every request. ",
+        "summary": "Read a tutor application for the verification drawer",
+        "description": "Current active, email-verified admin; faculty.read identity; server checks role, permission and resource ownership on every request. Screen 27b. Screening answers, documents with verification state, the subjects chosen at onboarding with their current tutor price, and the pricing/consent state. Cache-Control: no-store.",
         "x-required-role": "admin; faculty.read",
         "x-review-status": "ready-for-review",
         "security": [
@@ -2217,7 +2221,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Read private faculty profile.",
+            "description": "Read a tutor application for the verification drawer.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2228,34 +2232,33 @@
                   "message": "Success",
                   "data": {
                     "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "user": {
-                      "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                      "email": "learner@example.org",
-                      "fullName": "Ananya Rao",
-                      "mobileNumber": "+919876543210",
-                      "isActive": true,
-                      "emailVerified": true,
-                      "roles": []
-                    },
-                    "bio": "Mathematics tutor with experience teaching secondary school students.",
-                    "qualifications": [],
-                    "experience": [],
+                    "fullName": "Ananya Rao",
+                    "email": "learner@example.org",
+                    "mobileNumber": "+919876543210",
+                    "city": "Example value",
+                    "applicationReference": "Example value",
+                    "appliedAt": "2026-10-21T09:00:00Z",
+                    "submittedAt": "2026-10-21T09:00:00Z",
+                    "status": "invited",
                     "approvalStatus": "pending",
                     "isPublished": false,
                     "isActive": true,
-                    "acceptedTermsVersion": null,
-                    "acceptedTermsAt": null,
-                    "eligibility": {
-                      "visible": false,
-                      "eligibleForFutureBooking": false,
-                      "reasons": [
-                        "TERMS_REQUIRED",
-                        "NOT_APPROVED",
-                        "NOT_PUBLISHED",
-                        "NO_ACTIVE_ASSIGNMENT"
-                      ]
+                    "revision": 1,
+                    "rejectionReason": "Example value",
+                    "approvedAt": "2026-10-21T09:00:00Z",
+                    "screening": {
+                      "highestQualification": "Example value",
+                      "studiedAt": "Example value",
+                      "teachingExperience": {
+                        "code": "0-1",
+                        "label": "Example value"
+                      },
+                      "offersOfflineClasses": true
                     },
-                    "revision": 1
+                    "documents": [],
+                    "subjects": [],
+                    "pricing": "none",
+                    "consentDecidedAt": "2026-10-21T09:00:00Z"
                   }
                 }
               }
@@ -2754,10 +2757,10 @@
         "tags": [
           "Faculty"
         ],
-        "summary": "Approve or reject faculty profile",
-        "description": "Current active, email-verified admin; faculty.approve identity; server checks role, permission and resource ownership on every request. Recent reauthentication required. expectedRevision must match. Approval requires email verified, current approved terms accepted, complete qualifications/experience reviewed and clean verification documents under approved checklist. Rejection immediately unpublishes. Cannot self-review. Audit reason and actor. DECISION REQUIRED: Required verification-document checklist and profile completeness criteria must be approved before approval action is implemented.",
+        "summary": "Approve (\"Verify & publish\") or reject a tutor application",
+        "description": "Current active, email-verified admin; faculty.approve identity; server checks role, permission and resource ownership on every request. Screen 27b, LMS-39. Only pending applications (409 INVALID_TRANSITION). Approve verifies the remaining documents, records the approver and sets isPublished to publish; reject needs a reason and unpublishes. expectedRevision must match (409 STALE_REVISION). The tutor is emailed. Approval alone does not allow sign-in: every subject needs a tutor price (GET /admin/prices/awaiting).",
         "x-required-role": "admin; faculty.approve",
-        "x-review-status": "decision-required",
+        "x-review-status": "ready-for-review",
         "security": [
           {
             "cookieAuth": []
@@ -2765,7 +2768,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Approve or reject faculty profile.",
+            "description": "Approve (\"Verify & publish\") or reject a tutor application.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2776,34 +2779,33 @@
                   "message": "Success",
                   "data": {
                     "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "user": {
-                      "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                      "email": "learner@example.org",
-                      "fullName": "Ananya Rao",
-                      "mobileNumber": "+919876543210",
-                      "isActive": true,
-                      "emailVerified": true,
-                      "roles": []
-                    },
-                    "bio": "Mathematics tutor with experience teaching secondary school students.",
-                    "qualifications": [],
-                    "experience": [],
+                    "fullName": "Ananya Rao",
+                    "email": "learner@example.org",
+                    "mobileNumber": "+919876543210",
+                    "city": "Example value",
+                    "applicationReference": "Example value",
+                    "appliedAt": "2026-10-21T09:00:00Z",
+                    "submittedAt": "2026-10-21T09:00:00Z",
+                    "status": "invited",
                     "approvalStatus": "pending",
                     "isPublished": false,
                     "isActive": true,
-                    "acceptedTermsVersion": null,
-                    "acceptedTermsAt": null,
-                    "eligibility": {
-                      "visible": false,
-                      "eligibleForFutureBooking": false,
-                      "reasons": [
-                        "TERMS_REQUIRED",
-                        "NOT_APPROVED",
-                        "NOT_PUBLISHED",
-                        "NO_ACTIVE_ASSIGNMENT"
-                      ]
+                    "revision": 1,
+                    "rejectionReason": "Example value",
+                    "approvedAt": "2026-10-21T09:00:00Z",
+                    "screening": {
+                      "highestQualification": "Example value",
+                      "studiedAt": "Example value",
+                      "teachingExperience": {
+                        "code": "0-1",
+                        "label": "Example value"
+                      },
+                      "offersOfflineClasses": true
                     },
-                    "revision": 1
+                    "documents": [],
+                    "subjects": [],
+                    "pricing": "none",
+                    "consentDecidedAt": "2026-10-21T09:00:00Z"
                   }
                 }
               }
@@ -2860,7 +2862,135 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ReviewDecision"
+                "$ref": "#/components/schemas/FacultyReview"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/faculty/{facultyId}/documents/{documentId}/verification": {
+      "put": {
+        "operationId": "setFacultyDocumentVerification",
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Mark a verification document as verified",
+        "description": "Current active, email-verified admin; faculty.approve identity; server checks role, permission and resource ownership on every request. Screen 27b \"Mark as verified\". Audited.",
+        "x-required-role": "admin; faculty.approve",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mark a verification document as verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/setFacultyDocumentVerificationResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "fullName": "Ananya Rao",
+                    "email": "learner@example.org",
+                    "mobileNumber": "+919876543210",
+                    "city": "Example value",
+                    "applicationReference": "Example value",
+                    "appliedAt": "2026-10-21T09:00:00Z",
+                    "submittedAt": "2026-10-21T09:00:00Z",
+                    "status": "invited",
+                    "approvalStatus": "pending",
+                    "isPublished": false,
+                    "isActive": true,
+                    "revision": 1,
+                    "rejectionReason": "Example value",
+                    "approvedAt": "2026-10-21T09:00:00Z",
+                    "screening": {
+                      "highestQualification": "Example value",
+                      "studiedAt": "Example value",
+                      "teachingExperience": {
+                        "code": "0-1",
+                        "label": "Example value"
+                      },
+                      "offersOfflineClasses": true
+                    },
+                    "documents": [],
+                    "subjects": [],
+                    "pricing": "none",
+                    "consentDecidedAt": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "facultyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "documentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentVerification"
               }
             }
           }
@@ -3319,7 +3449,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Authorized clean file bytes.",
+            "description": "Authorized file bytes, always as an attachment, with a sandbox CSP. X-Document-Previewable: true for PDF and images. No malware scanner exists yet (PENDING_DECISIONS F4), so pending files are served to admins.",
             "headers": {
               "Content-Disposition": {
                 "schema": {
@@ -3349,6 +3479,30 @@
                 }
               },
               "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/msword": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/vnd.ms-powerpoint": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
                 "schema": {
                   "type": "string",
                   "format": "binary"
@@ -3512,7 +3666,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Authorized clean file bytes.",
+            "description": "Authorized file bytes, always as an attachment, with a sandbox CSP. X-Document-Previewable: true for PDF and images. No malware scanner exists yet (PENDING_DECISIONS F4), so pending files are served to admins.",
             "headers": {
               "Content-Disposition": {
                 "schema": {
@@ -3542,6 +3696,30 @@
                 }
               },
               "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/msword": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/vnd.ms-powerpoint": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
                 "schema": {
                   "type": "string",
                   "format": "binary"
@@ -3733,6 +3911,342 @@
             }
           }
         ]
+      }
+    },
+    "/faculty/onboarding/session": {
+      "post": {
+        "operationId": "startFacultyOnboarding",
+        "tags": [
+          "Faculty onboarding"
+        ],
+        "summary": "Check a faculty invitation link",
+        "description": "Public; no authenticated identity required. Screen 43b. Every unusable link (unknown, used, revoked, expired) returns the same 422 INVITATION_INVALID. Rate-limited per IP.",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Check a faculty invitation link.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/startFacultyOnboardingResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "email": "learner@example.org",
+                    "expiresAt": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardingSessionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/faculty/onboarding/catalogue": {
+      "get": {
+        "operationId": "getFacultyOnboardingCatalogue",
+        "tags": [
+          "Faculty onboarding"
+        ],
+        "summary": "Category tree and offerings for the subject picker",
+        "description": "Public; no authenticated identity required. Screen 43c column picker: visible categories that lead to a bookable leaf, and each leaf's active offerings (board, level, subject). Picking a subject adds a card; the card is the curriculumId.",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Category tree and offerings for the subject picker.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getFacultyOnboardingCatalogueResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "nodes": [],
+                    "offerings": []
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
+    "/faculty/onboarding/applications": {
+      "post": {
+        "operationId": "submitFacultyApplication",
+        "tags": [
+          "Faculty onboarding"
+        ],
+        "summary": "Submit a faculty application",
+        "description": "Public; no authenticated identity required. Screens 43b-43d. One transaction consumes the invitation and creates the user (faculty role, email verified by the link), the profile, one assignment per subject card and the three documents (Photo ID, degree certificate, PAN card). 409 ALREADY_REGISTERED; 422 field errors, DOCUMENT_INVALID or INVITATION_INVALID. The tutor cannot sign in until approved (27b) and every subject is priced (29). Rate-limited per IP.",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "201": {
+            "description": "Submit a faculty application.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/submitFacultyApplicationResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "applicationReference": "AMZ-T-1001",
+                    "fullName": "Ananya Rao",
+                    "email": "learner@example.org",
+                    "submittedAt": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "415": {
+            "$ref": "#/components/responses/E415"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/FacultyApplication"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/faculty/me/price-consent": {
+      "get": {
+        "operationId": "getFacultyPriceConsent",
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Read own session prices awaiting acceptance",
+        "description": "Current active, email-verified faculty (self only); faculty.read_self identity; server checks role, permission and resource ownership on every request. After the first sign-in (login returns requiresTermsAcceptance=true). 403 FACULTY_PENDING_PRICING until approved and fully priced.",
+        "x-required-role": "faculty (self only); faculty.read_self",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Read own session prices awaiting acceptance.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getFacultyPriceConsentResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "status": "required",
+                    "decidedAt": "2026-10-21T09:00:00Z",
+                    "snapshotHash": "Example value",
+                    "subjects": []
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      },
+      "post": {
+        "operationId": "decideFacultyPriceConsent",
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Accept or decline own session prices",
+        "description": "Current active, email-verified faculty (self only); faculty.update_self identity; server checks role, permission and resource ownership on every request. For the exact prices shown (snapshotHash); 409 PRICES_CHANGED otherwise. Declining keeps the portal blocked and emails the approving admin; a later price change asks again. The consent screen design is not final.",
+        "x-required-role": "faculty (self only); faculty.update_self",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accept or decline own session prices.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/decideFacultyPriceConsentResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "status": "required",
+                    "decidedAt": "2026-10-21T09:00:00Z",
+                    "snapshotHash": "Example value",
+                    "subjects": []
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PriceConsentDecision"
+              }
+            }
+          }
+        }
       }
     },
     "/policies/current": {
@@ -7646,6 +8160,61 @@
         }
       }
     },
+    "/admin/prices/awaiting": {
+      "get": {
+        "operationId": "listAwaitingTutorPrices",
+        "tags": [
+          "Pricing"
+        ],
+        "summary": "List approved tutors' subjects that need a tutor price",
+        "description": "Current active, email-verified admin; pricing.read identity; server checks role, permission and resource ownership on every request. Screen 29, LMS-40. One entry per subject card chosen at onboarding without an active tutor price; create it with POST /admin/prices (curriculumId and facultyId). A tutor can sign in once none of their entries remain.",
+        "x-required-role": "admin; pricing.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List approved tutors' subjects that need a tutor price.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listAwaitingTutorPricesResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
     "/admin/prices/bulk": {
       "put": {
         "operationId": "bulkUpdatePriceRules",
@@ -8091,6 +8660,64 @@
                   "message": "Success",
                   "data": {
                     "learnerCatalogueEnabled": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
+    "/admin/category-tree/picker": {
+      "get": {
+        "operationId": "getCategoryTreePicker",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Offering picker tree for admin pickers",
+        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Visible branches that lead to a bookable leaf, and each leaf's active offerings. Same shape as getFacultyOnboardingCatalogue; used by the pricing rule drawer.",
+        "x-required-role": "admin; catalogue.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Offering picker tree for admin pickers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getCategoryTreePickerResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "nodes": [],
+                    "offerings": []
                   }
                 }
               }
@@ -12262,6 +12889,17 @@
             "nullable": true,
             "description": "Verification documents uploaded and expected. Null for invitations. The required checklist is a pending decision."
           },
+          "pricing": {
+            "type": "string",
+            "enum": [
+              "none",
+              "awaiting_price",
+              "awaiting_consent",
+              "accepted",
+              "declined"
+            ],
+            "description": "After approval: awaiting_price until every subject has a tutor price, then the tutor's price consent. none for invitations and unapproved tutors."
+          },
           "appliedAt": {
             "type": "string",
             "format": "date-time",
@@ -12308,6 +12946,7 @@
           "subjects",
           "qualification",
           "documents",
+          "pricing",
           "appliedAt",
           "invitation"
         ]
@@ -12458,12 +13097,718 @@
             "maxLength": 2048,
             "format": "uri",
             "nullable": true,
-            "description": "APP_BASE_URL/faculty/onboarding?token=... for delivery=link only. Returned once; only the token hash is stored. Never log."
+            "description": "FACULTY_APP_URL/onboarding?token=... for delivery=link only. Returned once; only the token hash is stored. Never log."
           }
         },
         "required": [
           "invitations",
           "inviteUrl"
+        ]
+      },
+      "OnboardingSessionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 43,
+            "maxLength": 43,
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "writeOnly": true,
+            "description": "From the invitation link. Never log."
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "OnboardingSession": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "format": "email",
+            "example": "learner@example.org",
+            "description": "Trim and lowercase before uniqueness and lookup. No provider-specific dot or plus rewriting."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          }
+        },
+        "required": [
+          "email",
+          "expiresAt"
+        ]
+      },
+      "OfferingTree": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "parentId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                  "nullable": true
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "isLeaf": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "parentId",
+                "name",
+                "isLeaf"
+              ]
+            },
+            "maxItems": 5000
+          },
+          "offerings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "curriculumId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "categoryId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "board": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "nullable": true
+                },
+                "level": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "nullable": true
+                },
+                "subject": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ]
+                }
+              },
+              "required": [
+                "curriculumId",
+                "categoryId",
+                "board",
+                "level",
+                "subject"
+              ]
+            },
+            "maxItems": 20000
+          }
+        },
+        "required": [
+          "nodes",
+          "offerings"
+        ]
+      },
+      "FacultyApplication": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 43,
+            "maxLength": 43,
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "writeOnly": true,
+            "description": "From the invitation link. Never log."
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 72,
+            "format": "password",
+            "writeOnly": true,
+            "pattern": "^(?=.*[0-9]).{8,72}$",
+            "description": "Platform password rule for every role (decided 2026-10-29): minimum 8 characters with at least one number. SOW A1.8 asks for secure password policies without fixing a length. Reject over 72 UTF-8 bytes before bcrypt to avoid truncation. Never log. No example credentials."
+          },
+          "confirmPassword": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 72,
+            "format": "password",
+            "writeOnly": true,
+            "pattern": "^(?=.*[0-9]).{8,72}$",
+            "description": "Must equal password."
+          },
+          "mobileNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "pattern": "^\\+[1-9][0-9]{7,14}$",
+            "example": "+919876543210",
+            "description": "E.164. The UI defaults to +91. Not OTP-verified in Phase 1. Not unique: siblings may share a parent number."
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "highestQualification": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "teachingExperience": {
+            "type": "string",
+            "enum": [
+              "0-1",
+              "1-3",
+              "3-5",
+              "5-10",
+              "10+"
+            ]
+          },
+          "studiedAt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "curriculumIds": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000,
+            "description": "JSON array of 1-30 curriculum ids (subject cards from the picker)."
+          },
+          "offersOfflineClasses": {
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          },
+          "declarationAccepted": {
+            "type": "string",
+            "enum": [
+              "true"
+            ]
+          },
+          "photoId": {
+            "type": "string",
+            "format": "binary",
+            "description": "PDF, DOC, DOCX, PPT, PPTX, JPG or PNG, checked by signature; at most UPLOAD_MAX_BYTES (10 MiB)."
+          },
+          "degreeCertificate": {
+            "type": "string",
+            "format": "binary",
+            "description": "PDF, DOC, DOCX, PPT, PPTX, JPG or PNG, checked by signature; at most UPLOAD_MAX_BYTES (10 MiB)."
+          },
+          "panCard": {
+            "type": "string",
+            "format": "binary",
+            "description": "PDF, DOC, DOCX, PPT, PPTX, JPG or PNG, checked by signature; at most UPLOAD_MAX_BYTES (10 MiB)."
+          }
+        },
+        "required": [
+          "token",
+          "fullName",
+          "password",
+          "confirmPassword",
+          "mobileNumber",
+          "highestQualification",
+          "teachingExperience",
+          "curriculumIds",
+          "declarationAccepted",
+          "photoId",
+          "degreeCertificate",
+          "panCard"
+        ]
+      },
+      "FacultyApplicationResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "applicationReference": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "example": "AMZ-T-1001"
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
+          },
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "format": "email",
+            "example": "learner@example.org",
+            "description": "Trim and lowercase before uniqueness and lookup. No provider-specific dot or plus rewriting."
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          }
+        },
+        "required": [
+          "applicationReference",
+          "fullName",
+          "email",
+          "submittedAt"
+        ]
+      },
+      "FacultyDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
+          },
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "format": "email",
+            "example": "learner@example.org",
+            "description": "Trim and lowercase before uniqueness and lookup. No provider-specific dot or plus rewriting."
+          },
+          "mobileNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "pattern": "^\\+[1-9][0-9]{7,14}$",
+            "example": "+919876543210",
+            "description": "E.164. The UI defaults to +91. Not OTP-verified in Phase 1. Not unique: siblings may share a parent number.",
+            "nullable": true
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "nullable": true
+          },
+          "applicationReference": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "nullable": true
+          },
+          "appliedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "invited",
+              "expired",
+              "pending",
+              "verified",
+              "published",
+              "rejected",
+              "suspended"
+            ]
+          },
+          "approvalStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "changes_requested"
+            ]
+          },
+          "isPublished": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "rejectionReason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "approvedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z",
+            "nullable": true
+          },
+          "screening": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "highestQualification": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 150,
+                "nullable": true
+              },
+              "studiedAt": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "nullable": true
+              },
+              "teachingExperience": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "enum": [
+                      "0-1",
+                      "1-3",
+                      "3-5",
+                      "5-10",
+                      "10+"
+                    ]
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50
+                  }
+                },
+                "required": [
+                  "code",
+                  "label"
+                ],
+                "nullable": true
+              },
+              "offersOfflineClasses": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "highestQualification",
+              "studiedAt",
+              "teachingExperience",
+              "offersOfflineClasses"
+            ]
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "GOVERNMENT_ID",
+                    "DEGREE_CERTIFICATE",
+                    "PAN_CARD",
+                    "EXPERIENCE_LETTER",
+                    "BACKGROUND_CHECK",
+                    "OTHER"
+                  ]
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "fileName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "mimeType": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "fileSize": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "uploadedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "example": "2026-10-21T09:00:00Z"
+                },
+                "isVerified": {
+                  "type": "boolean"
+                },
+                "verifiedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "example": "2026-10-21T09:00:00Z",
+                  "nullable": true
+                },
+                "scanStatus": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "clean",
+                    "infected",
+                    "failed"
+                  ]
+                },
+                "previewable": {
+                  "type": "boolean",
+                  "description": "PDF and images can be shown inline; Word and PowerPoint are download only."
+                }
+              },
+              "required": [
+                "id",
+                "type",
+                "label",
+                "fileName",
+                "mimeType",
+                "fileSize",
+                "uploadedAt",
+                "isVerified",
+                "verifiedAt",
+                "scanStatus",
+                "previewable"
+              ]
+            },
+            "maxItems": 20
+          },
+          "subjects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "assignmentId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "curriculumId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "subject": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "pathLabel": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                "sessionPricePaise": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647,
+                  "nullable": true
+                },
+                "studentPaysPaise": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647,
+                  "nullable": true
+                }
+              },
+              "required": [
+                "assignmentId",
+                "curriculumId",
+                "subject",
+                "pathLabel",
+                "sessionPricePaise",
+                "studentPaysPaise"
+              ]
+            },
+            "maxItems": 30
+          },
+          "pricing": {
+            "type": "string",
+            "enum": [
+              "none",
+              "awaiting_price",
+              "awaiting_consent",
+              "accepted",
+              "declined"
+            ]
+          },
+          "consentDecidedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "fullName",
+          "email",
+          "mobileNumber",
+          "city",
+          "applicationReference",
+          "appliedAt",
+          "submittedAt",
+          "status",
+          "approvalStatus",
+          "isPublished",
+          "isActive",
+          "revision",
+          "rejectionReason",
+          "approvedAt",
+          "screening",
+          "documents",
+          "subjects",
+          "pricing",
+          "consentDecidedAt"
+        ]
+      },
+      "DocumentVerification": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "isVerified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "isVerified"
+        ]
+      },
+      "FacultyReview": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "description": "Required to reject."
+          },
+          "publish": {
+            "type": "boolean",
+            "default": false,
+            "description": "\"Publish profile to discovery once verified\"."
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "decision",
+          "expectedRevision"
         ]
       },
       "FacultyCreate": {
@@ -13850,6 +15195,323 @@
           "cgstPaise",
           "sgstPaise",
           "studentPaysPaise"
+        ]
+      },
+      "PricedSubject": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "assignmentId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "curriculumId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "pathLabel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "price": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "currency": {
+                "type": "string",
+                "enum": [
+                  "INR"
+                ]
+              },
+              "durationMinutes": {
+                "type": "integer",
+                "enum": [
+                  60
+                ]
+              },
+              "sessionPricePaise": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100000000,
+                "description": "Pre-GST session price set by admin."
+              },
+              "gstRateBps": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000,
+                "description": "Basis points stored on the rule; 1800 = 18%. Defaults to 1800 until the LMS-90 GST setting is connected."
+              },
+              "gstPaise": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000000,
+                "description": "Server-computed and stored: round_half_up(sessionPricePaise x gstRateBps / 10000). Never accepted from clients."
+              },
+              "cgstPaise": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000000,
+                "description": "Display only, not stored: ceil(gstPaise / 2). Intra-state split; IGST is decision D15."
+              },
+              "sgstPaise": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000000,
+                "description": "Display only, not stored: gstPaise - cgstPaise."
+              },
+              "studentPaysPaise": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000000,
+                "description": "Server-computed and stored: sessionPricePaise + gstPaise."
+              },
+              "ruleId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2147483647
+              }
+            },
+            "required": [
+              "currency",
+              "durationMinutes",
+              "sessionPricePaise",
+              "gstRateBps",
+              "gstPaise",
+              "cgstPaise",
+              "sgstPaise",
+              "studentPaysPaise",
+              "ruleId",
+              "revision"
+            ]
+          }
+        },
+        "required": [
+          "assignmentId",
+          "curriculumId",
+          "subject",
+          "pathLabel",
+          "price"
+        ]
+      },
+      "PriceConsent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "required",
+              "accepted",
+              "rejected"
+            ]
+          },
+          "decidedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z",
+            "nullable": true
+          },
+          "snapshotHash": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "subjects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricedSubject"
+            },
+            "maxItems": 30
+          }
+        },
+        "required": [
+          "status",
+          "decidedAt",
+          "snapshotHash",
+          "subjects"
+        ]
+      },
+      "PriceConsentDecision": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "accept",
+              "reject"
+            ]
+          },
+          "snapshotHash": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "decision",
+          "snapshotHash"
+        ]
+      },
+      "AwaitingPrice": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "facultyId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "facultyName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
+          },
+          "facultyEmail": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "format": "email",
+            "example": "learner@example.org",
+            "description": "Trim and lowercase before uniqueness and lookup. No provider-specific dot or plus rewriting."
+          },
+          "approvedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z",
+            "nullable": true
+          },
+          "curriculumId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "pathLabel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "categoryPath": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "maxItems": 10
+          },
+          "board": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "nullable": true
+          },
+          "level": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "nullable": true
+          },
+          "defaultPrice": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "currency": {
+                "type": "string",
+                "enum": [
+                  "INR"
+                ]
+              },
+              "durationMinutes": {
+                "type": "integer",
+                "enum": [
+                  60
+                ]
+              },
+              "sessionPricePaise": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100000000,
+                "description": "Pre-GST session price set by admin."
+              },
+              "gstRateBps": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000,
+                "description": "Basis points stored on the rule; 1800 = 18%. Defaults to 1800 until the LMS-90 GST setting is connected."
+              },
+              "gstPaise": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000000,
+                "description": "Server-computed and stored: round_half_up(sessionPricePaise x gstRateBps / 10000). Never accepted from clients."
+              },
+              "cgstPaise": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000000,
+                "description": "Display only, not stored: ceil(gstPaise / 2). Intra-state split; IGST is decision D15."
+              },
+              "sgstPaise": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000000,
+                "description": "Display only, not stored: gstPaise - cgstPaise."
+              },
+              "studentPaysPaise": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000000,
+                "description": "Server-computed and stored: sessionPricePaise + gstPaise."
+              }
+            },
+            "required": [
+              "currency",
+              "durationMinutes",
+              "sessionPricePaise",
+              "gstRateBps",
+              "gstPaise",
+              "cgstPaise",
+              "sgstPaise",
+              "studentPaysPaise"
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "facultyId",
+          "facultyName",
+          "facultyEmail",
+          "approvedAt",
+          "curriculumId",
+          "subject",
+          "pathLabel",
+          "categoryPath",
+          "board",
+          "level",
+          "defaultPrice"
         ]
       },
       "PriceRuleWrite": {
@@ -15478,7 +17140,7 @@
             "maxLength": 500
           },
           "data": {
-            "$ref": "#/components/schemas/FacultyProfile"
+            "$ref": "#/components/schemas/FacultyDetail"
           }
         },
         "required": [
@@ -15628,7 +17290,32 @@
             "maxLength": 500
           },
           "data": {
-            "$ref": "#/components/schemas/FacultyProfile"
+            "$ref": "#/components/schemas/FacultyDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "setFacultyDocumentVerificationResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/FacultyDetail"
           }
         },
         "required": [
@@ -15886,6 +17573,131 @@
           },
           "data": {
             "$ref": "#/components/schemas/FacultyPublic"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "startFacultyOnboardingResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/OnboardingSession"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getFacultyOnboardingCatalogueResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/OfferingTree"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "submitFacultyApplicationResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/FacultyApplicationResult"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getFacultyPriceConsentResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/PriceConsent"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "decideFacultyPriceConsentResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/PriceConsent"
           }
         },
         "required": [
@@ -17097,6 +18909,35 @@
           "meta"
         ]
       },
+      "listAwaitingTutorPricesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AwaitingPrice"
+            },
+            "maxItems": 5000
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
       "createPriceRuleResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -18209,6 +20050,31 @@
             "required": [
               "learnerCatalogueEnabled"
             ]
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getCategoryTreePickerResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/OfferingTree"
           }
         },
         "required": [

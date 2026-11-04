@@ -1,5 +1,14 @@
 # Progress Log
 
+## 2026-11-04 — Faculty onboarding, review, pricing gate and price consent (LMS-81, 83, 84, 86, 58, 59)
+
+- Migration `20261104090000_faculty_onboarding`: onboarding columns on `faculty_profiles`, `PAN_CARD`, `faculty_price_consents`, sequence `faculty_application_reference_seq`.
+- Public onboarding (`/faculty/onboarding/session`, `/catalogue`, `/applications`): token check, column-picker catalogue, multipart application (3 documents, magic-byte checked, private storage) that consumes the invitation and creates the user, profile, subject cards and documents in one transaction.
+- Admin review: `GET /admin/faculty/:id` (drawer 27b), document file and verification, `PUT /admin/faculty/:id/review` (approve/publish or reject with a reason).
+- Pricing: `GET /admin/prices/awaiting` lists approved tutors' unpriced cards; price changes notify faculty through `registerTutorPriceListener`.
+- Sign-in gate in the faculty portal login; `GET/POST /faculty/me/price-consent`.
+- `npx vitest run`: ✅ 62 files, 790 passed.
+
 ## 2026-11-04 — Tests use TEST_DATABASE_URL from .env
 
 - `tests/env-setup.ts` now reads `TEST_DATABASE_URL` from `.env` as well as the shell. Before, a value in `.env` was ignored and every integration suite tried `localhost:5432`, which fails when compose Postgres runs on `POSTGRES_PORT=5434`.

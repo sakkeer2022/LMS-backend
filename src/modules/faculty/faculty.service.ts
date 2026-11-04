@@ -159,14 +159,14 @@ export async function inviteFaculty(
     const invitation = created[0] as (typeof created)[number];
     return {
       invitations: [toView(invitation, 'pending', 'link', null, null)],
-      inviteUrl: buildInviteUrl(config.appBaseUrl, tokenByEmail.get(invitation.email) as string),
+      inviteUrl: buildInviteUrl(config.facultyAppUrl, tokenByEmail.get(invitation.email) as string),
     };
   }
 
   const views: InvitationView[] = [];
   for (const invitation of created) {
     const inviteUrl = buildInviteUrl(
-      config.appBaseUrl,
+      config.facultyAppUrl,
       tokenByEmail.get(invitation.email) as string
     );
     views.push(await deliver(invitation, inviteUrl, ttlHours, audit));

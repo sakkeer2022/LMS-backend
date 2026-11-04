@@ -11,7 +11,11 @@ import { adminProfileRouter } from '@modules/admin-profile/index.js';
 import { adminRouter } from '@modules/admin/admin.routes.js';
 import { uploadsRouter } from '@modules/uploads/uploads.routes.js';
 import { settingsRouter } from '@modules/settings/index.js';
-import { adminFacultyRouter } from '@modules/faculty/index.js';
+import {
+  adminFacultyRouter,
+  facultyOnboardingRouter,
+  facultySelfRouter,
+} from '@modules/faculty/index.js';
 import { registrationRouter } from '@modules/registration/index.js';
 import { passwordRouter, recoveryRouter } from '@modules/account-recovery/index.js';
 import { auditLogMiddleware } from '@middleware/audit.middleware';
@@ -36,6 +40,9 @@ export const featureRouters: ReadonlyArray<readonly [path: string, router: Route
   ['/auth/recovery', recoveryRouter],
   ['/auth/password', passwordRouter],
   ['/auth', authRouter],
+  // Faculty onboarding from the invitation link (public) and the signed-in tutor's own data
+  ['/faculty/onboarding', facultyOnboardingRouter],
+  ['/faculty/me', facultySelfRouter],
   ['/roles', rolesRouter],
   ['/permissions', permissionsRouter],
   ['/users', usersRouter],

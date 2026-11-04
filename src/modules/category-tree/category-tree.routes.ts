@@ -45,6 +45,21 @@ adminCategoryTreeRouter.get('/status', read, Tree.getStatus);
 
 /**
  * @openapi
+ * /admin/category-tree/picker:
+ *   get:
+ *     summary: Offering picker tree (visible branches with bookable offerings) for admin pickers such as pricing
+ *     description: Same shape as GET /faculty/onboarding/catalogue (getOfferingTree).
+ *     tags: [Category tree]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: "{ nodes, offerings }" }
+ *       401: { description: Not authenticated }
+ *       403: { description: Missing catalogue.read }
+ */
+adminCategoryTreeRouter.get('/picker', read, Tree.getPicker);
+
+/**
+ * @openapi
  * /admin/category-tree/roots:
  *   post:
  *     summary: Create a root category (no parent)

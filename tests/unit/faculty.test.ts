@@ -164,9 +164,9 @@ describe('invitation tokens', () => {
 
   it('builds the onboarding link', () => {
     expect(buildInviteUrl('https://app.amentorz.com', 'abc-_123')).toBe(
-      'https://app.amentorz.com/faculty/onboarding?token=abc-_123'
+      'https://app.amentorz.com/onboarding?token=abc-_123'
     );
-    expect(buildInviteUrl('http://localhost:3001/', 'tok')).toBe('http://localhost:3001/faculty/onboarding?token=tok');
+    expect(buildInviteUrl('http://localhost:3001/', 'tok')).toBe('http://localhost:3001/onboarding?token=tok');
   });
 
   it('adds the TTL to the creation time', () => {

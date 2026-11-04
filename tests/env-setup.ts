@@ -55,3 +55,7 @@ process.env.REFRESH_RATE_LIMIT_MAX_PER_IP ??= '100000';
 process.env.OTP_SEND_RATE_LIMIT_MAX_PER_IP ??= '100000';
 process.env.OTP_SEND_RATE_LIMIT_MAX_PER_EMAIL ??= '100000';
 process.env.OTP_VERIFY_RATE_LIMIT_MAX_PER_IP ??= '100000';
+
+// Faculty onboarding (LMS-39): every suite calls the public routes from 127.0.0.1, so the
+// per-IP budget is raised; the limiter itself is covered by tests/unit/rate-limit.test.ts.
+process.env.FACULTY_ONBOARDING_RATE_LIMIT_MAX ??= '500';

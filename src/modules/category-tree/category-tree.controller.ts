@@ -22,6 +22,7 @@ import {
 } from './category-tree.dto.js';
 import { treeError } from './category-tree.errors.js';
 import { getAdminTree, getCategoryDetail, listAdminChildren } from './category-tree.reads.js';
+import { getOfferingTree } from './category-tree.picker.js';
 import * as Service from './category-tree.service.js';
 import * as Structure from './category-tree.structure.js';
 import * as Offerings from './category-tree.offerings.js';
@@ -145,6 +146,11 @@ export const updateOffering = handler(async (req, res) => {
       'Offering updated'
     )
   );
+});
+
+export const getPicker = handler(async (_req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  res.json(successResponse(await getOfferingTree(), 'Offering tree retrieved'));
 });
 
 export const getStatus = handler(async (_req, res) => {

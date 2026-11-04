@@ -24,6 +24,7 @@ import type {
   ListPriceRulesQuery,
   UpdatePriceRuleInput,
 } from './pricing.dto.js';
+import { notifyTutorPricesChanged } from './pricing.events.js';
 
 /**
  * Admin price rules (LMS-58, ADR 0004): list, create, update and atomic bulk update.
@@ -268,6 +269,7 @@ export async function createPriceRule(
     'Price rule created'
   );
   await audit(actor, 'create', rule, null);
+  await notifyTutorPricesChanged([rule.facultyId]);
   return toView(rule);
 }
 
@@ -337,6 +339,7 @@ export async function updatePriceRule(
   const { before, after } = await prisma.$transaction((tx) => applyUpdate(tx, id, input, actor));
   logger.info({ priceRuleId: id, actorId: actor.userId }, 'Price rule updated');
   await audit(actor, after.isActive || !before.isActive ? 'update' : 'deactivate', after, before);
+  await notifyTutorPricesChanged([after.facultyId]);
   return toView(after);
 }
 
@@ -370,5 +373,6 @@ export async function bulkUpdatePriceRules(
 
   logger.info({ count: results.length, actorId: actor.userId }, 'Price rules bulk updated');
   for (const { before, after } of results) await audit(actor, 'bulk_update', after, before);
+  await notifyTutorPricesChanged(results.map((r) => r.after.facultyId));
   return toViews(results.map((r) => r.after));
 }
