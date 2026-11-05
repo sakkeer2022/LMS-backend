@@ -27,11 +27,11 @@ table, the onboarding picker, and what is still to be built.
 All three repos are on the same branch, **`feature/LMS-39-faculty-onboarding-pricing`**,
 created from `development`. `amentorz-student` was not touched.
 
-| Repo | Latest commits on the branch (newest first) | Untracked, do not commit |
-|---|---|---|
-| amentorz-backend | `this KT commit` docs · `ff25e6b` feat(pricing): add the category path to price rules · `d4b1e37` feat(categories): drop booking settings; leaves are what tutors pick · `b3c299b` feat(faculty): onboarding, review, tutor pricing gate and price consent | `backend.zip` |
-| amentorz-admin | `99db327` feat(admin): pricing table as in the design, with inline bulk edit · `f59e3d6` feat(admin): simplify Categories & content to the category tree · `b674fbc` / `2702c51` shadcn port and review drawer | `admin.zip` |
-| amentorz-faculty | `c305fe4` chore: sync package-lock · `24846c9` feat(faculty): pick leaf categories in the onboarding column picker · `17c0120` feat(faculty): onboarding wizard, price consent and home | `faculty.zip` |
+| Repo | Latest commits on the branch (newest first) |
+|---|---|
+| amentorz-backend | `ba26b19` docs(handoff): this KT · `ff25e6b` feat(pricing): add the category path to price rules · `d4b1e37` feat(categories): drop booking settings; leaves are what tutors pick · `b3c299b` feat(faculty): onboarding, review, tutor pricing gate and price consent |
+| amentorz-admin | `99db327` feat(admin): pricing table as in the design, with inline bulk edit · `f59e3d6` feat(admin): simplify Categories & content to the category tree · `b674fbc` / `2702c51` shadcn port and review drawer |
+| amentorz-faculty | `c305fe4` chore: sync package-lock · `24846c9` feat(faculty): pick leaf categories in the onboarding column picker · `17c0120` feat(faculty): onboarding wizard, price consent and home |
 
 At the last fetch the branch was not behind `origin/development` in any repo. Before you
 start: `git fetch && git log --oneline HEAD..origin/development` in each repo, and merge
