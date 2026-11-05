@@ -8,6 +8,7 @@ import { createPublishedOffering } from '../helpers/catalogue.js';
 import { createFacultyProfile } from '../helpers/faculty.js';
 import { prisma } from '@infrastructure/database/index.js';
 import { seedCatalogue } from '../../prisma/seeds/catalogue';
+import { createTreeNode, leafCurriculum } from '../helpers/category-tree.js';
 
 // LMS-58: price rules, resolution, quotes and bulk edit
 describe('Pricing API', () => {
@@ -86,7 +87,28 @@ describe('Pricing API', () => {
         boardName: 'CBSE',
         subjectName: 'Physics',
         levelName: 'Class 11',
+        pathLabel: 'Academic › School › K-12 › CBSE › Class 11',
         revision: 1,
+      });
+    });
+
+    it('names a leaf price by the leaf, with the category path above it', async () => {
+      const k12 = await prisma.category.findUniqueOrThrow({ where: { path: 'academic/school/k-12' } });
+      const cbse = await createTreeNode(k12, { code: 'cbse-tree', name: 'CBSE' });
+      const physics = await createTreeNode(cbse, { code: 'physics', name: 'Physics' });
+      const class10 = await createTreeNode(physics, { code: 'class-10', name: 'Class 10' });
+      const res = await createRule({
+        curriculumId: (await leafCurriculum(class10.id)).id,
+        facultyId: anil.id,
+        sessionPricePaise: 135000,
+        isActive: true,
+      });
+      expect(res.status).toBe(201);
+      expect(res.body.data).toMatchObject({
+        subjectName: 'Class 10',
+        boardName: null,
+        levelName: null,
+        pathLabel: 'Academic › School › K-12 › CBSE › Physics',
       });
     });
 

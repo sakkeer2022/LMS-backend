@@ -11,6 +11,7 @@ import { logger } from '@core/logger/index';
 import { buildPaginationMeta, type PaginatedResult } from '@shared/types/pagination';
 import { toPrismaPagination } from '@shared/validation/index';
 import { logAction } from '@modules/audit/index';
+import { describeOfferings } from '@modules/category-tree/index';
 import { categoryScope, getOfferings, type OfferingSummary } from '@modules/catalogue/index';
 import {
   DEFAULT_GST_RATE_BPS,
@@ -46,6 +47,8 @@ export interface PriceRuleView {
   boardName: string | null;
   subjectName: string;
   levelName: string | null;
+  /** Everything above the subject (or leaf): "Academic › School › K-12 › CBSE › Physics" */
+  pathLabel: string;
   amounts: PriceAmounts;
   effectiveFrom: Date;
   effectiveTo: Date | null;
@@ -105,7 +108,12 @@ async function audit(
 }
 
 async function toViews(rules: PriceRule[]): Promise<PriceRuleView[]> {
-  const offerings = await getOfferings([...new Set(rules.map((r) => r.curriculumId))]);
+  const curriculumIds = [...new Set(rules.map((r) => r.curriculumId))];
+  const [offerings, labels] = await Promise.all([
+    getOfferings(curriculumIds),
+    describeOfferings(curriculumIds),
+  ]);
+  const pathLabels = new Map(labels.map((l) => [l.curriculumId, l.pathLabel]));
   const facultyIds = [...new Set(rules.flatMap((r) => (r.facultyId ? [r.facultyId] : [])))];
   const faculty = await prisma.facultyProfile.findMany({
     where: { id: { in: facultyIds } },
@@ -124,6 +132,7 @@ async function toViews(rules: PriceRule[]): Promise<PriceRuleView[]> {
       boardName: offering.boardName,
       subjectName: offering.subjectName,
       levelName: offering.levelName,
+      pathLabel: pathLabels.get(rule.curriculumId) ?? offering.categoryName,
       amounts: toPriceAmounts(rule),
       effectiveFrom: rule.effectiveFrom,
       effectiveTo: rule.effectiveTo,

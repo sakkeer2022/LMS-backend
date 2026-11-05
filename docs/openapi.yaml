@@ -8095,6 +8095,7 @@
                     "boardName": "Example value",
                     "subjectName": "Example value",
                     "levelName": "Example value",
+                    "pathLabel": "Example value",
                     "amounts": {
                       "currency": "INR",
                       "durationMinutes": 60,
@@ -8326,6 +8327,7 @@
                     "boardName": "Example value",
                     "subjectName": "Example value",
                     "levelName": "Example value",
+                    "pathLabel": "Example value",
                     "amounts": {
                       "currency": "INR",
                       "durationMinutes": 60,
@@ -15225,6 +15227,12 @@
             "maxLength": 200,
             "nullable": true
           },
+          "pathLabel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "description": "Category names from the root down to the parent of the leaf (or to the level for a subject offering), e.g. \"Academic \u203a School \u203a K-12 \u203a CBSE \u203a Physics\". subjectName is then the leaf, e.g. \"Class 11\"."
+          },
           "amounts": {
             "$ref": "#/components/schemas/PriceAmounts"
           },
@@ -15262,6 +15270,7 @@
           "boardName",
           "subjectName",
           "levelName",
+          "pathLabel",
           "amounts",
           "effectiveFrom",
           "effectiveTo",
