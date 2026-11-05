@@ -5,15 +5,22 @@ import { rolesRouter } from '@modules/roles/roles.routes';
 import { permissionsRouter } from '@modules/permissions/permissions.routes';
 import { usersRouter } from '@modules/users/users.routes';
 import { auditRouter } from '@modules/audit/audit.routes';
-import { featureFlagsRouter } from '@modules/feature-flags/feature-flags.routes.js';
+import { featureFlagsRouter } from '@modules/feature-flags/index.js';
 import { notificationsRouter } from '@modules/notifications/notifications.routes.js';
 import { adminProfileRouter } from '@modules/admin-profile/index.js';
 import { adminRouter } from '@modules/admin/admin.routes.js';
 import { uploadsRouter } from '@modules/uploads/uploads.routes.js';
 import { settingsRouter } from '@modules/settings/index.js';
+import { adminFacultyRouter } from '@modules/faculty/index.js';
 import { registrationRouter } from '@modules/registration/index.js';
 import { passwordRouter, recoveryRouter } from '@modules/account-recovery/index.js';
 import { auditLogMiddleware } from '@middleware/audit.middleware';
+import { catalogueRouter, adminCatalogueRouter } from '@modules/catalogue/index.js';
+import { pricesRouter, adminPricesRouter } from '@modules/pricing/index.js';
+import {
+  adminCategoryTreeRouter,
+  learnerCategoryTreeRouter,
+} from '@modules/category-tree/index.js';
 
 export const router = Router();
 
@@ -35,7 +42,17 @@ export const featureRouters: ReadonlyArray<readonly [path: string, router: Route
   ['/audit', auditRouter],
   ['/feature-flags', featureFlagsRouter],
   ['/notifications', notificationsRouter],
+  // Catalogue (LMS-54) and pricing (LMS-58) come before '/admin', whose router
+  // authenticates every path. The category tree (ADR-0005) comes before
+  // '/catalogue', whose router has no '/category-tree' paths.
+  ['/catalogue/category-tree', learnerCategoryTreeRouter],
+  ['/catalogue', catalogueRouter],
+  ['/admin/category-tree', adminCategoryTreeRouter],
+  ['/admin/catalogue', adminCatalogueRouter],
+  ['/prices', pricesRouter],
+  ['/admin/prices', adminPricesRouter],
   ['/admin/settings', settingsRouter],
+  ['/admin/faculty', adminFacultyRouter],
   ['/admin/me', adminProfileRouter],
   ['/admin', adminRouter],
   ['/uploads', uploadsRouter],
