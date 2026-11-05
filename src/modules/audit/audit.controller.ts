@@ -11,20 +11,7 @@ export async function listAuditLogs(
   try {
     const query = AuditLogQueryDto.parse(req.query);
     const result = await AuditService.listAuditLogs(query);
-    res.json(successResponse(result.items, 'Audit logs retrieved', result.meta));
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function getAuditLogById(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
-    const log = await AuditService.getAuditLogById(req.params['id'] as string);
-    res.json(successResponse(log));
+    res.json(successResponse(result.items, 'Audit events retrieved', result.meta));
   } catch (err) {
     next(err);
   }
