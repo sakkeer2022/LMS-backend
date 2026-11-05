@@ -38,6 +38,8 @@ function testDatabaseUrl(): string | undefined {
 }
 
 process.env.NODE_ENV = 'test';
+// A local .env may choose another transport (log, smtp); tests always read the in-memory outbox
+process.env.EMAIL_TRANSPORT = 'memory';
 process.env.DATABASE_URL =
   testDatabaseUrl() || 'postgresql://postgres:password@localhost:5432/amentorz_test?schema=public';
 process.env.JWT_SECRET ??= 'test-jwt-secret-deterministic';

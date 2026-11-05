@@ -88,6 +88,13 @@ export function createApp(): Application {
   app.use(express.urlencoded({ extended: true, limit: '100kb' }));
   app.use(cookieParser(config.security.cookieSecret));
 
+  // ── Development delay (DEV_API_DELAY_MS, development only) ─
+  if (config.devApiDelayMs > 0) {
+    app.use('/api/v1', (_req, _res, next) => {
+      setTimeout(() => next(), config.devApiDelayMs);
+    });
+  }
+
   // ── CSRF Protection ───────────────────────────────────────
   app.use('/api/v1', (req, res, next) => {
     if (req.path === '/auth/csrf-token') return next();

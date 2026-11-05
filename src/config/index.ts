@@ -118,6 +118,8 @@ const envSchema = z
     OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().positive().default(60),
     OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
     EMAIL_TOKEN_EXPIRES_MINUTES: z.coerce.number().int().positive().default(30),
+    // Development only: waits this long before answering every API call, to check loading states
+    DEV_API_DELAY_MS: z.coerce.number().int().min(0).max(30000).default(0),
     // Who must confirm a password change with an email code: admin and super_admin accounts, or every role
     PASSWORD_CHANGE_OTP_ROLES: z.enum(['admin', 'all']).default('admin'),
     RESET_GRANT_EXPIRES_MINUTES: z.coerce.number().int().positive().default(5),
@@ -298,6 +300,8 @@ const env = parsedEnv.data;
 
 export const config = {
   env: env.NODE_ENV,
+  // Never applies outside development
+  devApiDelayMs: env.NODE_ENV === 'development' ? env.DEV_API_DELAY_MS : 0,
   port: env.PORT,
   apiPrefix: env.API_PREFIX,
 
