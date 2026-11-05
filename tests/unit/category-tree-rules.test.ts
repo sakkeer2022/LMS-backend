@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   CODE_PATTERN,
   ancestorPaths,
-  checkLeafSettings,
   checkMoveLimits,
   checkSelection,
   childDepth,
@@ -12,9 +11,7 @@ import {
   insertAt,
   isSelfOrDescendantPath,
   rebasePath,
-  subtreeCurriculaCounts,
   wouldCreateCycle,
-  type LeafState,
 } from '@modules/category-tree/category-tree.rules';
 import { toTreeError } from '@modules/category-tree/category-tree.errors';
 
@@ -85,54 +82,6 @@ describe('category tree rules (ADR-0005)', () => {
     });
   });
 
-  describe('leaf settings (invariants 3, 4 and 5)', () => {
-    const empty: LeafState = {
-      childCount: 0,
-      referenceCount: 0,
-      levelsInUse: new Set(),
-      curriculaWithoutLevel: 0,
-      referencesWithoutBoard: 0,
-    };
-    const input = { isBookable: true, requiresBoard: false, requiresLevel: true, levelIds: ['l1'] };
-
-    it('accepts valid settings', () => {
-      expect(checkLeafSettings(input, empty)).toBeNull();
-      expect(checkLeafSettings({ ...input, requiresLevel: false, levelIds: [] }, empty)).toBeNull();
-    });
-
-    it('refuses settings on a node with children', () => {
-      expect(checkLeafSettings(input, { ...empty, childCount: 2 })).toBe('HAS_CHILDREN');
-    });
-
-    it('refuses to make a referenced node non-bookable', () => {
-      expect(
-        checkLeafSettings({ ...input, isBookable: false }, { ...empty, referenceCount: 1 })
-      ).toBe('CATEGORY_REFERENCED');
-    });
-
-    it('requires a level list when levels are required', () => {
-      expect(checkLeafSettings({ ...input, levelIds: [] }, empty)).toBe('LEVELS_REQUIRED');
-    });
-
-    it('keeps levels that curricula use, and refuses flags existing rows break', () => {
-      expect(
-        checkLeafSettings(
-          { ...input, levelIds: ['l2'] },
-          { ...empty, levelsInUse: new Set(['l1']) }
-        )
-      ).toBe('LEVEL_IN_USE');
-      expect(checkLeafSettings(input, { ...empty, curriculaWithoutLevel: 1 })).toBe(
-        'LEVEL_REQUIRED_BY_CURRICULA'
-      );
-      expect(
-        checkLeafSettings(
-          { ...input, requiresBoard: true },
-          { ...empty, referencesWithoutBoard: 1 }
-        )
-      ).toBe('BOARD_REQUIRED_BY_CURRICULA');
-    });
-  });
-
   describe('selection on a leaf (invariants 3 and 5)', () => {
     const leaf = {
       isBookable: true,
@@ -159,25 +108,6 @@ describe('category tree rules (ADR-0005)', () => {
   });
 
   describe('counts and labels', () => {
-    it('sums curricula over each subtree', () => {
-      const n = (id: string, parentId: string | null, curriculaCount: number) => ({
-        id,
-        parentId,
-        name: id,
-        displayOrder: 0,
-        childrenCount: 0,
-        curriculaCount,
-      });
-      const totals = subtreeCurriculaCounts([
-        n('a', null, 0),
-        n('b', 'a', 0),
-        n('c', 'b', 3),
-        n('d', 'b', 2),
-        n('e', 'a', 1),
-      ]);
-      expect(Object.fromEntries(totals)).toEqual({ a: 6, b: 5, c: 3, d: 2, e: 1 });
-    });
-
     it('never shows a bare number', () => {
       expect(countLabel(1, 'sub-category', 'sub-categories')).toBe('1 sub-category');
       expect(countLabel(12, 'curriculum', 'curricula')).toBe('12 curricula');
@@ -188,9 +118,9 @@ describe('category tree rules (ADR-0005)', () => {
   describe('database error mapping', () => {
     it('maps trigger errors to typed codes and leaves unknown errors alone', () => {
       const mapped = toTreeError(
-        new Error('Raw query failed. Code: `23514`. Message: `category_tree:PARENT_IS_BOOKABLE`')
+        new Error('Raw query failed. Code: `23514`. Message: `category_tree:CATEGORY_IN_USE`')
       );
-      expect(mapped).toMatchObject({ code: 'PARENT_IS_BOOKABLE', statusCode: 409 });
+      expect(mapped).toMatchObject({ code: 'CATEGORY_IN_USE', statusCode: 409 });
       expect(toTreeError(new Error('deadlock detected'))).toMatchObject({
         code: 'CONCURRENT_CHANGE',
         retryable: true,

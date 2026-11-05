@@ -159,6 +159,7 @@ export async function listPriceRules(
           OR: [
             { faculty: { user: { fullName: contains } } },
             { curriculum: { subject: { name: contains } } },
+            { curriculum: { category: { name: contains } } },
             { curriculum: { board: { name: contains } } },
             { curriculum: { level: { name: contains } } },
           ],

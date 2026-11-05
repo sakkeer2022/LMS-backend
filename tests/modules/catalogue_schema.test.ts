@@ -123,7 +123,8 @@ describe('Catalogue schema', () => {
       ]);
       const categories = await prisma.category.findMany({ where: { depth: 1 }, orderBy: { displayOrder: 'asc' } });
       expect(categories.map((c) => c.code)).toEqual(['school', 'university', 'jee-neet', 'research-skill']);
-      expect(categories.find((c) => c.code === 'school')?.requiresBoard).toBe(true);
+      // Leaves come from the tree shape; no category asks for a board any more
+      expect(categories.every((c) => !c.requiresBoard && !c.requiresLevel)).toBe(true);
 
       const roots = await prisma.catalogueNode.findMany({ where: { type: 'CATEGORY' } });
       expect(roots).toHaveLength(4);
@@ -138,7 +139,11 @@ describe('Catalogue schema', () => {
       expect(k12?.type).toBe('SUBSECTION');
       // The legacy sub-section node and the category-tree leaf share their id
       expect(tree.find((c) => c.path === 'academic/school/k-12')?.id).toBe(k12?.id);
-      expect(await prisma.categoryLevel.count({ where: { categoryId: k12?.id } })).toBe(12);
+      // Leaves no longer carry allowed levels; each has one category curriculum instead
+      expect(await prisma.categoryLevel.count({ where: { categoryId: k12?.id } })).toBe(0);
+      expect(
+        await prisma.curriculum.count({ where: { categoryId: k12?.id, subjectId: null, boardId: null, levelId: null } })
+      ).toBe(1);
 
       const schoolLevels = await prisma.level.findMany({ where: { categoryId: school.id }, orderBy: { sortOrder: 'asc' } });
       expect(schoolLevels).toHaveLength(12);

@@ -15,7 +15,7 @@ const manage = requirePermission('catalogue.manage');
  * @openapi
  * /admin/category-tree:
  *   get:
- *     summary: The whole category tree with child and curricula counts (one aggregate query, cached until the next write)
+ *     summary: The whole category tree with child and tutor counts (one aggregate query, cached until the next write)
  *     description: With parentId, returns only that node's direct children, for lazy loading a large tree.
  *     tags: [Category tree]
  *     security: [{ bearerAuth: [] }]
@@ -115,29 +115,9 @@ adminCategoryTreeRouter.put('/reorder', manage, Tree.reorder);
 
 /**
  * @openapi
- * /admin/category-tree/offerings/{curriculumId}:
- *   patch:
- *     summary: Activate or deactivate one offering (curriculum)
- *     tags: [Category tree]
- *     security: [{ bearerAuth: [] }]
- *     parameters:
- *       - { in: path, name: curriculumId, required: true, schema: { type: string, format: uuid } }
- *       - { in: header, name: x-csrf-token, required: true, schema: { type: string } }
- *     requestBody:
- *       required: true
- *       content: { application/json: { schema: { type: object, required: [isActive], properties: { isActive: { type: boolean } } } } }
- *     responses:
- *       200: { description: Updated offering }
- *       403: { description: Missing catalogue.manage or CSRF token }
- *       404: { description: NO_OFFERING }
- */
-adminCategoryTreeRouter.patch('/offerings/:curriculumId', manage, Tree.updateOffering);
-
-/**
- * @openapi
  * /admin/category-tree/{categoryId}:
  *   get:
- *     summary: Category detail (breadcrumb from the path, allowed levels, counts)
+ *     summary: Category detail (breadcrumb from the path, counts)
  *     tags: [Category tree]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
@@ -208,41 +188,10 @@ adminCategoryTreeRouter.delete('/:categoryId', manage, Tree.remove);
  *       201: { description: Created }
  *       200: { description: Idempotent retry; an identical sub-category already exists }
  *       403: { description: Missing catalogue.manage or CSRF token }
- *       409: { description: PARENT_IS_BOOKABLE or DUPLICATE_CODE }
+ *       409: { description: CATEGORY_IN_USE or DUPLICATE_CODE }
  *       422: { description: PARENT_NOT_FOUND, PATH_TOO_LONG, TOO_DEEP or invalid body }
  */
 adminCategoryTreeRouter.post('/:categoryId/children', manage, Tree.createChild);
-
-/**
- * @openapi
- * /admin/category-tree/{categoryId}/leaf-settings:
- *   put:
- *     summary: Set booking settings of a category without children (bookable, requires board/level, allowed levels)
- *     tags: [Category tree]
- *     security: [{ bearerAuth: [] }]
- *     parameters:
- *       - { in: path, name: categoryId, required: true, schema: { type: string, format: uuid } }
- *       - { in: header, name: x-csrf-token, required: true, schema: { type: string } }
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [version, isBookable, requiresBoard, requiresLevel, levelIds]
- *             properties:
- *               version: { type: integer, minimum: 1 }
- *               isBookable: { type: boolean }
- *               requiresBoard: { type: boolean }
- *               requiresLevel: { type: boolean }
- *               levelIds: { type: array, items: { type: string, format: uuid } }
- *     responses:
- *       200: { description: Saved }
- *       403: { description: Missing catalogue.manage or CSRF token }
- *       409: { description: HAS_CHILDREN, CATEGORY_REFERENCED, LEVEL_IN_USE, LEVEL_REQUIRED_BY_CURRICULA, BOARD_REQUIRED_BY_CURRICULA or STALE_VERSION }
- *       422: { description: LEVELS_REQUIRED, UNKNOWN_LEVEL or INACTIVE_LEVEL }
- */
-adminCategoryTreeRouter.put('/:categoryId/leaf-settings', manage, Tree.setLeafSettings);
 
 /**
  * @openapi
@@ -268,50 +217,10 @@ adminCategoryTreeRouter.put('/:categoryId/leaf-settings', manage, Tree.setLeafSe
  *     responses:
  *       200: { description: Moved (or already under that parent) }
  *       403: { description: Missing catalogue.manage or CSRF token }
- *       409: { description: PARENT_IS_BOOKABLE, DUPLICATE_CODE, STALE_VERSION or CONCURRENT_CHANGE }
+ *       409: { description: CATEGORY_IN_USE, DUPLICATE_CODE, STALE_VERSION or CONCURRENT_CHANGE }
  *       422: { description: CYCLE, PARENT_NOT_FOUND, PATH_TOO_LONG or TOO_DEEP }
  */
 adminCategoryTreeRouter.put('/:categoryId/move', manage, Tree.move);
-
-/**
- * @openapi
- * /admin/category-tree/{categoryId}/offerings:
- *   get:
- *     summary: Offerings (curricula) of a leaf
- *     tags: [Category tree]
- *     security: [{ bearerAuth: [] }]
- *     parameters:
- *       - { in: path, name: categoryId, required: true, schema: { type: string, format: uuid } }
- *     responses:
- *       200: { description: Offerings with subject, board and level names }
- *       403: { description: Missing catalogue.read }
- *       404: { description: CATEGORY_NOT_FOUND }
- *   post:
- *     summary: Add an offering (subject, optional board and level) to a bookable leaf
- *     tags: [Category tree]
- *     security: [{ bearerAuth: [] }]
- *     parameters:
- *       - { in: path, name: categoryId, required: true, schema: { type: string, format: uuid } }
- *       - { in: header, name: x-csrf-token, required: true, schema: { type: string } }
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [subjectId]
- *             properties:
- *               subjectId: { type: string, format: uuid }
- *               boardId: { type: string, format: uuid, nullable: true }
- *               levelId: { type: string, format: uuid, nullable: true }
- *     responses:
- *       201: { description: Added }
- *       200: { description: Idempotent retry; the offering already exists }
- *       403: { description: Missing catalogue.manage or CSRF token }
- *       422: { description: NOT_BOOKABLE, BOARD_REQUIRED, LEVEL_REQUIRED, LEVEL_NOT_ALLOWED, UNKNOWN_SUBJECT or UNKNOWN_BOARD }
- */
-adminCategoryTreeRouter.get('/:categoryId/offerings', read, Tree.listOfferings);
-adminCategoryTreeRouter.post('/:categoryId/offerings', manage, Tree.addOffering);
 
 // ── Learner: /catalogue/category-tree (public, behind the catalogue.category_tree flag) ──
 export const learnerCategoryTreeRouter = Router();

@@ -802,7 +802,8 @@ model Curriculum {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   categoryId String   @map("category_id") @db.Uuid
   boardId    String?  @map("board_id") @db.Uuid
-  subjectId  String   @map("subject_id") @db.Uuid
+  // Null for a leaf's category curriculum (migration 20261105090000_category_simple_leaves)
+  subjectId  String?  @map("subject_id") @db.Uuid
   // Null only when the leaf does not require a level (ADR-0005)
   levelId    String?  @map("level_id") @db.Uuid
   // The LEVEL leaf that owns this offering (ADR 0003). The tuple columns above are
@@ -815,7 +816,7 @@ model Curriculum {
 
   category Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   board    Board?         @relation(fields: [boardId], references: [id], onDelete: Restrict)
-  subject  Subject        @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  subject  Subject?       @relation(fields: [subjectId], references: [id], onDelete: Restrict)
   level    Level?         @relation(fields: [levelId], references: [id], onDelete: Restrict)
   node     CatalogueNode? @relation(fields: [nodeId], references: [id], onDelete: Restrict)
   // The leaf must allow the level (composite FK, MATCH SIMPLE: skipped when levelId is null)

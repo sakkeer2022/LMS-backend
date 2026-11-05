@@ -231,7 +231,12 @@ export async function listFaculty(
           assignments: {
             where: { isActive: true },
             select: {
-              curriculum: { select: { subject: { select: { name: true, sortOrder: true } } } },
+              curriculum: {
+                select: {
+                  subject: { select: { name: true, sortOrder: true } },
+                  category: { select: { name: true, displayOrder: true } },
+                },
+              },
             },
           },
         },
@@ -280,7 +285,14 @@ export async function listFaculty(
     const subjects = [
       ...new Map(
         (detail?.assignments ?? [])
-          .map((a) => a.curriculum.subject)
+          // A category curriculum is named by its leaf (Class 11)
+          .map(
+            (a) =>
+              a.curriculum.subject ?? {
+                name: a.curriculum.category.name,
+                sortOrder: a.curriculum.category.displayOrder,
+              }
+          )
           .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
           .map((s) => [s.name, s.name])
       ).values(),

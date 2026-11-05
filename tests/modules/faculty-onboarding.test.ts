@@ -141,17 +141,27 @@ describe('Faculty onboarding, review, pricing gate and consent (LMS-39, LMS-40)'
   });
 
   describe('GET /faculty/onboarding/catalogue', () => {
-    it('returns visible branches and active offerings only', async () => {
+    it('returns visible branches and one active choice per leaf', async () => {
       const res = await request(app).get(`${API}/faculty/onboarding/catalogue`);
       expect(res.status).toBe(200);
       expectContractResponse(res, 'get', '/faculty/onboarding/catalogue');
       const ids = res.body.data.nodes.map((n: { id: string }) => n.id);
-      expect(ids).toEqual(expect.arrayContaining([catalogue.academic.id, catalogue.school.id, catalogue.k12.id]));
+      expect(ids).toEqual(
+        expect.arrayContaining([catalogue.academic.id, catalogue.school.id, catalogue.k12.id, catalogue.physicsLeaf.id]),
+      );
       expect(ids).not.toContain(catalogue.hidden.id);
       const offerings = res.body.data.offerings.map((o: { curriculumId: string }) => o.curriculumId);
       expect(offerings.sort()).toEqual([catalogue.physics.id, catalogue.chemistry.id].sort());
       const physics = res.body.data.offerings.find((o: { curriculumId: string }) => o.curriculumId === catalogue.physics.id);
-      expect(physics).toMatchObject({ categoryId: catalogue.k12.id, board: { id: catalogue.board.id }, level: { id: catalogue.level.id } });
+      // The leaf is the choice: titled by its own name, with no board or level
+      expect(physics).toMatchObject({
+        categoryId: catalogue.physicsLeaf.id,
+        subject: { id: catalogue.physicsLeaf.id, name: 'Class 11' },
+        board: null,
+        level: null,
+      });
+      const leaf = res.body.data.nodes.find((n: { id: string }) => n.id === catalogue.physicsLeaf.id);
+      expect(leaf.isLeaf).toBe(true);
     });
   });
 

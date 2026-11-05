@@ -24,7 +24,8 @@ export const CATALOGUE_PERMISSIONS = [
   },
 ];
 
-// Category tree (ADR-0005): two roots, the frontline tabs below them
+// Category tree (ADR-0005): two roots, the frontline tabs below them. Whether a category
+// is a leaf, and its category curriculum, are derived by the categories_leaf_sync trigger.
 const ROOTS = [
   { code: 'academic', name: 'Academic' },
   { code: 'non-academic', name: 'Non-academic' },
@@ -110,7 +111,6 @@ export async function seedCatalogue(prisma: PrismaClient): Promise<void> {
         path: r.code,
         depth: 0,
         displayOrder: index + 1,
-        requiresLevel: false,
       },
       update: {},
     });
@@ -120,20 +120,15 @@ export async function seedCatalogue(prisma: PrismaClient): Promise<void> {
   const categoryIds = new Map<string, string>();
   for (const [index, c] of CATEGORIES.entries()) {
     const path = `${c.root}/${c.code}`;
-    const hasChildren = Boolean(SUBSECTIONS[c.code]?.length);
     const row = await prisma.category.upsert({
       where: { path },
       create: {
         code: c.code,
         name: c.name,
-        requiresBoard: c.requiresBoard,
         parentId: rootIds.get(c.root)!,
         path,
         depth: 1,
         displayOrder: index + 1,
-        // A tab without sub-categories is itself the bookable leaf
-        isBookable: !hasChildren,
-        requiresLevel: !hasChildren,
       },
       update: {},
     });
@@ -156,19 +151,15 @@ export async function seedCatalogue(prisma: PrismaClient): Promise<void> {
     });
   }
 
-  const levelIds = new Map<string, string[]>();
   for (const [categoryCode, levels] of Object.entries(LEVELS)) {
     const categoryId = categoryIds.get(categoryCode)!;
-    const ids: string[] = [];
     for (const [index, l] of levels.entries()) {
-      const row = await prisma.level.upsert({
+      await prisma.level.upsert({
         where: { code: l.code },
         create: { ...l, categoryId, sortOrder: index + 1 },
         update: {},
       });
-      ids.push(row.id);
     }
-    levelIds.set(categoryCode, ids);
   }
 
   // Legacy catalogue_nodes (ADR-0003). The tree is frozen, but its read endpoints stay
@@ -209,7 +200,7 @@ export async function seedCatalogue(prisma: PrismaClient): Promise<void> {
           },
         });
       }
-      // The sub-section as a bookable leaf of the category tree
+      // The sub-section as a category of the tree
       const path = `${CATEGORIES[index].root}/${c.code}/${sub.slug}`;
       await prisma.category.upsert({
         where: { path },
@@ -221,26 +212,9 @@ export async function seedCatalogue(prisma: PrismaClient): Promise<void> {
           path,
           depth: 2,
           displayOrder: subIndex + 1,
-          requiresBoard: c.requiresBoard,
-          isBookable: true,
-          requiresLevel: true,
         },
         update: {},
       });
     }
-  }
-
-  // Every bookable leaf allows the levels of its tab
-  const leaves = await prisma.category.findMany({
-    where: { isBookable: true },
-    select: { id: true, path: true },
-  });
-  for (const leaf of leaves) {
-    const tab = leaf.path.split('/')[1];
-    const ids = levelIds.get(tab) ?? [];
-    await prisma.categoryLevel.createMany({
-      data: ids.map((levelId) => ({ categoryId: leaf.id, levelId })),
-      skipDuplicates: true,
-    });
   }
 }

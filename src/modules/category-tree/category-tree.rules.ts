@@ -81,52 +81,6 @@ export function checkMoveLimits(
   return null;
 }
 
-// ── Leaf settings (invariants 3, 4 and 5) ───────────────────────────────────
-
-export interface LeafSettingsInput {
-  isBookable: boolean;
-  requiresBoard: boolean;
-  requiresLevel: boolean;
-  levelIds: readonly string[];
-}
-
-export interface LeafState {
-  childCount: number;
-  /** Curricula and student profiles that reference this category */
-  referenceCount: number;
-  /** Level ids used by this category's curricula */
-  levelsInUse: ReadonlySet<string>;
-  curriculaWithoutLevel: number;
-  /** Curricula and profiles without a board */
-  referencesWithoutBoard: number;
-}
-
-export type LeafSettingsError =
-  | 'HAS_CHILDREN'
-  | 'CATEGORY_REFERENCED'
-  | 'LEVELS_REQUIRED'
-  | 'LEVEL_IN_USE'
-  | 'LEVEL_REQUIRED_BY_CURRICULA'
-  | 'BOARD_REQUIRED_BY_CURRICULA';
-
-export function checkLeafSettings(
-  input: LeafSettingsInput,
-  state: LeafState
-): LeafSettingsError | null {
-  // Invariant 4: only a node without children has booking settings
-  if (state.childCount > 0) return 'HAS_CHILDREN';
-  // Invariant 3: something still books this leaf
-  if (!input.isBookable && state.referenceCount > 0) return 'CATEGORY_REFERENCED';
-  // Invariant 5
-  if (input.isBookable && input.requiresLevel && input.levelIds.length === 0)
-    return 'LEVELS_REQUIRED';
-  const keep = new Set(input.levelIds);
-  for (const used of state.levelsInUse) if (!keep.has(used)) return 'LEVEL_IN_USE';
-  if (input.requiresLevel && state.curriculaWithoutLevel > 0) return 'LEVEL_REQUIRED_BY_CURRICULA';
-  if (input.requiresBoard && state.referencesWithoutBoard > 0) return 'BOARD_REQUIRED_BY_CURRICULA';
-  return null;
-}
-
 // ── Offering selection (what a learner picks on a leaf) ──────────────────────
 
 export interface LeafRules {
@@ -154,43 +108,7 @@ export function checkSelection(
   return null;
 }
 
-// ── Tree assembly for flat rows (admin list, tests) ─────────────────────────
-
-export interface FlatNode {
-  id: string;
-  parentId: string | null;
-  name: string;
-  displayOrder: number;
-  childrenCount: number;
-  curriculaCount: number;
-}
-
-export function compareSiblings(a: FlatNode, b: FlatNode): number {
-  return (
-    a.displayOrder - b.displayOrder || a.name.localeCompare(b.name) || a.id.localeCompare(b.id)
-  );
-}
-
-/** Curricula in each node's whole subtree, computed once over the flat list. */
-export function subtreeCurriculaCounts(nodes: readonly FlatNode[]): Map<string, number> {
-  const byParent = new Map<string | null, FlatNode[]>();
-  for (const n of nodes) {
-    const list = byParent.get(n.parentId) ?? [];
-    list.push(n);
-    byParent.set(n.parentId, list);
-  }
-  const totals = new Map<string, number>();
-  const visit = (node: FlatNode): number => {
-    let total = node.curriculaCount;
-    for (const child of byParent.get(node.id) ?? []) total += visit(child);
-    totals.set(node.id, total);
-    return total;
-  };
-  for (const root of byParent.get(null) ?? []) visit(root);
-  return totals;
-}
-
-/** Plain-language count, never a bare number: "1 sub-category", "12 curricula". */
+/** Plain-language count, never a bare number: "1 sub-category", "3 tutors". */
 export function countLabel(n: number, singular: string, plural: string): string {
   return `${n.toLocaleString('en-IN')} ${n === 1 ? singular : plural}`;
 }

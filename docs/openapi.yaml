@@ -3992,7 +3992,7 @@
           "Faculty onboarding"
         ],
         "summary": "Category tree and offerings for the subject picker",
-        "description": "Public; no authenticated identity required. Screen 43c column picker: visible categories that lead to a bookable leaf, and each leaf's active offerings (board, level, subject). Picking a subject adds a card; the card is the curriculumId.",
+        "description": "Public; no authenticated identity required. Screen 43c column picker: visible categories that lead to a leaf, and one offering per leaf: its category curriculum, with subject = the leaf itself (id and name) and board and level null. Picking a leaf adds a card; the card is the curriculumId.",
         "x-required-role": "public",
         "x-review-status": "ready-for-review",
         "security": [],
@@ -8562,8 +8562,8 @@
         "tags": [
           "Category tree"
         ],
-        "summary": "Whole category tree with child and curricula counts",
-        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. One aggregate query; cached until the next write (header X-Cache HIT/MISS). Cache-Control private, no-store.",
+        "summary": "Whole category tree with child and tutor counts",
+        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. One aggregate query; cached until the next write (header X-Cache HIT/MISS). Cache-Control private, no-store.",
         "x-required-role": "admin; catalogue.read",
         "x-review-status": "ready-for-review",
         "security": [
@@ -8573,7 +8573,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Whole category tree with child and curricula counts.",
+            "description": "Whole category tree with child and tutor counts.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8586,8 +8586,7 @@
                     "nodes": [],
                     "stats": {
                       "categories": 0,
-                      "bookableLeaves": 0,
-                      "curricula": 0
+                      "leaves": 0
                     },
                     "generatedAt": "2026-10-21T09:00:00Z"
                   }
@@ -8696,7 +8695,7 @@
           "Category tree"
         ],
         "summary": "Offering picker tree for admin pickers",
-        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Visible branches that lead to a bookable leaf, and each leaf's active offerings. Same shape as getFacultyOnboardingCatalogue; used by the pricing rule drawer.",
+        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Visible branches that lead to a leaf, and each leaf's category curriculum. Same shape as getFacultyOnboardingCatalogue; used by the pricing rule drawer.",
         "x-required-role": "admin; catalogue.read",
         "x-review-status": "ready-for-review",
         "security": [
@@ -8754,7 +8753,7 @@
           "Category tree"
         ],
         "summary": "Create a root category",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 200 for an idempotent retry (same code and name). Duplicate code 409 DUPLICATE_CODE. Audit category.create_root.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 200 for an idempotent retry (same code and name). Duplicate code 409 DUPLICATE_CODE. Audit category.create_root.",
         "x-required-role": "admin; catalogue.manage",
         "x-review-status": "ready-for-review",
         "security": [
@@ -8780,21 +8779,16 @@
                     "name": "Mathematics",
                     "path": "Example value",
                     "depth": 0,
-                    "isBookable": true,
-                    "requiresBoard": true,
-                    "requiresLevel": true,
+                    "isLeaf": true,
                     "isActive": true,
                     "displayOrder": 0,
                     "version": 1,
                     "childrenCount": 0,
-                    "curriculaCount": 0,
+                    "tutorCount": 0,
                     "createdAt": "2026-10-21T09:00:00Z",
                     "updatedAt": "2026-10-21T09:00:00Z",
                     "description": "Reviewed configuration definition.",
                     "breadcrumb": [],
-                    "allowedLevels": [],
-                    "activeCurriculaCount": 0,
-                    "studentCount": 0,
                     "descendantCount": 0
                   }
                 }
@@ -8853,7 +8847,7 @@
           "Category tree"
         ],
         "summary": "Reorder the children of one parent",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Never changes a parent. 409 STALE_SIBLINGS when orderedIds is not exactly the current children. Audit category.reorder.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Never changes a parent. 409 STALE_SIBLINGS when orderedIds is not exactly the current children. Audit category.reorder.",
         "x-required-role": "admin; catalogue.manage",
         "x-review-status": "ready-for-review",
         "security": [
@@ -8929,7 +8923,7 @@
           "Category tree"
         ],
         "summary": "Category detail for the panel",
-        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Breadcrumb comes from the path.",
+        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Breadcrumb comes from the path.",
         "x-required-role": "admin; catalogue.read",
         "x-review-status": "ready-for-review",
         "security": [
@@ -8955,21 +8949,16 @@
                     "name": "Mathematics",
                     "path": "Example value",
                     "depth": 0,
-                    "isBookable": true,
-                    "requiresBoard": true,
-                    "requiresLevel": true,
+                    "isLeaf": true,
                     "isActive": true,
                     "displayOrder": 0,
                     "version": 1,
                     "childrenCount": 0,
-                    "curriculaCount": 0,
+                    "tutorCount": 0,
                     "createdAt": "2026-10-21T09:00:00Z",
                     "updatedAt": "2026-10-21T09:00:00Z",
                     "description": "Reviewed configuration definition.",
                     "breadcrumb": [],
-                    "allowedLevels": [],
-                    "activeCurriculaCount": 0,
-                    "studentCount": 0,
                     "descendantCount": 0
                   }
                 }
@@ -9020,7 +9009,7 @@
           "Category tree"
         ],
         "summary": "Rename, change code, activate or deactivate",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. A code change rebuilds the subtree paths in the same transaction. 409 STALE_VERSION or DUPLICATE_CODE. Audit category.update.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. A code change rebuilds the subtree paths in the same transaction. 409 STALE_VERSION or DUPLICATE_CODE. Audit category.update.",
         "x-required-role": "admin; catalogue.manage",
         "x-review-status": "ready-for-review",
         "security": [
@@ -9046,21 +9035,16 @@
                     "name": "Mathematics",
                     "path": "Example value",
                     "depth": 0,
-                    "isBookable": true,
-                    "requiresBoard": true,
-                    "requiresLevel": true,
+                    "isLeaf": true,
                     "isActive": true,
                     "displayOrder": 0,
                     "version": 1,
                     "childrenCount": 0,
-                    "curriculaCount": 0,
+                    "tutorCount": 0,
                     "createdAt": "2026-10-21T09:00:00Z",
                     "updatedAt": "2026-10-21T09:00:00Z",
                     "description": "Reviewed configuration definition.",
                     "breadcrumb": [],
-                    "allowedLevels": [],
-                    "activeCurriculaCount": 0,
-                    "studentCount": 0,
                     "descendantCount": 0
                   }
                 }
@@ -9130,7 +9114,7 @@
           "Category tree"
         ],
         "summary": "Hard-delete an unreferenced category",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 409 DELETE_BLOCKED while it has children, curricula, student profiles, scoped levels or a legacy node link; the message lists the reasons and suggests deactivating. 409 STALE_VERSION. Audit category.delete.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 409 DELETE_BLOCKED while it has children, tutors, prices, learner subjects, library materials, student profiles, scoped levels or a legacy node link; the message lists the reasons and suggests disabling. Unused curricula are deleted with it. 409 STALE_VERSION. Audit category.delete.",
         "x-required-role": "admin; catalogue.manage",
         "x-review-status": "ready-for-review",
         "security": [
@@ -9205,7 +9189,7 @@
           "Category tree"
         ],
         "summary": "Create a sub-category",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 409 PARENT_IS_BOOKABLE or DUPLICATE_CODE; 422 PARENT_NOT_FOUND, PATH_TOO_LONG or TOO_DEEP. 200 for an idempotent retry. Audit category.create_child.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 409 CATEGORY_IN_USE or DUPLICATE_CODE; 422 PARENT_NOT_FOUND, PATH_TOO_LONG or TOO_DEEP. 200 for an idempotent retry. Audit category.create_child.",
         "x-required-role": "admin; catalogue.manage",
         "x-review-status": "ready-for-review",
         "security": [
@@ -9231,21 +9215,16 @@
                     "name": "Mathematics",
                     "path": "Example value",
                     "depth": 0,
-                    "isBookable": true,
-                    "requiresBoard": true,
-                    "requiresLevel": true,
+                    "isLeaf": true,
                     "isActive": true,
                     "displayOrder": 0,
                     "version": 1,
                     "childrenCount": 0,
-                    "curriculaCount": 0,
+                    "tutorCount": 0,
                     "createdAt": "2026-10-21T09:00:00Z",
                     "updatedAt": "2026-10-21T09:00:00Z",
                     "description": "Reviewed configuration definition.",
                     "breadcrumb": [],
-                    "allowedLevels": [],
-                    "activeCurriculaCount": 0,
-                    "studentCount": 0,
                     "descendantCount": 0
                   }
                 }
@@ -9310,118 +9289,6 @@
         }
       }
     },
-    "/admin/category-tree/{categoryId}/leaf-settings": {
-      "put": {
-        "operationId": "setCategoryLeafSettings",
-        "tags": [
-          "Category tree"
-        ],
-        "summary": "Set booking settings of a leaf",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Only for a node without children (409 HAS_CHILDREN). 409 CATEGORY_REFERENCED, LEVEL_IN_USE, LEVEL_REQUIRED_BY_CURRICULA, BOARD_REQUIRED_BY_CURRICULA, STALE_VERSION; 422 LEVELS_REQUIRED, UNKNOWN_LEVEL, INACTIVE_LEVEL. Audit category.leaf_settings.",
-        "x-required-role": "admin; catalogue.manage",
-        "x-review-status": "ready-for-review",
-        "security": [
-          {
-            "cookieAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Set booking settings of a leaf.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/setCategoryLeafSettingsResponse"
-                },
-                "example": {
-                  "success": true,
-                  "message": "Success",
-                  "data": {
-                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "parentId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "code": "mathematics",
-                    "name": "Mathematics",
-                    "path": "Example value",
-                    "depth": 0,
-                    "isBookable": true,
-                    "requiresBoard": true,
-                    "requiresLevel": true,
-                    "isActive": true,
-                    "displayOrder": 0,
-                    "version": 1,
-                    "childrenCount": 0,
-                    "curriculaCount": 0,
-                    "createdAt": "2026-10-21T09:00:00Z",
-                    "updatedAt": "2026-10-21T09:00:00Z",
-                    "description": "Reviewed configuration definition.",
-                    "breadcrumb": [],
-                    "allowedLevels": [],
-                    "activeCurriculaCount": 0,
-                    "studentCount": 0,
-                    "descendantCount": 0
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/E400"
-          },
-          "401": {
-            "$ref": "#/components/responses/E401"
-          },
-          "403": {
-            "$ref": "#/components/responses/E403"
-          },
-          "404": {
-            "$ref": "#/components/responses/E404"
-          },
-          "409": {
-            "$ref": "#/components/responses/E409"
-          },
-          "413": {
-            "$ref": "#/components/responses/E413"
-          },
-          "422": {
-            "$ref": "#/components/responses/E422"
-          },
-          "429": {
-            "$ref": "#/components/responses/E429"
-          },
-          "500": {
-            "$ref": "#/components/responses/E500"
-          },
-          "503": {
-            "$ref": "#/components/responses/E503"
-          }
-        },
-        "parameters": [
-          {
-            "name": "categoryId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/CsrfHeader"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CategoryLeafSettings"
-              }
-            }
-          }
-        }
-      }
-    },
     "/admin/category-tree/{categoryId}/move": {
       "put": {
         "operationId": "moveCategory",
@@ -9429,7 +9296,7 @@
           "Category tree"
         ],
         "summary": "Move a category under a new parent",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Locks the node, the new parent and the subtree (SELECT FOR UPDATE), checks the cycle rule inside the transaction and rebuilds path and depth for the subtree in one statement. 422 CYCLE; 409 PARENT_IS_BOOKABLE, DUPLICATE_CODE, STALE_VERSION, CONCURRENT_CHANGE. Already under that parent: 200, no change. Audit category.move.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Locks the node, the new parent and the subtree (SELECT FOR UPDATE), checks the cycle rule inside the transaction and rebuilds path and depth for the subtree in one statement. 422 CYCLE; 409 CATEGORY_IN_USE, DUPLICATE_CODE, STALE_VERSION, CONCURRENT_CHANGE. Already under that parent: 200, no change. Audit category.move.",
         "x-required-role": "admin; catalogue.manage",
         "x-review-status": "ready-for-review",
         "security": [
@@ -9455,21 +9322,16 @@
                     "name": "Mathematics",
                     "path": "Example value",
                     "depth": 0,
-                    "isBookable": true,
-                    "requiresBoard": true,
-                    "requiresLevel": true,
+                    "isLeaf": true,
                     "isActive": true,
                     "displayOrder": 0,
                     "version": 1,
                     "childrenCount": 0,
-                    "curriculaCount": 0,
+                    "tutorCount": 0,
                     "createdAt": "2026-10-21T09:00:00Z",
                     "updatedAt": "2026-10-21T09:00:00Z",
                     "description": "Reviewed configuration definition.",
                     "breadcrumb": [],
-                    "allowedLevels": [],
-                    "activeCurriculaCount": 0,
-                    "studentCount": 0,
                     "descendantCount": 0
                   }
                 }
@@ -9534,284 +9396,6 @@
         }
       }
     },
-    "/admin/category-tree/{categoryId}/offerings": {
-      "get": {
-        "operationId": "listCategoryOfferings",
-        "tags": [
-          "Category tree"
-        ],
-        "summary": "Offerings (curricula) of a leaf",
-        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. ",
-        "x-required-role": "admin; catalogue.read",
-        "x-review-status": "ready-for-review",
-        "security": [
-          {
-            "cookieAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Offerings (curricula) of a leaf.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/listCategoryOfferingsResponse"
-                },
-                "example": {
-                  "success": true,
-                  "message": "Success",
-                  "data": []
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/E400"
-          },
-          "401": {
-            "$ref": "#/components/responses/E401"
-          },
-          "403": {
-            "$ref": "#/components/responses/E403"
-          },
-          "404": {
-            "$ref": "#/components/responses/E404"
-          },
-          "422": {
-            "$ref": "#/components/responses/E422"
-          },
-          "429": {
-            "$ref": "#/components/responses/E429"
-          },
-          "500": {
-            "$ref": "#/components/responses/E500"
-          },
-          "503": {
-            "$ref": "#/components/responses/E503"
-          }
-        },
-        "parameters": [
-          {
-            "name": "categoryId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-            }
-          }
-        ]
-      },
-      "post": {
-        "operationId": "addCategoryOffering",
-        "tags": [
-          "Category tree"
-        ],
-        "summary": "Add an offering to a bookable leaf",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 422 NOT_BOOKABLE, BOARD_REQUIRED, LEVEL_REQUIRED, LEVEL_NOT_ALLOWED, UNKNOWN_SUBJECT, UNKNOWN_BOARD, INACTIVE_LEVEL. 200 for an existing identical offering.",
-        "x-required-role": "admin; catalogue.manage",
-        "x-review-status": "ready-for-review",
-        "security": [
-          {
-            "cookieAuth": []
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Add an offering to a bookable leaf.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/addCategoryOfferingResponse"
-                },
-                "example": {
-                  "success": true,
-                  "message": "Success",
-                  "data": {
-                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "subject": {
-                      "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                      "name": "Mathematics"
-                    },
-                    "board": {
-                      "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                      "name": "Mathematics"
-                    },
-                    "level": {
-                      "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                      "name": "Mathematics"
-                    },
-                    "isActive": true
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/E400"
-          },
-          "401": {
-            "$ref": "#/components/responses/E401"
-          },
-          "403": {
-            "$ref": "#/components/responses/E403"
-          },
-          "404": {
-            "$ref": "#/components/responses/E404"
-          },
-          "409": {
-            "$ref": "#/components/responses/E409"
-          },
-          "413": {
-            "$ref": "#/components/responses/E413"
-          },
-          "422": {
-            "$ref": "#/components/responses/E422"
-          },
-          "429": {
-            "$ref": "#/components/responses/E429"
-          },
-          "500": {
-            "$ref": "#/components/responses/E500"
-          },
-          "503": {
-            "$ref": "#/components/responses/E503"
-          }
-        },
-        "parameters": [
-          {
-            "name": "categoryId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/CsrfHeader"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CategoryOfferingWrite"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/admin/category-tree/offerings/{curriculumId}": {
-      "patch": {
-        "operationId": "updateCategoryOffering",
-        "tags": [
-          "Category tree"
-        ],
-        "summary": "Activate or deactivate an offering",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. ",
-        "x-required-role": "admin; catalogue.manage",
-        "x-review-status": "ready-for-review",
-        "security": [
-          {
-            "cookieAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Activate or deactivate an offering.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/updateCategoryOfferingResponse"
-                },
-                "example": {
-                  "success": true,
-                  "message": "Success",
-                  "data": {
-                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "categoryId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "subject": {
-                      "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                      "name": "Mathematics"
-                    },
-                    "board": {
-                      "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                      "name": "Mathematics"
-                    },
-                    "level": {
-                      "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                      "name": "Mathematics"
-                    },
-                    "isActive": true
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/E400"
-          },
-          "401": {
-            "$ref": "#/components/responses/E401"
-          },
-          "403": {
-            "$ref": "#/components/responses/E403"
-          },
-          "404": {
-            "$ref": "#/components/responses/E404"
-          },
-          "409": {
-            "$ref": "#/components/responses/E409"
-          },
-          "413": {
-            "$ref": "#/components/responses/E413"
-          },
-          "422": {
-            "$ref": "#/components/responses/E422"
-          },
-          "429": {
-            "$ref": "#/components/responses/E429"
-          },
-          "500": {
-            "$ref": "#/components/responses/E500"
-          },
-          "503": {
-            "$ref": "#/components/responses/E503"
-          }
-        },
-        "parameters": [
-          {
-            "name": "curriculumId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/CsrfHeader"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CategoryOfferingUpdate"
-              }
-            }
-          }
-        }
-      }
-    },
     "/catalogue/category-tree/children": {
       "get": {
         "operationId": "listLearnerCategories",
@@ -9819,7 +9403,7 @@
           "Category tree"
         ],
         "summary": "Children of a category on the way to a bookable leaf",
-        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. ",
+        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. ",
         "x-required-role": "public",
         "x-review-status": "ready-for-review",
         "security": [],
@@ -9877,7 +9461,7 @@
           "Category tree"
         ],
         "summary": "Bookable leaves",
-        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. ",
+        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. ",
         "x-required-role": "public",
         "x-review-status": "ready-for-review",
         "security": [],
@@ -9976,7 +9560,7 @@
           "Category tree"
         ],
         "summary": "Bookable leaf with its options",
-        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. ",
+        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. ",
         "x-required-role": "public",
         "x-review-status": "ready-for-review",
         "security": [],
@@ -10070,7 +9654,7 @@
           "Category tree"
         ],
         "summary": "Resolve a choice on a leaf to its curriculum",
-        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only; board, subject and level are lookups attached to leaves. Only leaves can be bookable. path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. 422 NOT_BOOKABLE, BOARD_REQUIRED, LEVEL_REQUIRED, LEVEL_NOT_ALLOWED; 404 NO_OFFERING. The same check a booking must make (resolveBookableOffering).",
+        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. 422 NOT_BOOKABLE, BOARD_REQUIRED, LEVEL_REQUIRED, LEVEL_NOT_ALLOWED; 404 NO_OFFERING. The same check a booking must make (resolveBookableOffering).",
         "x-required-role": "public",
         "x-review-status": "ready-for-review",
         "security": [],
@@ -19107,14 +18691,9 @@
             "minimum": 0,
             "maximum": 20
           },
-          "isBookable": {
-            "type": "boolean"
-          },
-          "requiresBoard": {
-            "type": "boolean"
-          },
-          "requiresLevel": {
-            "type": "boolean"
+          "isLeaf": {
+            "type": "boolean",
+            "description": "No sub-categories. Tutors and learners choose leaves; each leaf has one category curriculum."
           },
           "isActive": {
             "type": "boolean"
@@ -19134,16 +18713,11 @@
             "minimum": 0,
             "maximum": 2147483647
           },
-          "curriculaCount": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 2147483647
-          },
-          "subtreeCurriculaCount": {
+          "tutorCount": {
             "type": "integer",
             "minimum": 0,
             "maximum": 2147483647,
-            "description": "Curricula on this node and every node below it (whole-tree response only)."
+            "description": "Tutors with an active assignment on this leaf (0 for a branch)."
           },
           "createdAt": {
             "type": "string",
@@ -19163,15 +18737,12 @@
           "name",
           "path",
           "depth",
-          "isBookable",
-          "requiresBoard",
-          "requiresLevel",
+          "isLeaf",
           "isActive",
           "displayOrder",
           "version",
           "childrenCount",
-          "curriculaCount",
-          "subtreeCurriculaCount",
+          "tutorCount",
           "createdAt",
           "updatedAt"
         ]
@@ -19196,12 +18767,7 @@
                 "minimum": 0,
                 "maximum": 2147483647
               },
-              "bookableLeaves": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 2147483647
-              },
-              "curricula": {
+              "leaves": {
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 2147483647
@@ -19209,8 +18775,7 @@
             },
             "required": [
               "categories",
-              "bookableLeaves",
-              "curricula"
+              "leaves"
             ]
           },
           "generatedAt": {
@@ -19261,14 +18826,9 @@
             "minimum": 0,
             "maximum": 20
           },
-          "isBookable": {
-            "type": "boolean"
-          },
-          "requiresBoard": {
-            "type": "boolean"
-          },
-          "requiresLevel": {
-            "type": "boolean"
+          "isLeaf": {
+            "type": "boolean",
+            "description": "No sub-categories. Tutors and learners choose leaves; each leaf has one category curriculum."
           },
           "isActive": {
             "type": "boolean"
@@ -19288,10 +18848,11 @@
             "minimum": 0,
             "maximum": 2147483647
           },
-          "curriculaCount": {
+          "tutorCount": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 2147483647
+            "maximum": 2147483647,
+            "description": "Tutors with an active assignment on this leaf (0 for a branch)."
           },
           "createdAt": {
             "type": "string",
@@ -19339,50 +18900,6 @@
             },
             "maxItems": 20
           },
-          "allowedLevels": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "format": "uuid",
-                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-                },
-                "code": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 50
-                },
-                "name": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 100
-                },
-                "isActive": {
-                  "type": "boolean"
-                }
-              },
-              "required": [
-                "id",
-                "code",
-                "name",
-                "isActive"
-              ]
-            },
-            "maxItems": 200
-          },
-          "activeCurriculaCount": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 2147483647
-          },
-          "studentCount": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 2147483647
-          },
           "descendantCount": {
             "type": "integer",
             "minimum": 0,
@@ -19396,21 +18913,16 @@
           "name",
           "path",
           "depth",
-          "isBookable",
-          "requiresBoard",
-          "requiresLevel",
+          "isLeaf",
           "isActive",
           "displayOrder",
           "version",
           "childrenCount",
-          "curriculaCount",
+          "tutorCount",
           "createdAt",
           "updatedAt",
           "description",
           "breadcrumb",
-          "allowedLevels",
-          "activeCurriculaCount",
-          "studentCount",
           "descendantCount"
         ]
       },
@@ -19463,44 +18975,6 @@
         },
         "required": [
           "version"
-        ]
-      },
-      "CategoryLeafSettings": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "version": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 2147483647,
-            "description": "The version the change is based on (optimistic concurrency). A stale version returns 409 STALE_VERSION, unless the request is an idempotent retry whose values are already saved."
-          },
-          "isBookable": {
-            "type": "boolean"
-          },
-          "requiresBoard": {
-            "type": "boolean"
-          },
-          "requiresLevel": {
-            "type": "boolean"
-          },
-          "levelIds": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid",
-              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-            },
-            "maxItems": 200,
-            "description": "Allowed levels (category_levels); replaces the current set."
-          }
-        },
-        "required": [
-          "version",
-          "isBookable",
-          "requiresBoard",
-          "requiresLevel",
-          "levelIds"
         ]
       },
       "CategoryReorder": {
@@ -19558,133 +19032,6 @@
         "required": [
           "version",
           "parentId"
-        ]
-      },
-      "CategoryOffering": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "curriculumId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-          },
-          "categoryId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-          },
-          "subject": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "id": {
-                "type": "string",
-                "format": "uuid",
-                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-              },
-              "name": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 200
-              }
-            },
-            "required": [
-              "id",
-              "name"
-            ]
-          },
-          "board": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "id": {
-                "type": "string",
-                "format": "uuid",
-                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-              },
-              "name": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 200
-              }
-            },
-            "required": [
-              "id",
-              "name"
-            ],
-            "nullable": true
-          },
-          "level": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "id": {
-                "type": "string",
-                "format": "uuid",
-                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-              },
-              "name": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 200
-              }
-            },
-            "required": [
-              "id",
-              "name"
-            ],
-            "nullable": true
-          },
-          "isActive": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "curriculumId",
-          "categoryId",
-          "subject",
-          "board",
-          "level",
-          "isActive"
-        ]
-      },
-      "CategoryOfferingWrite": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "subjectId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-          },
-          "boardId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-            "nullable": true
-          },
-          "levelId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-            "nullable": true
-          }
-        },
-        "required": [
-          "subjectId"
-        ]
-      },
-      "CategoryOfferingUpdate": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "isActive": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "isActive"
         ]
       },
       "LearnerCategory": {
@@ -20241,31 +19588,6 @@
           "data"
         ]
       },
-      "setCategoryLeafSettingsResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "enum": [
-              true
-            ]
-          },
-          "message": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500
-          },
-          "data": {
-            "$ref": "#/components/schemas/CategoryTreeDetail"
-          }
-        },
-        "required": [
-          "success",
-          "message",
-          "data"
-        ]
-      },
       "moveCategoryResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -20283,85 +19605,6 @@
           },
           "data": {
             "$ref": "#/components/schemas/CategoryTreeDetail"
-          }
-        },
-        "required": [
-          "success",
-          "message",
-          "data"
-        ]
-      },
-      "listCategoryOfferingsResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "enum": [
-              true
-            ]
-          },
-          "message": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500
-          },
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CategoryOffering"
-            },
-            "maxItems": 1000
-          }
-        },
-        "required": [
-          "success",
-          "message",
-          "data"
-        ]
-      },
-      "addCategoryOfferingResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "enum": [
-              true
-            ]
-          },
-          "message": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500
-          },
-          "data": {
-            "$ref": "#/components/schemas/CategoryOffering"
-          }
-        },
-        "required": [
-          "success",
-          "message",
-          "data"
-        ]
-      },
-      "updateCategoryOfferingResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "enum": [
-              true
-            ]
-          },
-          "message": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500
-          },
-          "data": {
-            "$ref": "#/components/schemas/CategoryOffering"
           }
         },
         "required": [

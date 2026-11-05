@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'crypto';
 import { prisma } from '@infrastructure/database/index';
 import { generateInviteToken } from '../../src/modules/faculty/faculty.tokens.js';
-import { allowLevels, createLookups, createOffering, createTreeNode } from './category-tree.js';
+import { createLookups, createTreeNode, leafCurriculum } from './category-tree.js';
 
 /** A PENDING invitation and its plaintext token (as in the email link). */
 export async function createInvitationWithToken(email = `tutor-${randomUUID()}@example.com`, expired = false) {
@@ -20,17 +20,30 @@ export async function createInvitationWithToken(email = `tutor-${randomUUID()}@e
 
 /** Academic › School › K-12 (bookable, board) with two offerings, and Non-academic › Skill. */
 export async function createPickerCatalogue() {
+  // Academic › School › K-12 › CBSE › Physics › Class 11, and › Chemistry › Class 11.
+  // A tutor picks leaves; each leaf's category curriculum is the card.
   const academic = await createTreeNode(null, { code: `academic-${randomUUID().slice(0, 6)}`, name: 'Academic' });
   const school = await createTreeNode(academic, { name: 'School' });
-  const k12 = await createTreeNode(school, { name: 'K-12', isBookable: true, requiresBoard: true, requiresLevel: true });
-  const hidden = await createTreeNode(academic, { name: 'Hidden', isBookable: true, isActive: false });
-  const { board, subject, subject2, level, level2 } = await createLookups();
-  await allowLevels(k12.id, [level.id, level2.id]);
-  const physics = await createOffering({ categoryId: k12.id, subjectId: subject.id, boardId: board.id, levelId: level.id });
-  const chemistry = await createOffering({ categoryId: k12.id, subjectId: subject2.id, boardId: board.id, levelId: level.id });
-  const inactive = await createOffering({ categoryId: k12.id, subjectId: subject.id, boardId: board.id, levelId: level2.id, isActive: false });
-  const hiddenOffering = await createOffering({ categoryId: hidden.id, subjectId: subject.id });
-  return { academic, school, k12, hidden, board, subject, subject2, level, physics, chemistry, inactive, hiddenOffering };
+  const k12 = await createTreeNode(school, { name: 'K-12' });
+  const cbse = await createTreeNode(k12, { name: 'CBSE' });
+  const physicsNode = await createTreeNode(cbse, { name: 'Physics' });
+  const chemistryNode = await createTreeNode(cbse, { name: 'Chemistry' });
+  const physicsLeaf = await createTreeNode(physicsNode, { name: 'Class 11' });
+  const chemistryLeaf = await createTreeNode(chemistryNode, { name: 'Class 11' });
+  const closedLeaf = await createTreeNode(physicsNode, { name: 'Class 12' });
+  const hidden = await createTreeNode(academic, { name: 'Hidden', isActive: false });
+  const { board, subject, subject2, level } = await createLookups();
+  const physics = await leafCurriculum(physicsLeaf.id);
+  const chemistry = await leafCurriculum(chemistryLeaf.id);
+  const inactive = await prisma.curriculum.update({
+    where: { id: (await leafCurriculum(closedLeaf.id)).id },
+    data: { isActive: false },
+  });
+  const hiddenOffering = await leafCurriculum(hidden.id);
+  return {
+    academic, school, k12, cbse, physicsLeaf, chemistryLeaf, hidden, board, subject, subject2, level,
+    physics, chemistry, inactive, hiddenOffering,
+  };
 }
 
 export const PDF = Buffer.from('%PDF-1.4\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n');

@@ -14,6 +14,7 @@ import {
   wouldCreateCycle,
 } from './category-tree.rules.js';
 import {
+  assertCanHaveChildren,
   assertCodeFree,
   audit,
   lockOne,
@@ -114,12 +115,7 @@ export async function moveCategory(
         `${node.name} cannot move inside itself or one of its own sub-categories`
       );
     }
-    if (parent?.is_bookable) {
-      throw treeError(
-        'PARENT_IS_BOOKABLE',
-        `${parent.name} is bookable, so it cannot have sub-categories. Turn off booking on it first.`
-      );
-    }
+    if (parent) await assertCanHaveChildren(tx, parent);
     await assertCodeFree(tx, input.parentId, node.code, parent?.name ?? 'The top level', node.id);
 
     const newPrefix = childPath(parent?.path ?? null, node.code);
@@ -163,16 +159,31 @@ export async function deleteCategory(id: string, version: number, actor: Actor):
         `Someone else changed ${node.name}. Reload to see the latest version, then try again.`
       );
 
-    const [children, curricula, students, scopedLevels, legacyNodes] = await Promise.all([
+    const [
+      children,
+      tutors,
+      prices,
+      learnerSubjects,
+      materials,
+      students,
+      scopedLevels,
+      legacyNodes,
+    ] = await Promise.all([
       tx.category.count({ where: { parentId: id } }),
-      tx.curriculum.count({ where: { categoryId: id } }),
+      tx.facultyAssignment.count({ where: { curriculum: { categoryId: id } } }),
+      tx.priceRule.count({ where: { curriculum: { categoryId: id } } }),
+      tx.studentSubject.count({ where: { curriculum: { categoryId: id } } }),
+      tx.libraryMaterial.count({ where: { curriculum: { categoryId: id } } }),
       tx.studentProfile.count({ where: { categoryId: id } }),
       tx.level.count({ where: { categoryId: id } }),
       tx.catalogueNode.count({ where: { categoryId: id } }),
     ]);
     const reasons = [
       children && countLabel(children, 'sub-category', 'sub-categories'),
-      curricula && countLabel(curricula, 'curriculum', 'curricula'),
+      tutors && countLabel(tutors, 'tutor teaching it', 'tutors teaching it'),
+      prices && countLabel(prices, 'price', 'prices'),
+      learnerSubjects && countLabel(learnerSubjects, 'learner subject', 'learner subjects'),
+      materials && countLabel(materials, 'library material', 'library materials'),
       students && countLabel(students, 'student profile', 'student profiles'),
       scopedLevels && countLabel(scopedLevels, 'level scoped to it', 'levels scoped to it'),
       legacyNodes && 'a link from the previous catalogue tree',
@@ -180,16 +191,22 @@ export async function deleteCategory(id: string, version: number, actor: Actor):
     if (reasons.length) {
       throw treeError(
         'DELETE_BLOCKED',
-        `${node.name} cannot be deleted because it has ${reasons.join(', ')}. Deactivate it instead.`,
+        `${node.name} cannot be deleted because it has ${reasons.join(', ')}. Disable it instead.`,
         {
           children,
-          curricula,
+          tutors,
+          prices,
+          learnerSubjects,
+          materials,
           students,
           scopedLevels,
           legacyNodes,
         }
       );
     }
+    // Nothing uses its curricula, so they go with it (the category curriculum and any
+    // unused subject offerings left from the previous model)
+    await tx.curriculum.deleteMany({ where: { categoryId: id } });
     await tx.category.delete({ where: { id } });
     return snapshot(node);
   });

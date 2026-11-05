@@ -142,11 +142,7 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 | PATCH | `/admin/category-tree/{categoryId}` | `updateCategoryTreeNode` | admin; catalogue.manage | ready-for-review |
 | DELETE | `/admin/category-tree/{categoryId}` | `deleteCategoryTreeNode` | admin; catalogue.manage | ready-for-review |
 | POST | `/admin/category-tree/{categoryId}/children` | `createCategoryChild` | admin; catalogue.manage | ready-for-review |
-| PUT | `/admin/category-tree/{categoryId}/leaf-settings` | `setCategoryLeafSettings` | admin; catalogue.manage | ready-for-review |
 | PUT | `/admin/category-tree/{categoryId}/move` | `moveCategory` | admin; catalogue.manage | ready-for-review |
-| GET | `/admin/category-tree/{categoryId}/offerings` | `listCategoryOfferings` | admin; catalogue.read | ready-for-review |
-| POST | `/admin/category-tree/{categoryId}/offerings` | `addCategoryOffering` | admin; catalogue.manage | ready-for-review |
-| PATCH | `/admin/category-tree/offerings/{curriculumId}` | `updateCategoryOffering` | admin; catalogue.manage | ready-for-review |
 | GET | `/catalogue/category-tree/children` | `listLearnerCategories` | public | ready-for-review |
 | GET | `/catalogue/category-tree/leaves` | `listLearnerLeaves` | public | ready-for-review |
 | GET | `/catalogue/category-tree/leaves/{categoryId}` | `getLearnerLeaf` | public | ready-for-review |
