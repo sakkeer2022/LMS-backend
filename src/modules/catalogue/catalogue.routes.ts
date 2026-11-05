@@ -39,6 +39,22 @@ catalogueRouter.get('/boards', Catalogue.listBoards);
 
 /**
  * @openapi
+ * /catalogue/teaching-languages:
+ *   get:
+ *     summary: List active teaching languages (onboarding step 2), in display order
+ *     tags: [Catalogue]
+ *     security: []
+ *     parameters:
+ *       - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+ *       - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+ *     responses:
+ *       200: { description: Active teaching languages }
+ *       422: { description: Invalid query }
+ */
+catalogueRouter.get('/teaching-languages', Catalogue.listTeachingLanguages);
+
+/**
+ * @openapi
  * /catalogue/subjects:
  *   get:
  *     summary: List the active master subject list, ordered by sortOrder then name
