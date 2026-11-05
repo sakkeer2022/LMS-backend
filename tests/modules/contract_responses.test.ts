@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../helpers/app.js';
-import { getCsrfData } from '../helpers/csrf.js';
-import { contractResponseErrors, expectContractResponse } from '../helpers/contract.js';
+import { expectContractResponse } from '../helpers/contract.js';
 import { prisma } from '@infrastructure/database/index.js';
 import { seedRbac } from '../../prisma/seed-rbac.js';
 import { loginWithRole } from '../helpers/users.js';
@@ -92,52 +91,15 @@ describe('Implemented routes match the contract response schemas', () => {
     expectContractResponse(res, 'get', '/auth/me');
   });
 
+  it('GET /audit', async () => {
+    const res = await request(app).get('/api/v1/audit').set(s.bearer);
+    expect(res.status).toBe(200);
+    expectContractResponse(res, 'get', '/audit');
+  });
+
   it('422 error envelope (GET /audit with an invalid page)', async () => {
     const res = await request(app).get('/api/v1/audit?page=0').set(s.bearer);
     expect(res.status).toBe(422);
     expectContractResponse(res, 'get', '/audit');
-  });
-});
-
-/**
- * Template implementations whose responses do not match the contract yet. Each
- * entry names the ticket that fixes it. The test fails when a route starts
- * matching, so the entry is removed and the route moves to the suite above.
- */
-describe('Known contract mismatches', () => {
-  let s: Session;
-
-  beforeEach(async () => {
-    s = await adminSession();
-  });
-
-  const KNOWN_MISMATCHES: Array<{
-    label: string;
-    fixedBy: string;
-    call: (s: Session) => request.Test;
-    method: string;
-    path: string;
-  }> = [
-    {
-      label: 'GET /audit 200',
-      fixedBy:
-        'Not ticketed yet: align GET /audit with the contract (redacted fields, filters, date window)',
-      call: (s) => request(app).get('/api/v1/audit').set(s.bearer),
-      method: 'get',
-      path: '/audit',
-    },
-  ];
-
-  it.each(KNOWN_MISMATCHES)('$label still differs ($fixedBy)', async (entry) => {
-    const res = await entry.call(s);
-    expect(res.status).toBe(Number(entry.label.split(' ').pop()));
-    const errors = contractResponseErrors(
-      entry.method,
-      `/api/v1${entry.path}`,
-      res.status,
-      res.body
-    );
-    // If this fails, the route now matches: delete the entry and add it to the suite above.
-    expect(errors.length).toBeGreaterThan(0);
   });
 });
