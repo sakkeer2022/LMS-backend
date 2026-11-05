@@ -27,6 +27,18 @@ enum FacultyApprovalStatus {
   CHANGES_REQUESTED
 }
 
+enum FacultyInvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum FacultyInvitationDelivery {
+  EMAIL
+  LINK
+}
+
 enum FacultyDocumentType {
   GOVERNMENT_ID
   DEGREE_CERTIFICATE
@@ -40,6 +52,22 @@ enum DocumentScanStatus {
   CLEAN
   INFECTED
   FAILED
+}
+
+// Catalogue tree (screen 28). Types follow this order from root to leaf;
+// SUBSECTION and BOARD may be skipped. LEVEL nodes are leaves.
+enum CatalogueNodeType {
+  CATEGORY
+  SUBSECTION
+  BOARD
+  SUBJECT
+  LEVEL
+}
+
+enum CatalogueNodeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
 }
 
 enum LibraryMaterialKind {
@@ -118,6 +146,7 @@ model User {
   uploadedLibraryMaterials LibraryMaterial[]    @relation("LibraryUploader")
   libraryReviews           LibraryReview[]      @relation("LibraryReviewer")
   policyAcceptances        PolicyAcceptance[]
+  facultyInvitationsSent   FacultyInvitation[]  @relation("FacultyInviter")
 
   @@map("users")
 }
@@ -474,9 +503,37 @@ model FacultyProfile {
   documents        FacultyDocument[]
   termsAcceptances FacultyTermsAcceptance[]
   assignments      FacultyAssignment[]
+  priceRules       PriceRule[]
 
   @@index([approvalStatus, isPublished, isActive])
   @@map("faculty_profiles")
+}
+
+// Admin invitation to join as a tutor (LMS-79). The user and faculty profile are
+// created when the invitee completes onboarding. Only the SHA-256 hash of the
+// single-use token is stored. Hand-written in the migration: the partial unique
+// index allowing one PENDING invitation per email.
+model FacultyInvitation {
+  id             String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email          String                    @db.VarChar(255)
+  tokenHash      String                    @unique @map("token_hash") @db.VarChar(64)
+  status         FacultyInvitationStatus   @default(PENDING)
+  deliveryMethod FacultyInvitationDelivery @default(EMAIL) @map("delivery_method")
+  sentAt         DateTime?                 @map("sent_at")
+  expiresAt      DateTime                  @map("expires_at")
+  acceptedAt     DateTime?                 @map("accepted_at")
+  revokedAt      DateTime?                 @map("revoked_at")
+  revokedReason  String?                   @map("revoked_reason") @db.VarChar(50)
+  deliveryError  String?                   @map("delivery_error") @db.VarChar(255)
+  invitedById    String?                   @map("invited_by_id") @db.Uuid
+  createdAt      DateTime                  @default(now()) @map("created_at")
+  updatedAt      DateTime                  @updatedAt @map("updated_at")
+
+  invitedBy User? @relation("FacultyInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@index([email, status])
+  @@index([status, expiresAt])
+  @@map("faculty_invitations")
 }
 
 model FacultyQualification {
@@ -568,21 +625,56 @@ model FacultyTermsAcceptance {
   @@map("faculty_terms_acceptances")
 }
 
+// Category tree (ADR-0005). The tree is categories only; board, subject and level are
+// lookups attached to leaves through curricula and category_levels. Only leaves can be
+// bookable. path/depth are materialised; version guards optimistic concurrency.
+// Hand-written in the migrations and not modelled here: CHECK constraints, the
+// NULLS NOT DISTINCT sibling index, text_pattern_ops path indexes and the deferred
+// tree / reference triggers. Remove any statement `migrate dev` generates to drop them.
 model Category {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code          String   @unique @db.VarChar(50)
+  parentId      String?  @map("parent_id") @db.Uuid
+  // Unique among siblings (index categories_parent_id_code_key, NULLS NOT DISTINCT)
+  code          String   @db.VarChar(50)
   name          String   @db.VarChar(100)
   description   String?  @db.Text
+  path          String   @unique @db.VarChar(500)
+  depth         Int      @default(0)
+  isBookable    Boolean  @default(false) @map("is_bookable")
   requiresBoard Boolean  @default(false) @map("requires_board")
+  requiresLevel Boolean  @default(true) @map("requires_level")
   isActive      Boolean  @default(true) @map("is_active")
   displayOrder  Int      @default(0) @map("display_order")
+  version       Int      @default(1)
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  curricula Curriculum[]
-  students  StudentProfile[]
+  parent        Category?        @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children      Category[]       @relation("CategoryTree")
+  allowedLevels CategoryLevel[]
+  curricula     Curriculum[]
+  students      StudentProfile[]
+  levels        Level[]
+  node          CatalogueNode?
 
+  @@unique([parentId, code])
+  @@index([parentId, displayOrder])
   @@map("categories")
+}
+
+// Levels a bookable leaf allows (ADR-0005)
+model CategoryLevel {
+  categoryId String   @map("category_id") @db.Uuid
+  levelId    String   @map("level_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  category  Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  level     Level        @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  curricula Curriculum[]
+
+  @@id([categoryId, levelId])
+  @@index([levelId])
+  @@map("category_levels")
 }
 
 // Countries the platform serves (docs REGIONS.md). A new country is a row here, not a code change.
@@ -612,12 +704,15 @@ model Board {
   country   String   @default("IN") @db.VarChar(2)
   state     String?  @db.VarChar(100)
   isActive  Boolean  @default(true) @map("is_active")
+  // Dropdown order (screen 28a); ties sort by name
+  sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   countryRef Country          @relation(fields: [country], references: [code], onDelete: Restrict)
   curricula  Curriculum[]
   students   StudentProfile[]
+  nodes      CatalogueNode[]
 
   @@map("boards")
 }
@@ -628,10 +723,12 @@ model Subject {
   name        String   @db.VarChar(100)
   description String?  @db.Text
   isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   curricula Curriculum[]
+  nodes     CatalogueNode[]
 
   @@map("subjects")
 }
@@ -642,12 +739,20 @@ model Level {
   name        String   @db.VarChar(100)
   description String?  @db.Text
   isActive    Boolean  @default(true) @map("is_active")
+  // Optional category scope, so dropdowns show only that category's levels
+  categoryId  String?  @map("category_id") @db.Uuid
+  // Class 2 must sort before Class 10, so name order is not enough
+  sortOrder   Int      @default(0) @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  curricula Curriculum[]
-  students  StudentProfile[]
+  category       Category?        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  curricula      Curriculum[]
+  students       StudentProfile[]
+  nodes          CatalogueNode[]
+  categoryLevels CategoryLevel[]
 
+  @@index([categoryId, sortOrder])
   @@map("levels")
 }
 
@@ -656,23 +761,78 @@ model Curriculum {
   categoryId String   @map("category_id") @db.Uuid
   boardId    String?  @map("board_id") @db.Uuid
   subjectId  String   @map("subject_id") @db.Uuid
-  levelId    String   @map("level_id") @db.Uuid
+  // Null only when the leaf does not require a level (ADR-0005)
+  levelId    String?  @map("level_id") @db.Uuid
+  // The LEVEL leaf that owns this offering (ADR 0003). The tuple columns above are
+  // copied from the leaf's ancestors and kept in sync by the catalogue service.
+  nodeId     String?  @unique @map("node_id") @db.Uuid
   syllabus   String?  @db.Text
   isActive   Boolean  @default(true) @map("is_active")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  board    Board?   @relation(fields: [boardId], references: [id], onDelete: Restrict)
-  subject  Subject  @relation(fields: [subjectId], references: [id], onDelete: Restrict)
-  level    Level    @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  category Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  board    Board?         @relation(fields: [boardId], references: [id], onDelete: Restrict)
+  subject  Subject        @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  level    Level?         @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  node     CatalogueNode? @relation(fields: [nodeId], references: [id], onDelete: Restrict)
+  // The leaf must allow the level (composite FK, MATCH SIMPLE: skipped when levelId is null)
+  allowedLevel CategoryLevel? @relation(fields: [categoryId, levelId], references: [categoryId, levelId], onDelete: Restrict, map: "curricula_category_id_level_id_fkey")
 
   assignments FacultyAssignment[]
   materials   LibraryMaterial[]
+  priceRules  PriceRule[]
   students    StudentSubject[]
 
   @@unique([categoryId, boardId, subjectId, levelId], name: "uk_curriculum_tuple")
   @@map("curricula")
+}
+
+// Categories & Content tree (screen 28), ADR 0003. Each node of type BOARD, SUBJECT,
+// LEVEL or CATEGORY references exactly one master row; the migration adds CHECK
+// constraints for that, which Prisma does not model. rootId is the CATEGORY node the
+// node belongs to and never changes, so one indexed query loads a whole category.
+model CatalogueNode {
+  id             String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parentId       String?             @map("parent_id") @db.Uuid
+  rootId         String              @map("root_id") @db.Uuid
+  type           CatalogueNodeType
+  name           String              @db.VarChar(200)
+  slug           String              @db.VarChar(64)
+  status         CatalogueNodeStatus @default(DRAFT)
+  sortOrder      Int                 @default(0) @map("sort_order")
+  categoryId     String?             @unique @map("category_id") @db.Uuid
+  boardId        String?             @map("board_id") @db.Uuid
+  subjectId      String?             @map("subject_id") @db.Uuid
+  levelId        String?             @map("level_id") @db.Uuid
+  // "Book a session" option; meaningful on CATEGORY nodes only
+  bookingEnabled Boolean             @default(true) @map("booking_enabled")
+  archivedAt     DateTime?           @map("archived_at")
+  // Actor ids, kept without a FK so the identity schema stays untouched
+  createdById    String?             @map("created_by_id") @db.Uuid
+  updatedById    String?             @map("updated_by_id") @db.Uuid
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  parent     CatalogueNode?  @relation("CatalogueNodeTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children   CatalogueNode[] @relation("CatalogueNodeTree")
+  root       CatalogueNode   @relation("CatalogueNodeRoot", fields: [rootId], references: [id], onDelete: Restrict)
+  members    CatalogueNode[] @relation("CatalogueNodeRoot")
+  category   Category?       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  board      Board?          @relation(fields: [boardId], references: [id], onDelete: Restrict)
+  subject    Subject?        @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  level      Level?          @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  curriculum Curriculum?
+
+  @@unique([parentId, slug], name: "uk_catalogue_node_sibling_slug")
+  @@unique([parentId, boardId], name: "uk_catalogue_node_sibling_board")
+  @@unique([parentId, subjectId], name: "uk_catalogue_node_sibling_subject")
+  @@unique([parentId, levelId], name: "uk_catalogue_node_sibling_level")
+  @@index([rootId, parentId, sortOrder])
+  @@index([boardId])
+  @@index([subjectId])
+  @@index([levelId])
+  @@map("catalogue_nodes")
 }
 
 model FacultyAssignment {
@@ -685,25 +845,43 @@ model FacultyAssignment {
 
   faculty    FacultyProfile @relation(fields: [facultyId], references: [id], onDelete: Cascade)
   curriculum Curriculum     @relation(fields: [curriculumId], references: [id], onDelete: Restrict)
-  price      SessionPrice?
 
   @@unique([facultyId, curriculumId], name: "uk_faculty_curriculum_assignment")
   @@map("faculty_assignments")
 }
 
-model SessionPrice {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  assignmentId    String   @unique @map("assignment_id") @db.Uuid
-  pricePaise      Int      @map("price_paise")
-  currency        String   @default("INR") @db.VarChar(3)
-  durationMinutes Int      @default(60) @map("duration_minutes")
-  isActive        Boolean  @default(true) @map("is_active")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+// Admin-set session price for one offering (curriculum), optionally for one tutor
+// (LMS-58). facultyId null = the default price for the offering. Currency is INR
+// and every session is 60 minutes, so neither is stored. gstPaise and
+// studentPaysPaise are computed by the server on every write; CHECK constraints in
+// the migration enforce the formula. At most one active rule per curriculum and
+// tutor for any overlapping window, enforced in a locked transaction.
+model PriceRule {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  curriculumId      String    @map("curriculum_id") @db.Uuid
+  facultyId         String?   @map("faculty_id") @db.Uuid
+  sessionPricePaise Int       @map("session_price_paise")
+  // Basis points; 1800 = 18%. Defaults from the GST setting once LMS-90 exists.
+  gstRateBps        Int       @default(1800) @map("gst_rate_bps")
+  gstPaise          Int       @map("gst_paise")
+  studentPaysPaise  Int       @map("student_pays_paise")
+  effectiveFrom     DateTime  @default(now()) @map("effective_from")
+  // Exclusive end; null = open-ended
+  effectiveTo       DateTime? @map("effective_to")
+  isActive          Boolean   @default(true) @map("is_active")
+  revision          Int       @default(1)
+  // Actor ids, kept without a FK so the identity schema stays untouched
+  createdById       String?   @map("created_by_id") @db.Uuid
+  updatedById       String?   @map("updated_by_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  assignment FacultyAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  curriculum Curriculum      @relation(fields: [curriculumId], references: [id], onDelete: Restrict)
+  faculty    FacultyProfile? @relation(fields: [facultyId], references: [id], onDelete: Restrict)
 
-  @@map("session_prices")
+  @@index([curriculumId, facultyId, isActive])
+  @@index([facultyId])
+  @@map("price_rules")
 }
 
 model LibraryMaterial {

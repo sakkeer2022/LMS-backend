@@ -44,9 +44,10 @@ export function getImplementedApiSpec(): OpenApiDocument {
         },
       ],
     },
+    // Glob patterns need forward slashes; path.join gives backslashes on Windows
     apis: [
-      path.join(projectRoot, 'swagger/components.yaml'),
-      path.join(projectRoot, 'src/modules/**/*.routes.ts'),
+      path.posix.join(projectRoot.replaceAll('\\', '/'), 'swagger/components.yaml'),
+      path.posix.join(projectRoot.replaceAll('\\', '/'), 'src/modules/**/*.routes.ts'),
     ],
   }) as OpenApiDocument;
   return implementedApiSpec;

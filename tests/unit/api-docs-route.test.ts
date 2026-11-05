@@ -16,7 +16,7 @@ describe('API documentation routes (non-production)', () => {
     expect(res.status).toBe(200);
     expect(res.body.info.title).toContain('implemented');
     expect(res.body.paths).toHaveProperty('/auth/student/login');
-    expect(res.body.paths).not.toHaveProperty('/admin/faculty');
+    expect(res.body.paths).not.toHaveProperty('/faculty/me/profile');
   });
 
   it('serves the draft Sprint 1 contract at /api/docs/contract/spec', async () => {
@@ -24,7 +24,7 @@ describe('API documentation routes (non-production)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.info.version).toContain('draft');
-    expect(res.body.paths).toHaveProperty('/admin/faculty');
+    expect(res.body.paths).toHaveProperty('/faculty/me/profile');
   });
 
   it.each(['/api/docs/', '/api/docs/contract/'])('serves Swagger UI at %s', async (url) => {
@@ -40,7 +40,7 @@ describe('API documentation routes (non-production)', () => {
     const contract = await request(app).get('/api/docs/contract/swagger-ui-init.js');
 
     expect(implemented.text).toContain('(implemented)');
-    expect(implemented.text).not.toContain('/admin/faculty');
-    expect(contract.text).toContain('/admin/faculty');
+    expect(implemented.text).not.toContain('/faculty/me/profile');
+    expect(contract.text).toContain('/faculty/me/profile');
   });
 });
