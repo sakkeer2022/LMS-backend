@@ -4358,11 +4358,8 @@
                     "consentStatus": "signed",
                     "registeredAt": "2026-10-21T09:00:00Z",
                     "learningProfile": {
-                      "category": "Example value",
-                      "board": "Example value",
-                      "level": "Example value",
                       "teachingLanguage": "Example value",
-                      "subjects": []
+                      "interests": []
                     }
                   }
                 }
@@ -12004,30 +12001,6 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "categoryId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-          },
-          "boardId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-            "nullable": true,
-            "description": "Required when the category has requiresBoard=true (School); otherwise null."
-          },
-          "levelId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-            "nullable": true,
-            "description": "Required when the category has requiresLevel=true; otherwise null."
-          },
-          "teachingLanguageId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-          },
           "curriculumIds": {
             "type": "array",
             "items": {
@@ -12035,17 +12008,20 @@
               "format": "uuid",
               "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
             },
-            "maxItems": 20,
+            "maxItems": 50,
             "minItems": 1,
             "uniqueItems": true,
-            "description": "Subjects multi-select (\"Pick at least one\"). Each curriculum must be active and match categoryId, boardId and levelId (null matches null)."
+            "description": "Everything the student wants to learn (\"Add to my list\"), from any branch of the category tree: academic and non-academic can be mixed (for example Class 9 CBSE Physics, JEE Physics and Guitar). Each curriculum must be active and an offering of a bookable leaf. The category, board and level are read from the curriculum, so they are not sent."
+          },
+          "teachingLanguageId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true,
+            "description": "Optional preference. Not asked at onboarding; may be omitted or null."
           }
         },
         "required": [
-          "categoryId",
-          "boardId",
-          "levelId",
-          "teachingLanguageId",
           "curriculumIds"
         ]
       },
@@ -12457,44 +12433,56 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "category": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 100
-              },
-              "board": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 100,
-                "nullable": true
-              },
-              "level": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 100,
-                "nullable": true
-              },
               "teachingLanguage": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 100
+                "maxLength": 100,
+                "nullable": true
               },
-              "subjects": {
+              "interests": {
                 "type": "array",
                 "items": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 100
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "category": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300,
+                      "description": "Category names from the root, joined by \" \u203a \", for example \"Academic \u203a School \u203a K-12\"."
+                    },
+                    "board": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "nullable": true
+                    },
+                    "level": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "nullable": true
+                    },
+                    "subject": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "category",
+                    "board",
+                    "level",
+                    "subject"
+                  ]
                 },
-                "maxItems": 20
+                "maxItems": 50,
+                "description": "One entry per chosen offering, in any mix of branches."
               }
             },
             "required": [
-              "category",
-              "board",
-              "level",
               "teachingLanguage",
-              "subjects"
+              "interests"
             ]
           },
           "consent": {

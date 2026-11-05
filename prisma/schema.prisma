@@ -344,12 +344,8 @@ model StudentProfile {
   id                      String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId                  String                @unique @map("user_id") @db.Uuid
   dateOfBirth             DateTime              @map("date_of_birth") @db.Date
-  categoryId              String                @map("category_id") @db.Uuid
-  // Required only when the category requires a board (School); enforced by the service
-  boardId                 String?               @map("board_id") @db.Uuid
-  // Null only when the category does not require a level; enforced by a deferred trigger
-  levelId                 String?               @map("level_id") @db.Uuid
-  teachingLanguageId      String                @map("teaching_language_id") @db.Uuid
+  // Optional preference, not asked at onboarding. What the student wants to learn is in `subjects`.
+  teachingLanguageId      String?               @map("teaching_language_id") @db.Uuid
   // Guardian contact, required while the student is under 18. Contact only, not an account.
   guardianName            String?               @map("guardian_name") @db.VarChar(150)
   guardianRelationship    GuardianRelationship? @map("guardian_relationship")
@@ -364,19 +360,16 @@ model StudentProfile {
 
   countryRef       Country           @relation(fields: [country], references: [code], onDelete: Restrict)
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category         Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  board            Board?            @relation(fields: [boardId], references: [id], onDelete: Restrict)
-  level            Level?            @relation(fields: [levelId], references: [id], onDelete: Restrict)
-  teachingLanguage TeachingLanguage  @relation(fields: [teachingLanguageId], references: [id], onDelete: Restrict)
+  teachingLanguage TeachingLanguage? @relation(fields: [teachingLanguageId], references: [id], onDelete: Restrict)
   subjects         StudentSubject[]
   guardianConsents GuardianConsent[]
 
-  @@index([categoryId, boardId, levelId])
   @@map("student_profiles")
 }
 
-// Step 2 subject multi-select. A curriculum is one subject within the profile's
-// category/board/level, so each selection is valid for that combination.
+// What a student wants to learn (onboarding step 2). A curriculum is one offering: a bookable leaf with
+// its board, level and subject, so a student can hold any mix of them (Class 9 Physics, JEE Physics, Guitar).
+// Tutor matching, pricing and booking join through the same curricula.
 model StudentSubject {
   studentId    String   @map("student_id") @db.Uuid
   curriculumId String   @map("curriculum_id") @db.Uuid
@@ -656,11 +649,10 @@ model Category {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  parent        Category?        @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
-  children      Category[]       @relation("CategoryTree")
+  parent        Category?       @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children      Category[]      @relation("CategoryTree")
   allowedLevels CategoryLevel[]
   curricula     Curriculum[]
-  students      StudentProfile[]
   levels        Level[]
   node          CatalogueNode?
 
@@ -717,9 +709,8 @@ model Board {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  countryRef Country          @relation(fields: [country], references: [code], onDelete: Restrict)
+  countryRef Country         @relation(fields: [country], references: [code], onDelete: Restrict)
   curricula  Curriculum[]
-  students   StudentProfile[]
   nodes      CatalogueNode[]
 
   @@map("boards")
@@ -754,9 +745,8 @@ model Level {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  category       Category?        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  category       Category?       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   curricula      Curriculum[]
-  students       StudentProfile[]
   nodes          CatalogueNode[]
   categoryLevels CategoryLevel[]
 
@@ -779,11 +769,11 @@ model Curriculum {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  category Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  board    Board?         @relation(fields: [boardId], references: [id], onDelete: Restrict)
-  subject  Subject        @relation(fields: [subjectId], references: [id], onDelete: Restrict)
-  level    Level?         @relation(fields: [levelId], references: [id], onDelete: Restrict)
-  node     CatalogueNode? @relation(fields: [nodeId], references: [id], onDelete: Restrict)
+  category     Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  board        Board?         @relation(fields: [boardId], references: [id], onDelete: Restrict)
+  subject      Subject        @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  level        Level?         @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  node         CatalogueNode? @relation(fields: [nodeId], references: [id], onDelete: Restrict)
   // The leaf must allow the level (composite FK, MATCH SIMPLE: skipped when levelId is null)
   allowedLevel CategoryLevel? @relation(fields: [categoryId, levelId], references: [categoryId, levelId], onDelete: Restrict, map: "curricula_category_id_level_id_fkey")
 

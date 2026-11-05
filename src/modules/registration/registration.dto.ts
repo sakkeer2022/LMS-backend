@@ -50,11 +50,9 @@ const GuardianDto = z.strictObject({
 });
 
 const LearningProfileDto = z.strictObject({
-  categoryId: z.uuid(),
-  boardId: z.uuid().nullable(),
-  levelId: z.uuid().nullable(),
-  teachingLanguageId: z.uuid(),
-  curriculumIds: uuidList(1, 20),
+  // Offerings from any branch of the tree: academic and non-academic can be mixed
+  curriculumIds: uuidList(1, 50),
+  teachingLanguageId: z.uuid().nullable().optional(),
 });
 
 /** The four onboarding steps in one request. Unknown fields (role, isActive, permissions) are a 422. */

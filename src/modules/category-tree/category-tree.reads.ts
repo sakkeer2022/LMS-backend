@@ -195,13 +195,13 @@ export async function getCategoryDetail(id: string, db: Db = prisma): Promise<Ca
           level: { select: { id: true, code: true, name: true, isActive: true, sortOrder: true } },
         },
       },
-      _count: { select: { children: true, curricula: true, students: true } },
+      _count: { select: { children: true, curricula: true } },
     },
   });
   if (!node) throw treeError('CATEGORY_NOT_FOUND');
 
   const prefixes = ancestorPaths(node.path);
-  const [ancestors, activeCurricula, descendants] = await Promise.all([
+  const [ancestors, activeCurricula, descendants, students] = await Promise.all([
     prefixes.length
       ? db.category.findMany({
           where: { path: { in: prefixes } },
@@ -210,6 +210,9 @@ export async function getCategoryDetail(id: string, db: Db = prisma): Promise<Ca
       : Promise.resolve([]),
     db.curriculum.count({ where: { categoryId: id, isActive: true } }),
     db.category.count({ where: { path: { startsWith: `${node.path}/` } } }),
+    db.studentProfile.count({
+      where: { subjects: { some: { curriculum: { categoryId: id } } } },
+    }),
   ]);
   const byPath = new Map(ancestors.map((a) => [a.path, a]));
 
@@ -230,7 +233,7 @@ export async function getCategoryDetail(id: string, db: Db = prisma): Promise<Ca
     childrenCount: node._count.children,
     curriculaCount: node._count.curricula,
     activeCurriculaCount: activeCurricula,
-    studentCount: node._count.students,
+    studentCount: students,
     descendantCount: descendants,
     breadcrumb: prefixes.flatMap((p) => {
       const a = byPath.get(p);

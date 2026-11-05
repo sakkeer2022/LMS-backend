@@ -227,13 +227,7 @@ describe('admin students', () => {
     expect(res.body.data).toMatchObject({
       fullName: 'Ananya Sharma',
       consentStatus: 'signed',
-      learningProfile: {
-        category: 'Skill learning',
-        board: null,
-        level: 'Beginner',
-        teachingLanguage: 'English',
-        subjects: [],
-      },
+      learningProfile: { teachingLanguage: null, interests: [] },
       consent: {
         policyVersion: '1.0',
         country: 'IN',

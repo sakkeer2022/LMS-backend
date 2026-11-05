@@ -224,7 +224,9 @@ export async function setLeafSettings(
     ] = await Promise.all([
       tx.category.count({ where: { parentId: id } }),
       tx.curriculum.count({ where: { categoryId: id } }),
-      tx.studentProfile.count({ where: { categoryId: id } }),
+      tx.studentProfile.count({
+        where: { subjects: { some: { curriculum: { categoryId: id } } } },
+      }),
       tx.curriculum.findMany({
         where: { categoryId: id, levelId: { not: null } },
         select: { levelId: true },
@@ -232,7 +234,9 @@ export async function setLeafSettings(
       }),
       tx.curriculum.count({ where: { categoryId: id, levelId: null } }),
       tx.curriculum.count({ where: { categoryId: id, boardId: null } }),
-      tx.studentProfile.count({ where: { categoryId: id, boardId: null } }),
+      tx.studentProfile.count({
+        where: { subjects: { some: { curriculum: { categoryId: id, boardId: null } } } },
+      }),
     ]);
 
     const error = checkLeafSettings(input, {

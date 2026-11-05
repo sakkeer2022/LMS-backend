@@ -43,27 +43,29 @@ async function checkAcceptedPolicies(
   }
 }
 
-/** Every chosen curriculum must be an active offering of the chosen leaf, board and level. */
+/** Every chosen curriculum must exist and be an active offering of a bookable leaf. */
 async function checkCurricula(
   tx: Tx,
   profile: RegisterStudentInput['learningProfile']
 ): Promise<void> {
-  const rows = await tx.curriculum.findMany({ where: { id: { in: profile.curriculumIds } } });
+  const rows = await tx.curriculum.findMany({
+    where: { id: { in: profile.curriculumIds }, isActive: true },
+  });
   if (rows.length !== profile.curriculumIds.length) {
     throw new ValidationError('One of the chosen subjects is no longer available.');
   }
   for (const row of rows) {
     const offering = await resolveBookableOffering(
       {
-        categoryId: profile.categoryId,
+        categoryId: row.categoryId,
         subjectId: row.subjectId,
-        boardId: profile.boardId,
-        levelId: profile.levelId,
+        boardId: row.boardId,
+        levelId: row.levelId,
       },
       tx
     );
     if (offering.curriculumId !== row.id) {
-      throw new ValidationError('The chosen subjects do not match the class and board.');
+      throw new ValidationError('One of the chosen subjects is no longer available.');
     }
   }
 }
@@ -160,11 +162,16 @@ export async function registerStudent(
       }
       const role = await tx.role.findUnique({ where: { name: 'student' }, select: { id: true } });
       if (!role) throw new ServiceUnavailableError('Registration is not available right now.');
-      const language = await tx.teachingLanguage.findFirst({
-        where: { id: input.learningProfile.teachingLanguageId, isActive: true },
-        select: { id: true },
-      });
-      if (!language) throw new ValidationError('Choose an available teaching language.');
+      const languageId = input.learningProfile.teachingLanguageId ?? null;
+      if (
+        languageId &&
+        !(await tx.teachingLanguage.findFirst({
+          where: { id: languageId, isActive: true },
+          select: { id: true },
+        }))
+      ) {
+        throw new ValidationError('Choose an available teaching language.');
+      }
 
       await checkAcceptedPolicies(tx, country.code, minor, input.acceptedPolicyIds);
       await checkCurricula(tx, input.learningProfile);
@@ -195,10 +202,7 @@ export async function registerStudent(
           userId: user.id,
           dateOfBirth: new Date(`${input.dateOfBirth}T00:00:00Z`),
           country: country.code,
-          categoryId: learningProfile.categoryId,
-          boardId: learningProfile.boardId,
-          levelId: learningProfile.levelId,
-          teachingLanguageId: learningProfile.teachingLanguageId,
+          teachingLanguageId: languageId,
           ...(guardian && {
             guardianName: guardian.fullName,
             guardianRelationship: guardian.relationship.toUpperCase() as GuardianRelationship,

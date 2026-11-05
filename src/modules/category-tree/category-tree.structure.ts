@@ -166,7 +166,9 @@ export async function deleteCategory(id: string, version: number, actor: Actor):
     const [children, curricula, students, scopedLevels, legacyNodes] = await Promise.all([
       tx.category.count({ where: { parentId: id } }),
       tx.curriculum.count({ where: { categoryId: id } }),
-      tx.studentProfile.count({ where: { categoryId: id } }),
+      tx.studentProfile.count({
+        where: { subjects: { some: { curriculum: { categoryId: id } } } },
+      }),
       tx.level.count({ where: { categoryId: id } }),
       tx.catalogueNode.count({ where: { categoryId: id } }),
     ]);

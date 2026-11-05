@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { app } from '../helpers/app.js';
@@ -112,13 +113,7 @@ describe('POST /auth/register (student)', () => {
       mobileNumber: '+919876543210',
       password: 'Password1',
       timezone: 'Asia/Kolkata',
-      learningProfile: {
-        categoryId: school.id,
-        boardId: school.boardId,
-        levelId: school.levelId,
-        teachingLanguageId: languageId,
-        curriculumIds: school.curriculumIds,
-      },
+      learningProfile: { curriculumIds: school.curriculumIds },
       acceptedPolicyIds: [policies.TERMS_OF_USE.id, policies.PRIVACY_POLICY.id],
       ...overrides,
     };
@@ -150,44 +145,36 @@ describe('POST /auth/register (student)', () => {
     expect(audit?.actorId).toBe(user.id);
   });
 
-  it('registers a student whose category needs no board or level', async () => {
+  it('registers a student who mixes academic and non-academic offerings, with no language', async () => {
     const res = await post(
       REGISTER,
       await payload({
-        learningProfile: {
-          categoryId: guitar.id,
-          boardId: null,
-          levelId: null,
-          teachingLanguageId: languageId,
-          curriculumIds: [guitar.curriculumId],
-        },
+        learningProfile: { curriculumIds: [...school.curriculumIds, guitar.curriculumId] },
       })
     );
     expect(res.status).toBe(201);
     const profile = await prisma.studentProfile.findUniqueOrThrow({
       where: { userId: res.body.data.userId },
     });
-    expect(profile.levelId).toBeNull();
-    expect((await getStudent(profile.id)).learningProfile.level).toBeNull();
+    expect(profile.teachingLanguageId).toBeNull();
+    const { interests } = (await getStudent(profile.id)).learningProfile;
+    expect(interests).toHaveLength(3);
+    // The leaf that needs no board or level reads back with neither
+    expect(interests.filter((i) => i.board === null && i.level === null)).toHaveLength(1);
   });
 
-  it('still refuses a missing level where the category requires one', async () => {
-    const user = await prisma.user.create({
-      data: { email: 'x@example.org', passwordHash: 'x', fullName: 'X' },
-    });
-    await expect(
-      prisma.studentProfile.create({
-        data: {
-          userId: user.id,
-          country: 'IN',
-          dateOfBirth: new Date('2005-01-01T00:00:00Z'),
-          categoryId: school.id,
-          boardId: school.boardId,
-          levelId: null,
-          teachingLanguageId: languageId,
-        },
+  it('keeps an optional teaching language when one is sent', async () => {
+    const res = await post(
+      REGISTER,
+      await payload({
+        learningProfile: { curriculumIds: school.curriculumIds, teachingLanguageId: languageId },
       })
-    ).rejects.toThrow(/LEVEL_REQUIRED/);
+    );
+    expect(res.status).toBe(201);
+    const profile = await prisma.studentProfile.findUniqueOrThrow({
+      where: { userId: res.body.data.userId },
+    });
+    expect(profile.teachingLanguageId).toBe(languageId);
   });
 
   it('links the guardian consent for a student under 18 and copies the guardian', async () => {
@@ -266,20 +253,25 @@ describe('POST /auth/register (student)', () => {
     expect(res.status).toBe(422);
   });
 
-  it('refuses a subject from another category', async () => {
-    const res = await post(
+  it('refuses an offering that does not exist or has been switched off', async () => {
+    const unknown = await post(
       REGISTER,
       await payload({
-        learningProfile: {
-          categoryId: school.id,
-          boardId: school.boardId,
-          levelId: school.levelId,
-          teachingLanguageId: languageId,
-          curriculumIds: [guitar.curriculumId],
-        },
+        learningProfile: { curriculumIds: [randomUUID()] },
       })
     );
-    expect(res.status).toBe(422);
+    expect(unknown.status).toBe(422);
+    await prisma.curriculum.update({
+      where: { id: guitar.curriculumId },
+      data: { isActive: false },
+    });
+    const off = await post(
+      REGISTER,
+      await payload({
+        learningProfile: { curriculumIds: [...school.curriculumIds, guitar.curriculumId] },
+      })
+    );
+    expect(off.status).toBe(422);
   });
 
   it('uses an email token only once', async () => {

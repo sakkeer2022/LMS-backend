@@ -35,11 +35,14 @@ export interface StudentView {
 
 export interface StudentDetailView extends StudentView {
   learningProfile: {
-    category: string;
-    board: string | null;
-    level: string | null;
-    teachingLanguage: string;
-    subjects: string[];
+    teachingLanguage: string | null;
+    /** What the student wants to learn: one entry per chosen offering, any mix of branches */
+    interests: {
+      category: string;
+      board: string | null;
+      level: string | null;
+      subject: string;
+    }[];
   };
   consent: ConsentSummary | null;
 }
@@ -154,29 +157,56 @@ export async function listStudents(query: ListStudentsQuery): Promise<{
   };
 }
 
+/** Display names for every category on the way down to the given leaf paths, keyed by path. */
+async function categoryNames(leafPaths: string[]): Promise<Map<string, string>> {
+  const wanted = new Set(
+    leafPaths.flatMap((path) =>
+      path.split('/').map((_, i, parts) => parts.slice(0, i + 1).join('/'))
+    )
+  );
+  const rows = await prisma.category.findMany({
+    where: { path: { in: [...wanted] } },
+    select: { path: true, name: true },
+  });
+  return new Map(rows.map((row) => [row.path, row.name]));
+}
+
 export async function getStudent(studentId: string): Promise<StudentDetailView> {
   const profile = await prisma.studentProfile.findUnique({
     where: { id: studentId },
     include: {
       user: true,
       guardianConsents: { where: linkedConsent, select: { id: true }, take: 1 },
-      category: true,
-      board: true,
-      level: true,
       teachingLanguage: true,
-      subjects: { include: { curriculum: { include: { subject: true } } } },
+      subjects: {
+        include: {
+          curriculum: { include: { category: true, board: true, level: true, subject: true } },
+        },
+      },
     },
   });
   if (!profile) throw new NotFoundError('Student');
   const view = toView(profile, await consentAges(), new Date());
+  const names = await categoryNames(profile.subjects.map((item) => item.curriculum.category.path));
   return {
     ...view,
     learningProfile: {
-      category: profile.category.name,
-      board: profile.board?.name ?? null,
-      level: profile.level?.name ?? null,
-      teachingLanguage: profile.teachingLanguage.name,
-      subjects: profile.subjects.map((item) => item.curriculum.subject.name).sort(),
+      teachingLanguage: profile.teachingLanguage?.name ?? null,
+      interests: profile.subjects
+        .map(({ curriculum: c }) => ({
+          category: c.category.path
+            .split('/')
+            .map((_, i, parts) => names.get(parts.slice(0, i + 1).join('/')) ?? '')
+            .join(' › '),
+          board: c.board?.name ?? null,
+          level: c.level?.name ?? null,
+          subject: c.subject.name,
+        }))
+        .sort((a, b) =>
+          `${a.category} ${a.level} ${a.subject}`.localeCompare(
+            `${b.category} ${b.level} ${b.subject}`
+          )
+        ),
     },
     consent: await findConsentSummary(studentId),
   };
