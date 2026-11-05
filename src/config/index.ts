@@ -85,6 +85,24 @@ const envSchema = z
     CLAMAV_HOST: z.string().default('localhost'),
     CLAMAV_PORT: z.coerce.number().int().positive().default(3310),
 
+    // Guardian consent (signed in the date-of-birth popup before the account exists)
+    CONSENT_UNLINKED_TTL_HOURS: z.coerce.number().int().positive().default(24),
+    CONSENT_SIGNATURE_MAX_BYTES: z.coerce.number().int().positive().default(1048576),
+    CONSENT_SIGN_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(3600000),
+    CONSENT_SIGN_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(10),
+    POLICY_MAX_BYTES: z.coerce.number().int().positive().default(10485760),
+    // Reverse proxies in front of the app (0 = none). Needed so the client IP in consents and audit is the
+    // real one, never the first X-Forwarded-For entry.
+    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),
+
+    // File storage for signed consents and policy PDFs (src/infrastructure/storage). `local` and `memory` are
+    // for development and tests; production uses a private S3 bucket of its own.
+    STORAGE_DRIVER: z.enum(['local', 's3', 'memory']).optional(),
+    STORAGE_LOCAL_DIR: z.string().default('.data/storage'),
+    STORAGE_S3_BUCKET: z.string().optional(),
+    STORAGE_S3_REGION: z.string().optional(),
+    STORAGE_S3_PREFIX: z.string().default(''),
+
     // Email transport. smtp (default): SMTP_*; sendgrid: SendGrid v3 HTTP API (SENDGRID_*);
     // log: development, records that a message would be sent; memory: in process (tests only).
     EMAIL_TRANSPORT: z.enum(['smtp', 'sendgrid', 'log', 'memory']).optional(),
@@ -100,6 +118,8 @@ const envSchema = z
     OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().positive().default(60),
     OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
     EMAIL_TOKEN_EXPIRES_MINUTES: z.coerce.number().int().positive().default(30),
+    // Development only: waits this long before answering every API call, to check loading states
+    DEV_API_DELAY_MS: z.coerce.number().int().min(0).max(30000).default(0),
     // Who must confirm a password change with an email code: admin and super_admin accounts, or every role
     PASSWORD_CHANGE_OTP_ROLES: z.enum(['admin', 'all']).default('admin'),
     RESET_GRANT_EXPIRES_MINUTES: z.coerce.number().int().positive().default(5),
@@ -156,6 +176,20 @@ const envSchema = z
           code: z.ZodIssueCode.custom,
           message: 'COOKIE_SECRET must be at least 32 characters long in production',
           path: ['COOKIE_SECRET'],
+        });
+      }
+      if (env.STORAGE_DRIVER !== 's3') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'STORAGE_DRIVER must be s3 in production',
+          path: ['STORAGE_DRIVER'],
+        });
+      }
+      if (!env.STORAGE_S3_BUCKET) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'STORAGE_S3_BUCKET is required in production',
+          path: ['STORAGE_S3_BUCKET'],
         });
       }
       if (env.EMAIL_TRANSPORT === 'memory') {
@@ -266,6 +300,8 @@ const env = parsedEnv.data;
 
 export const config = {
   env: env.NODE_ENV,
+  // Never applies outside development
+  devApiDelayMs: env.NODE_ENV === 'development' ? env.DEV_API_DELAY_MS : 0,
   port: env.PORT,
   apiPrefix: env.API_PREFIX,
 
@@ -307,6 +343,10 @@ export const config = {
       maxPerIp: env.OTP_SEND_RATE_LIMIT_MAX_PER_IP,
       maxPerEmail: env.OTP_SEND_RATE_LIMIT_MAX_PER_EMAIL,
     },
+    consentSign: {
+      windowMs: env.CONSENT_SIGN_RATE_LIMIT_WINDOW_MS,
+      maxPerIp: env.CONSENT_SIGN_RATE_LIMIT_MAX_PER_IP,
+    },
     otpVerify: {
       windowMs: env.OTP_VERIFY_RATE_LIMIT_WINDOW_MS,
       maxPerIp: env.OTP_VERIFY_RATE_LIMIT_MAX_PER_IP,
@@ -315,6 +355,25 @@ export const config = {
 
   redis: {
     url: env.REDIS_URL,
+  },
+
+  consent: {
+    unlinkedTtlHours: env.CONSENT_UNLINKED_TTL_HOURS,
+    signatureMaxBytes: env.CONSENT_SIGNATURE_MAX_BYTES,
+    policyMaxBytes: env.POLICY_MAX_BYTES,
+  },
+
+  trustProxyHops: env.TRUST_PROXY_HOPS,
+
+  storage: {
+    driver:
+      env.STORAGE_DRIVER ?? (env.NODE_ENV === 'test' ? ('memory' as const) : ('local' as const)),
+    localDir: env.STORAGE_LOCAL_DIR,
+    s3: {
+      bucket: env.STORAGE_S3_BUCKET,
+      region: env.STORAGE_S3_REGION ?? env.AWS_REGION,
+      prefix: env.STORAGE_S3_PREFIX,
+    },
   },
 
   email: {

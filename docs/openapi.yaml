@@ -21,6 +21,10 @@
       "description": "Student onboarding: legal policies and parent/guardian consent signing."
     },
     {
+      "name": "Regions",
+      "description": "Countries the platform serves (India and the UAE in Phase 1)."
+    },
+    {
       "name": "Faculty",
       "description": "Task 2: faculty onboarding and minimal publication reads."
     },
@@ -1694,7 +1698,7 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use name ASC, id ASC. No total for hidden records.",
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -3735,6 +3739,51 @@
         ]
       }
     },
+    "/regions/countries": {
+      "get": {
+        "operationId": "listCountries",
+        "tags": [
+          "Regions"
+        ],
+        "summary": "List the countries the platform serves",
+        "description": "Public; no authenticated identity required. Public. Active countries in display order with their dialling code and default time zone, for the mobile number country picker and to pick the policies for a country. Cache-Control: public, max-age 300.",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "List the countries the platform serves.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listCountriesResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
     "/policies/current": {
       "get": {
         "operationId": "listCurrentPolicies",
@@ -3742,7 +3791,7 @@
           "Consent"
         ],
         "summary": "List current legal policy versions",
-        "description": "Public; no authenticated identity required. Terms of Use, Privacy Policy, Child Safety Policy and Student Terms, one current version each. Drives the step 4 links and the signing modal header (\"Student Terms v1.0 \u00b7 Effective 1 September 2026\"). 503 until the client-supplied texts are configured. DECISION REQUIRED: Policy texts and the Student Terms PDF are supplied by the client (SOW A1.8). The Terms of Use summary in the UI hard-codes the 20-minute billable rule; it must match the configured setting and the supplied text.",
+        "description": "Public; no authenticated identity required. Terms of Use, Privacy Policy, Child Safety Policy and Student Terms for the country, one current version each. Drives the step 4 links and the signing modal header (\"Student Terms v1.0 \u00b7 Effective 1 September 2026\"). 503 until the client-supplied texts are configured for that country; an unsupported country is 422. DECISION REQUIRED: Policy texts and the Student Terms PDF are supplied by the client (SOW A1.8). The Terms of Use summary in the UI hard-codes the 20-minute billable rule; it must match the configured setting and the supplied text.",
         "x-required-role": "public",
         "x-review-status": "decision-required",
         "security": [],
@@ -3777,7 +3826,21 @@
           "503": {
             "$ref": "#/components/responses/E503"
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "country",
+            "in": "query",
+            "required": true,
+            "description": "Country of the student, derived by the client from the dialling code of the mobile number (GET /regions/countries). Required: a country never receives another country's texts.",
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 2,
+              "pattern": "^[A-Z]{2}$"
+            }
+          }
+        ]
       }
     },
     "/policies/{policyId}/file": {
@@ -4044,6 +4107,616 @@
         }
       }
     },
+    "/admin/students/{studentId}/guardian-consent": {
+      "get": {
+        "operationId": "getStudentGuardianConsentAdmin",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "Show a student signed consent record",
+        "description": "Current active, email-verified admin; student.read identity; server checks role, permission and resource ownership on every request. Metadata of the signed guardian consent of an under-18 student (studentId is the student profile id): Student Terms version and country, signing time, guardian name and relationship, and the SHA-256 of the signed PDF. The PDF is a separate download. 404 when the student has no consent. Cache-Control: private, no-store.",
+        "x-required-role": "admin; student.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Show a student signed consent record.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getStudentGuardianConsentAdminResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "policyId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "policyTitle": "Example value",
+                    "policyVersion": "Example value",
+                    "country": "Example value",
+                    "signedAt": "2026-10-21T09:00:00Z",
+                    "linkedAt": "2026-10-21T09:00:00Z",
+                    "signedPdfSha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "studentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      }
+    },
+    "/admin/students": {
+      "get": {
+        "operationId": "listStudentsAdmin",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "List students with their consent status",
+        "description": "Current active, email-verified admin; student.read identity; server checks role, permission and resource ownership on every request. Newest first. A student is a minor when their age is below the guardian consent age of their country (read from the country table). The guardian contact and the consent status are shown against every minor; the signed PDF and its record are fetched per student (see the guardian-consent routes). Cache-Control: private, no-store.",
+        "x-required-role": "admin; student.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List students with their consent status.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listStudentsAdminResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": [],
+                  "meta": {
+                    "page": 1,
+                    "limit": 1,
+                    "total": 0,
+                    "totalPages": 0
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Part of the name, email or mobile number.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "description": "Only students of this country.",
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 2,
+              "pattern": "^[A-Z]{2}$"
+            }
+          },
+          {
+            "name": "minor",
+            "in": "query",
+            "required": false,
+            "description": "true: only students below their country's consent age; false: only the others.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "consent",
+            "in": "query",
+            "required": false,
+            "description": "Only students with this consent status.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "signed",
+                "missing",
+                "not_required"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "One-based page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum 100. Stable createdAt DESC, id DESC order; catalogue lists use display order (sortOrder, or displayOrder for categories), then name ASC, id ASC. No total for hidden records.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ]
+      }
+    },
+    "/admin/students/{studentId}": {
+      "get": {
+        "operationId": "getStudentAdmin",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "Show one student",
+        "description": "Current active, email-verified admin; student.read identity; server checks role, permission and resource ownership on every request. The student, the learning profile chosen at registration (names only), the guardian contact and, for a minor with a signed consent, the consent record. studentId is the student profile id. 404 for an unknown student. Cache-Control: private, no-store.",
+        "x-required-role": "admin; student.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Show one student.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getStudentAdminResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "userId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "fullName": "Ananya Rao",
+                    "email": "learner@example.org",
+                    "isActive": true,
+                    "country": "Example value",
+                    "dateOfBirth": "2012-05-15",
+                    "age": 0,
+                    "isMinor": true,
+                    "consentStatus": "signed",
+                    "registeredAt": "2026-10-21T09:00:00Z",
+                    "learningProfile": {
+                      "teachingLanguage": "Example value",
+                      "interests": []
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "studentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      }
+    },
+    "/admin/policies": {
+      "get": {
+        "operationId": "listPoliciesAdmin",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "List every policy version",
+        "description": "Current active, email-verified admin; policy.read identity; server checks role, permission and resource ownership on every request. All uploaded versions, newest first, current and past, for the Legal documents screen. Each can be opened with GET /policies/{policyId}/file.",
+        "x-required-role": "admin; policy.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List every policy version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listPoliciesAdminResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "description": "Only this country.",
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 2,
+              "pattern": "^[A-Z]{2}$"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "description": "Only this policy type.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "terms_of_use",
+                "privacy_policy",
+                "child_safety_policy",
+                "student_terms"
+              ]
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "uploadPolicyAdmin",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "Upload a policy version",
+        "description": "Current active, email-verified admin; policy.create identity; server checks role, permission and resource ownership on every request. Recent reauthentication required. Stores the PDF and makes it the current version for its type and country in one transaction; the previous version stays on record because acceptances and consents point at it. 409 when that version already exists for the type and country, 422 for a file that is not a readable PDF or an unsupported country. Audited.",
+        "x-required-role": "admin; policy.create",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Upload a policy version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/uploadPolicyAdminResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "type": "terms_of_use",
+                    "country": "Example value",
+                    "version": "1.0",
+                    "title": "Algebra practice",
+                    "effectiveAt": "2026-10-21T09:00:00Z",
+                    "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+                    "isCurrent": true,
+                    "createdAt": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "415": {
+            "$ref": "#/components/responses/E415"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyUpload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/policies/coverage": {
+      "get": {
+        "operationId": "getPolicyCoverageAdmin",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "Which countries lack current policies",
+        "description": "Current active, email-verified admin; policy.read identity; server checks role, permission and resource ownership on every request. For every active country, the policy types that have no current version. Students of a country with a missing type cannot register (GET /policies/current answers 503), so the admin shows a warning until this is empty.",
+        "x-required-role": "admin; policy.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Which countries lack current policies.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getPolicyCoverageAdminResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
+    "/admin/policies/{policyId}/current": {
+      "put": {
+        "operationId": "setPolicyCurrentAdmin",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "Make an earlier policy version current again",
+        "description": "Current active, email-verified admin; policy.update identity; server checks role, permission and resource ownership on every request. Recent reauthentication required. Switches which version is current for its type and country (to roll back a wrong upload). Audited.",
+        "x-required-role": "admin; policy.update",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Make an earlier policy version current again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/setPolicyCurrentAdminResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "type": "terms_of_use",
+                    "country": "Example value",
+                    "version": "1.0",
+                    "title": "Algebra practice",
+                    "effectiveAt": "2026-10-21T09:00:00Z",
+                    "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+                    "isCurrent": true,
+                    "createdAt": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "policyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ]
+      }
+    },
     "/admin/students/{studentId}/guardian-consent/file": {
       "get": {
         "operationId": "getStudentGuardianConsentFileAdmin",
@@ -4051,8 +4724,8 @@
           "Consent"
         ],
         "summary": "Download a student signed consent",
-        "description": "Current active, email-verified admin; students.read identity; server checks role, permission and resource ownership on every request. Recent reauthentication required. Audited. Cache-Control: private, no-store.",
-        "x-required-role": "admin; students.read",
+        "description": "Current active, email-verified admin; student.read identity; server checks role, permission and resource ownership on every request. Recent reauthentication required. Audited. Cache-Control: private, no-store.",
+        "x-required-role": "admin; student.read",
         "x-review-status": "ready-for-review",
         "security": [
           {
@@ -11328,28 +12001,6 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "categoryId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-          },
-          "boardId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-            "nullable": true,
-            "description": "Required when the category has requiresBoard=true (School); otherwise null."
-          },
-          "levelId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-          },
-          "teachingLanguageId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
-          },
           "curriculumIds": {
             "type": "array",
             "items": {
@@ -11357,17 +12008,20 @@
               "format": "uuid",
               "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
             },
-            "maxItems": 20,
+            "maxItems": 50,
             "minItems": 1,
             "uniqueItems": true,
-            "description": "Subjects multi-select (\"Pick at least one\"). Each curriculum must be active and match categoryId, boardId and levelId."
+            "description": "Everything the student wants to learn (\"Add to my list\"), from any branch of the category tree: academic and non-academic can be mixed (for example Class 9 CBSE Physics, JEE Physics and Guitar). Each curriculum must be active and an offering of a bookable leaf. The category, board and level are read from the curriculum, so they are not sent."
+          },
+          "teachingLanguageId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "nullable": true,
+            "description": "Optional preference. Not asked at onboarding; may be omitted or null."
           }
         },
         "required": [
-          "categoryId",
-          "boardId",
-          "levelId",
-          "teachingLanguageId",
           "curriculumIds"
         ]
       },
@@ -11539,6 +12193,14 @@
               "student_terms"
             ]
           },
+          "country": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$",
+            "example": "IN",
+            "description": "ISO 3166-1 alpha-2 country this version applies to."
+          },
           "version": {
             "type": "string",
             "minLength": 1,
@@ -11568,10 +12230,566 @@
         "required": [
           "id",
           "type",
+          "country",
           "version",
           "title",
           "effectiveAt",
           "sha256"
+        ]
+      },
+      "AdminStudent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+            "description": "The student profile id (the {studentId} of the guardian consent routes)."
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
+          },
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "format": "email",
+            "example": "learner@example.org",
+            "description": "Trim and lowercase before uniqueness and lookup. No provider-specific dot or plus rewriting."
+          },
+          "mobileNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "pattern": "^\\+[1-9][0-9]{7,14}$",
+            "example": "+919876543210",
+            "description": "E.164. The UI defaults to +91. Not OTP-verified in Phase 1. Not unique: siblings may share a parent number.",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "country": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$"
+          },
+          "dateOfBirth": {
+            "type": "string",
+            "format": "date",
+            "example": "2012-05-15"
+          },
+          "age": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 150
+          },
+          "isMinor": {
+            "type": "boolean",
+            "description": "Below the consent age of the student's country (read from the country, never fixed)."
+          },
+          "consentStatus": {
+            "type": "string",
+            "enum": [
+              "signed",
+              "missing",
+              "not_required"
+            ],
+            "description": "signed: a guardian consent is linked. missing: the student is a minor and none is linked. not_required: the student is not a minor."
+          },
+          "guardian": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GuardianContact"
+              },
+              {
+                "type": "object",
+                "nullable": true,
+                "enum": [
+                  null
+                ]
+              }
+            ]
+          },
+          "registeredAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "fullName",
+          "email",
+          "isActive",
+          "country",
+          "dateOfBirth",
+          "age",
+          "isMinor",
+          "consentStatus",
+          "registeredAt"
+        ]
+      },
+      "AdminStudentDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
+          },
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "format": "email",
+            "example": "learner@example.org",
+            "description": "Trim and lowercase before uniqueness and lookup. No provider-specific dot or plus rewriting."
+          },
+          "mobileNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "pattern": "^\\+[1-9][0-9]{7,14}$",
+            "example": "+919876543210",
+            "description": "E.164. The UI defaults to +91. Not OTP-verified in Phase 1. Not unique: siblings may share a parent number.",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "country": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$"
+          },
+          "dateOfBirth": {
+            "type": "string",
+            "format": "date",
+            "example": "2012-05-15"
+          },
+          "age": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 150
+          },
+          "isMinor": {
+            "type": "boolean"
+          },
+          "consentStatus": {
+            "type": "string",
+            "enum": [
+              "signed",
+              "missing",
+              "not_required"
+            ]
+          },
+          "guardian": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GuardianContact"
+              },
+              {
+                "type": "object",
+                "nullable": true,
+                "enum": [
+                  null
+                ]
+              }
+            ]
+          },
+          "registeredAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "learningProfile": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "teachingLanguage": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "nullable": true
+              },
+              "interests": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "category": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300,
+                      "description": "Category names from the root, joined by \" \u203a \", for example \"Academic \u203a School \u203a K-12\"."
+                    },
+                    "board": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "nullable": true
+                    },
+                    "level": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "nullable": true
+                    },
+                    "subject": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "category",
+                    "board",
+                    "level",
+                    "subject"
+                  ]
+                },
+                "maxItems": 50,
+                "description": "One entry per chosen offering, in any mix of branches."
+              }
+            },
+            "required": [
+              "teachingLanguage",
+              "interests"
+            ]
+          },
+          "consent": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GuardianConsentSummary"
+              },
+              {
+                "type": "object",
+                "nullable": true,
+                "enum": [
+                  null
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "fullName",
+          "email",
+          "isActive",
+          "country",
+          "dateOfBirth",
+          "age",
+          "isMinor",
+          "consentStatus",
+          "registeredAt",
+          "learningProfile"
+        ]
+      },
+      "AdminPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "terms_of_use",
+              "privacy_policy",
+              "child_safety_policy",
+              "student_terms"
+            ]
+          },
+          "country": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "pattern": "^[0-9A-Za-z][0-9A-Za-z._-]{0,19}$",
+            "example": "1.0"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "effectiveAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "sha256": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$",
+            "example": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+            "description": "SHA-256 of the stored PDF bytes, hex."
+          },
+          "isCurrent": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "country",
+          "version",
+          "title",
+          "effectiveAt",
+          "sha256",
+          "isCurrent",
+          "createdAt"
+        ]
+      },
+      "PolicyUpload": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "terms_of_use",
+              "privacy_policy",
+              "child_safety_policy",
+              "student_terms"
+            ]
+          },
+          "country": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "pattern": "^[0-9A-Za-z][0-9A-Za-z._-]{0,19}$",
+            "example": "1.0"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "effectiveAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "description": "The policy as a PDF (magic bytes and structure checked; configured size limit)."
+          }
+        },
+        "required": [
+          "type",
+          "country",
+          "version",
+          "title",
+          "effectiveAt",
+          "file"
+        ]
+      },
+      "PolicyCoverage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "country": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "missingTypes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "terms_of_use",
+                "privacy_policy",
+                "child_safety_policy",
+                "student_terms"
+              ]
+            },
+            "maxItems": 4
+          }
+        },
+        "required": [
+          "country",
+          "name",
+          "missingTypes"
+        ]
+      },
+      "Country": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$",
+            "example": "IN"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "India"
+          },
+          "dialCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5,
+            "pattern": "^\\+[0-9]{1,4}$",
+            "example": "+91"
+          },
+          "defaultTimezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "example": "Asia/Kolkata"
+          },
+          "guardianConsentAge": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "dialCode",
+          "defaultTimezone",
+          "guardianConsentAge"
+        ]
+      },
+      "GuardianConsentSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "policyId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "policyTitle": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "policyVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20
+          },
+          "country": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$"
+          },
+          "signedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "linkedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "guardianName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "guardianRelationship": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "signatureMode": {
+            "type": "string",
+            "enum": [
+              "draw",
+              "type"
+            ]
+          },
+          "signedPdfSha256": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$",
+            "example": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+            "description": "SHA-256 of the stored PDF bytes, hex."
+          }
+        },
+        "required": [
+          "id",
+          "policyId",
+          "policyTitle",
+          "policyVersion",
+          "country",
+          "signedAt",
+          "linkedAt",
+          "signedPdfSha256"
         ]
       },
       "GuardianSignatureUpload": {
@@ -15894,6 +17112,35 @@
           "data"
         ]
       },
+      "listCountriesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Country"
+            },
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
       "listCurrentPoliciesResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -16027,6 +17274,197 @@
             "enum": [
               null
             ]
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getStudentGuardianConsentAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/GuardianConsentSummary"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "listStudentsAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminStudent"
+            },
+            "maxItems": 100
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data",
+          "meta"
+        ]
+      },
+      "getStudentAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/AdminStudentDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "listPoliciesAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminPolicy"
+            },
+            "maxItems": 500
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getPolicyCoverageAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PolicyCoverage"
+            },
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "uploadPolicyAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/AdminPolicy"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "setPolicyCurrentAdminResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/AdminPolicy"
           }
         },
         "required": [

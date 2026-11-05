@@ -26,6 +26,26 @@ function loginPath(roleName: string): string | null {
 }
 
 /**
+ * Creates a plain user with a password and signs them in without a portal. For tests that only need a
+ * user to exist; the student sign-up itself is POST /auth/register (registration-student.test.ts).
+ */
+export async function registerTestUser(input: {
+  email: string;
+  password: string;
+  fullName: string;
+}): Promise<{ status: number; headers: { 'set-cookie': string[] } }> {
+  await prisma.user.create({
+    data: {
+      email: input.email,
+      passwordHash: await bcrypt.hash(input.password, 4),
+      fullName: input.fullName,
+      emailVerifiedAt: new Date(),
+    },
+  });
+  return signIn(input);
+}
+
+/**
  * Signs in an existing user without a portal: checks the password, then mints a session the way
  * the login does. For tests whose users hold custom roles or are created through the legacy
  * register route. Returns the parts of a login response that tests read.

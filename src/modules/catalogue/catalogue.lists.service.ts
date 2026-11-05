@@ -27,6 +27,14 @@ export interface MasterView {
   sortOrder: number;
 }
 
+export interface TeachingLanguageView {
+  id: string;
+  code: string;
+  name: string;
+  languageCodes: string[];
+  isActive: boolean;
+}
+
 export interface LevelView extends MasterView {
   categoryId: string | null;
 }
@@ -103,6 +111,31 @@ export async function listSubjects(query: MasterListQuery): Promise<PaginatedRes
   ]);
   return {
     items: rows.map(toMasterView),
+    meta: buildPaginationMeta(total, query.page, query.limit),
+  };
+}
+
+export async function listTeachingLanguages(
+  query: MasterListQuery
+): Promise<PaginatedResult<TeachingLanguageView>> {
+  const where: Prisma.TeachingLanguageWhereInput =
+    query.isActive === undefined ? {} : { isActive: query.isActive };
+  const [rows, total] = await Promise.all([
+    prisma.teachingLanguage.findMany({
+      where,
+      orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }, { id: 'asc' }],
+      ...toPrismaPagination(query),
+    }),
+    prisma.teachingLanguage.count({ where }),
+  ]);
+  return {
+    items: rows.map(({ id, code, name, languageCodes, isActive }) => ({
+      id,
+      code,
+      name,
+      languageCodes,
+      isActive,
+    })),
     meta: buildPaginationMeta(total, query.page, query.limit),
   };
 }

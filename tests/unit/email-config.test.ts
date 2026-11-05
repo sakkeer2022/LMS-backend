@@ -19,6 +19,8 @@ const prod = {
   RAZORPAY_WEBHOOK_SECRET: 'live_webhook_secret_min_16_chars',
   METRICS_TOKEN: 'production-metrics-token-at-least-32-chars',
   SMTP_HOST: 'smtp.example.org',
+  STORAGE_DRIVER: 's3',
+  STORAGE_S3_BUCKET: 'amentorz-private',
 };
 
 function messages(input: Record<string, unknown>): string[] {
@@ -38,9 +40,9 @@ describe('Email and invitation configuration (LMS-79)', () => {
   });
 
   it('strips trailing slashes from APP_BASE_URL', () => {
-    expect(envSchema.parse({ ...dev, APP_BASE_URL: 'https://app.example.com//' }).APP_BASE_URL).toBe(
-      'https://app.example.com'
-    );
+    expect(
+      envSchema.parse({ ...dev, APP_BASE_URL: 'https://app.example.com//' }).APP_BASE_URL
+    ).toBe('https://app.example.com');
   });
 
   it('rejects a malformed APP_BASE_URL', () => {

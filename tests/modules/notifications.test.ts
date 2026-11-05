@@ -2,15 +2,13 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../helpers/app.js';
 import { getCsrfData } from '../helpers/csrf.js';
-import { signIn } from '../helpers/users.js';
+import { signIn, registerTestUser } from '../helpers/users.js';
 import { prisma } from '@infrastructure/database/index.js';
 
 describe('Notifications API', () => {
   let superAdminToken: string;
 
   beforeEach(async () => {
-    const { csrfToken, csrfCookie } = await getCsrfData();
-
     const adminRole = await prisma.role.create({
       data: {
         name: 'super_admin',
@@ -35,15 +33,11 @@ describe('Notifications API', () => {
       },
     });
 
-    await request(app)
-      .post('/api/v1/auth/register')
-      .set('Cookie', csrfCookie ?? '')
-      .set('x-csrf-token', csrfToken ?? '')
-      .send({
-        email: 'super@example.com',
-        password: 'Password123!',
-        fullName: 'Super Admin',
-      });
+    await registerTestUser({
+      email: 'super@example.com',
+      password: 'Password123!',
+      fullName: 'Super Admin',
+    });
 
     const user = await prisma.user.findFirst({ where: { email: 'super@example.com' } });
 

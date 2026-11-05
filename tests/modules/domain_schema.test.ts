@@ -49,7 +49,13 @@ describe('Amentorz Domain Schema Integration', () => {
     async function createLearningCatalogue() {
       const category = await prisma.category.create({
         // A bookable top-level leaf of the category tree (ADR-0005)
-        data: { code: 'school', name: 'School', path: 'school', isBookable: true, requiresBoard: true },
+        data: {
+          code: 'school',
+          name: 'School',
+          path: 'school',
+          isBookable: true,
+          requiresBoard: true,
+        },
       });
       const board = await prisma.board.create({ data: { code: 'CBSE', name: 'CBSE / NCERT' } });
       const level = await prisma.level.create({ data: { code: 'CLASS_10', name: 'Class 10' } });
@@ -68,6 +74,7 @@ describe('Amentorz Domain Schema Integration', () => {
       });
       const studentTerms = await prisma.policyDocument.create({
         data: {
+          country: 'IN',
           type: 'STUDENT_TERMS',
           version: '1.0',
           title: 'Student Terms',
@@ -81,8 +88,7 @@ describe('Amentorz Domain Schema Integration', () => {
     }
 
     it('creates a minor student profile with subjects, guardian contact and linked consent', async () => {
-      const { category, board, level, curriculum, language, studentTerms } =
-        await createLearningCatalogue();
+      const { curriculum, language, studentTerms } = await createLearningCatalogue();
 
       // Consent is signed in the date-of-birth popup before the account exists
       const consent = await prisma.guardianConsent.create({
@@ -105,9 +111,6 @@ describe('Amentorz Domain Schema Integration', () => {
           country: 'IN',
           userId: studentUserId,
           dateOfBirth: new Date('2012-05-15'),
-          categoryId: category.id,
-          boardId: board.id,
-          levelId: level.id,
           teachingLanguageId: language.id,
           guardianName: 'Parent Guardian',
           guardianRelationship: 'FATHER',
@@ -136,16 +139,12 @@ describe('Amentorz Domain Schema Integration', () => {
     });
 
     it('rejects a second consent for the same student and policy version', async () => {
-      const { category, board, level, language, studentTerms } = await createLearningCatalogue();
+      const { language, studentTerms } = await createLearningCatalogue();
       const profile = await prisma.studentProfile.create({
         data: {
           country: 'IN',
           userId: studentUserId,
           dateOfBirth: new Date('2012-05-15'),
-          categoryId: category.id,
-          // School requires a board (enforced by student_profiles_category_check, ADR-0005)
-          boardId: board.id,
-          levelId: level.id,
           teachingLanguageId: language.id,
         },
       });
@@ -172,6 +171,7 @@ describe('Amentorz Domain Schema Integration', () => {
       const { studentTerms } = await createLearningCatalogue();
       const terms = await prisma.policyDocument.create({
         data: {
+          country: 'IN',
           type: 'TERMS_OF_USE',
           version: '1.0',
           title: 'Terms of Use',

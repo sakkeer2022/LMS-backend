@@ -1,5 +1,13 @@
 # Findings & Decisions
 
+## 2026-11-03 — Stamped consent PDFs (LMS-99)
+
+| Finding / Decision | Detail |
+|---|---|
+| Names in other scripts | `@pdf-lib/fontkit` throws on Devanagari unless `regenerator-runtime` is loaded first (the PDF service imports it). With it, Latin with accents, Devanagari conjuncts and Arabic (joined, right to left) print correctly; checked by rendering a stamped page. Noto Sans, Noto Sans Devanagari and Noto Sans Arabic live in `assets/fonts` (SIL OFL). |
+| Other Indian scripts | Tamil, Telugu, Kannada, Malayalam, Bengali, Gujarati and Gurmukhi names have no font yet and would print as empty boxes on the stamp page (the name is still stored exactly in the database). Add the Noto font file and a line in `src/infrastructure/pdf/fonts.ts` per script when the client wants them. |
+| Where the stamp goes | A new last page is appended ("Parent/guardian consent": name, UTC time, IP, signature, and the policy file's SHA-256), so the stamp can never overlap the policy text. The policy pages are not altered. |
+
 
 ## 2026-11-03 — Faculty invitations (LMS-78, LMS-79)
 

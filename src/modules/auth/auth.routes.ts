@@ -19,50 +19,6 @@ authRouter.get('/csrf-token', AuthController.getCsrfToken);
 
 /**
  * @openapi
- * /auth/register:
- *   post:
- *     summary: Register a new user
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *     responses:
- *       201:
- *         description: Successfully registered
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/SuccessResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       type: object
- *                       properties:
- *                         user:
- *                           type: object
- *       400:
- *         description: Validation Error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
-authRouter.post('/register', AuthController.register);
-
-/**
- * @openapi
  * /auth/student/login:
  *   post:
  *     summary: Log in to the student portal
