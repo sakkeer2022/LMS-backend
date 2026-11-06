@@ -9,7 +9,7 @@ import { PDF, PNG, createInvitationWithToken, createPickerCatalogue, sha256 } fr
 import { prisma } from '@infrastructure/database/index.js';
 import { seedRbac } from '../../prisma/seed-rbac.js';
 import { InMemoryEmailProvider, setEmailProvider } from '../../src/infrastructure/email/index.js';
-import { InMemoryStorage, setObjectStorage } from '../../src/infrastructure/storage/index.js';
+import { getTestStorage, type MemoryFileStorage } from '../../src/infrastructure/storage/index.js';
 
 const API = '/api/v1';
 const PASSWORD = 'Tutor12345';
@@ -19,7 +19,7 @@ type Csrf = { csrfToken: string; csrfCookie: string };
 describe('Faculty onboarding, review, pricing gate and consent (LMS-39, LMS-40)', () => {
   let csrf: Csrf;
   let mail: InMemoryEmailProvider;
-  let storage: InMemoryStorage;
+  let storage: MemoryFileStorage;
   let catalogue: Awaited<ReturnType<typeof createPickerCatalogue>>;
   let adminToken: string;
   let adminId: string;
@@ -29,8 +29,8 @@ describe('Faculty onboarding, review, pricing gate and consent (LMS-39, LMS-40)'
     csrf = await getCsrfData();
     mail = new InMemoryEmailProvider();
     setEmailProvider(mail);
-    storage = new InMemoryStorage();
-    setObjectStorage(storage);
+    storage = getTestStorage();
+    storage.clear();
     catalogue = await createPickerCatalogue();
     ({ token: adminToken, userId: adminId } = await loginWithRole('admin', 'onboarding-admin@example.com'));
   });
@@ -226,7 +226,7 @@ describe('Faculty onboarding, review, pricing gate and consent (LMS-39, LMS-40)'
         ])
       );
       for (const d of docs) expect(d.storageKey).toMatch(/^faculty-documents\/[0-9a-f-]{36}$/);
-      expect(sha256(storage.objects.get(docs.find((d) => d.documentType === 'GOVERNMENT_ID')!.storageKey)!.body)).toBe(sha256(PNG));
+      expect(sha256(storage.files.get(docs.find((d) => d.documentType === 'GOVERNMENT_ID')!.storageKey)!.body)).toBe(sha256(PNG));
 
       expect((await prisma.facultyInvitation.findUniqueOrThrow({ where: { id: invitation.id } })).status).toBe('ACCEPTED');
       expect(await prisma.auditLog.count({ where: { action: 'faculty.application_submitted' } })).toBe(1);
@@ -257,7 +257,7 @@ describe('Faculty onboarding, review, pricing gate and consent (LMS-39, LMS-40)'
       expect(res.body.code).toBe('DOCUMENT_INVALID');
       expect(Object.keys(res.body.errors).sort()).toEqual(['degreeCertificate', 'panCard', 'photoId']);
       expect(await prisma.user.count({ where: { email: { contains: 'tutor-' } } })).toBe(0);
-      expect(storage.objects.size).toBe(0);
+      expect(storage.files.size).toBe(0);
     });
 
     it('rejects a file over the size limit', async () => {
@@ -302,7 +302,7 @@ describe('Faculty onboarding, review, pricing gate and consent (LMS-39, LMS-40)'
         expect(res.status).toBe(422);
         expect(res.body.errors.curriculumIds).toBeDefined();
       }
-      expect(storage.objects.size).toBe(0);
+      expect(storage.files.size).toBe(0);
     });
 
     it('cannot reuse a link', async () => {
@@ -318,7 +318,7 @@ describe('Faculty onboarding, review, pricing gate and consent (LMS-39, LMS-40)'
       const res = await apply(token);
       expect(res.status).toBe(409);
       expect(res.body.code).toBe('ALREADY_REGISTERED');
-      expect(storage.objects.size).toBe(0);
+      expect(storage.files.size).toBe(0);
     });
 
     it('requires a CSRF token', async () => {

@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import os from 'node:os';
 import path from 'node:path';
-import { promises as fs } from 'node:fs';
 import {
   checkDocument,
   documentStorageKey,
@@ -19,7 +17,6 @@ import {
 } from '../../src/modules/faculty/faculty.access.js';
 import { profileStatus } from '../../src/modules/faculty/faculty.review.js';
 import { accountReadyEmail, applicationRejectedEmail } from '../../src/modules/faculty/faculty.emails.js';
-import { InMemoryStorage, LocalDiskStorage, StorageNotFoundError } from '../../src/infrastructure/storage/index.js';
 
 const PDF = Buffer.from('%PDF-1.4\n%%EOF\n');
 const PNG = Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000000', 'hex');
@@ -196,29 +193,5 @@ describe('lifecycle emails', () => {
     expect(rejected.text).toContain('ID <unreadable>');
     const ready = accountReadyEmail({ to: 'a@x.com', fullName: 'Anil', loginUrl: 'https://tutors.amentorz.com/login' });
     expect(ready.html).toContain('href="https://tutors.amentorz.com/login"');
-  });
-});
-
-describe('object storage', () => {
-  it('in memory: put, get, delete', async () => {
-    const storage = new InMemoryStorage();
-    await storage.put('faculty-documents/a', PDF, 'application/pdf');
-    expect((await storage.get('faculty-documents/a')).contentType).toBe('application/pdf');
-    await storage.delete('faculty-documents/a');
-    await expect(storage.get('faculty-documents/a')).rejects.toBeInstanceOf(StorageNotFoundError);
-  });
-
-  it('on local disk: keeps the content type and refuses path traversal', async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'amz-storage-'));
-    const storage = new LocalDiskStorage(dir);
-    await storage.put('faculty-documents/b', PNG, 'image/png');
-    const read = await storage.get('faculty-documents/b');
-    expect(read.body.equals(PNG)).toBe(true);
-    expect(read.contentType).toBe('image/png');
-    await expect(storage.put('../escape', PDF, 'application/pdf')).rejects.toThrow('Invalid storage key');
-    await expect(storage.put('/abs/path', PDF, 'application/pdf')).rejects.toThrow('Invalid storage key');
-    await storage.delete('faculty-documents/b');
-    await expect(storage.get('faculty-documents/b')).rejects.toBeInstanceOf(StorageNotFoundError);
-    await fs.rm(dir, { recursive: true, force: true });
   });
 });

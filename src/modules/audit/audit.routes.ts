@@ -17,13 +17,3 @@ auditRouter.use(requirePermission('audit.read'));
  *     security: [{ bearerAuth: [] }]
  */
 auditRouter.get('/', AuditController.listAuditLogs);
-
-/**
- * @openapi
- * /audit/{id}:
- *   get:
- *     summary: Get audit log details by ID
- *     tags: [Audit]
- *     security: [{ bearerAuth: [] }]
- */
-auditRouter.get('/:id', AuditController.getAuditLogById);

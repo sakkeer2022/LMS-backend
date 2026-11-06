@@ -58,6 +58,14 @@ export const listBoardsAdmin = handler(async (req, res) => {
   res.json(successResponse(result.items, 'Boards retrieved', result.meta));
 });
 
+export const listTeachingLanguages = handler(async (req, res) => {
+  const result = await Lists.listTeachingLanguages({
+    ...MasterListQueryDto.parse(req.query),
+    isActive: true,
+  });
+  publicJson(res, successResponse(result.items, 'Teaching languages retrieved', result.meta));
+});
+
 export const listSubjects = handler(async (req, res) => {
   const result = await Lists.listSubjects({
     ...MasterListQueryDto.parse(req.query),

@@ -42,8 +42,6 @@ const KNOWN_UNDOCUMENTED: Record<string, string> = {
   'PUT /users/{}/roles': 'Template user administration',
   'DELETE /users/{}/roles': 'Template user administration',
 
-  'GET /audit/{}': 'Template audit detail; the contract has the list only',
-
   'GET /feature-flags': 'Template feature flags',
   'GET /feature-flags/{}': 'Template feature flags',
   'POST /feature-flags': 'Template feature flags',

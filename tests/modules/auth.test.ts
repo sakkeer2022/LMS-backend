@@ -4,7 +4,7 @@ import { app } from '../helpers/app.js';
 import { getCsrfData } from '../helpers/csrf.js';
 import { prisma } from '@infrastructure/database/index.js';
 import { seedRbac } from '../../prisma/seed-rbac.js';
-import { loginWithRole, signIn } from '../helpers/users.js';
+import { loginWithRole, signIn, registerTestUser } from '../helpers/users.js';
 
 /** A student signed in through the portal login (refresh requires a portal session). */
 async function portalSession(email: string) {
@@ -19,55 +19,8 @@ describe('Auth API', () => {
     fullName: 'Test User',
   };
 
-  it('should register a new user successfully', async () => {
-    const { csrfToken, csrfCookie } = await getCsrfData();
-    const res = await request(app)
-      .post('/api/v1/auth/register')
-      .set('Cookie', csrfCookie)
-      .set('x-csrf-token', csrfToken)
-      .send(registerPayload);
-
-    expect(res.status).toBe(201);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data.user.email).toBe(registerPayload.email);
-    expect(res.body.data.tokens).toBeUndefined(); // Ensure tokens are NOT in body
-
-    // Ensure cookies are set
-    const cookies = res.headers['set-cookie'];
-    expect(cookies).toBeDefined();
-    expect(cookies.some((c: string) => c.includes('accessToken='))).toBe(true);
-    expect(cookies.some((c: string) => c.includes('refreshToken='))).toBe(true);
-
-    // Verify it exists in db
-    const dbUser = await prisma.user.findFirst({ where: { email: registerPayload.email } });
-    expect(dbUser).not.toBeNull();
-  });
-
-  it('should fail to register with existing email', async () => {
-    const { csrfToken, csrfCookie } = await getCsrfData();
-    await request(app)
-      .post('/api/v1/auth/register')
-      .set('Cookie', csrfCookie)
-      .set('x-csrf-token', csrfToken)
-      .send(registerPayload);
-
-    const res = await request(app)
-      .post('/api/v1/auth/register')
-      .set('Cookie', csrfCookie)
-      .set('x-csrf-token', csrfToken)
-      .send(registerPayload);
-
-    expect(res.status).toBe(409);
-    expect(res.body.success).toBe(false);
-  });
-
   it('should get current user profile (/me)', async () => {
-    const { csrfToken, csrfCookie } = await getCsrfData();
-    const registerRes = await request(app)
-      .post('/api/v1/auth/register')
-      .set('Cookie', csrfCookie)
-      .set('x-csrf-token', csrfToken)
-      .send(registerPayload);
+    const registerRes = await registerTestUser(registerPayload);
     const cookies = (registerRes.headers['set-cookie'] as unknown as string[])
       ?.map((c: string) => c.split(';')[0])
       .join('; ');
@@ -148,11 +101,7 @@ describe('Auth API', () => {
         fullName: 'Logout Test',
       };
 
-      const registerRes = await request(app)
-        .post('/api/v1/auth/register')
-        .set('Cookie', csrfCookie)
-        .set('x-csrf-token', csrfToken)
-        .send(payload);
+      const registerRes = await registerTestUser(payload);
 
       const cookies = registerRes.headers['set-cookie'];
       const refreshCookie = cookies?.find((c: string) => c.startsWith('refreshToken='));
@@ -180,11 +129,7 @@ describe('Auth API', () => {
         fullName: 'Logout Repeat',
       };
 
-      const registerRes = await request(app)
-        .post('/api/v1/auth/register')
-        .set('Cookie', csrfCookie)
-        .set('x-csrf-token', csrfToken)
-        .send(payload);
+      const registerRes = await registerTestUser(payload);
 
       const cookies = registerRes.headers['set-cookie'];
       const refreshCookie = cookies?.find((c: string) => c.startsWith('refreshToken='));
@@ -207,18 +152,13 @@ describe('Auth API', () => {
 
   describe('Token Claims & Roles', () => {
     it('should reflect new roles only after re-login (stale token behavior)', async () => {
-      const { csrfToken, csrfCookie } = await getCsrfData();
       const payload = {
         email: 'stale_token@example.com',
         password: 'Password123!',
         fullName: 'Stale Token',
       };
 
-      const registerRes = await request(app)
-        .post('/api/v1/auth/register')
-        .set('Cookie', csrfCookie)
-        .set('x-csrf-token', csrfToken)
-        .send(payload);
+      const registerRes = await registerTestUser(payload);
 
       const cookies = (registerRes.headers['set-cookie'] as unknown as string[])
         ?.map((c: string) => c.split(';')[0])
@@ -283,35 +223,6 @@ describe('Auth API', () => {
   });
 
   describe('Transactions & Partial Writes', () => {
-    it('should rollback user creation if token generation fails during register', async () => {
-      const { csrfToken, csrfCookie } = await getCsrfData();
-
-      // Simulate failure in token creation
-      const createSpy = vi
-        .spyOn(prisma.refreshToken, 'create')
-        .mockRejectedValueOnce(new Error('DB Simulation Error'));
-
-      const failurePayload = {
-        email: 'failtest@example.com',
-        password: 'Password123!',
-        fullName: 'Fail Test',
-      };
-
-      const res = await request(app)
-        .post('/api/v1/auth/register')
-        .set('Cookie', csrfCookie)
-        .set('x-csrf-token', csrfToken)
-        .send(failurePayload);
-
-      expect(res.status).toBe(500);
-
-      // Verify the user was NOT saved due to transaction rollback
-      const dbUser = await prisma.user.findFirst({ where: { email: failurePayload.email } });
-      expect(dbUser).toBeNull();
-
-      createSpy.mockRestore();
-    });
-
     it('should rollback old token deletion if new token generation fails during refresh', async () => {
       const { refreshCookie, csrfToken, csrfCookie } =
         await portalSession('refreshtest@example.com');

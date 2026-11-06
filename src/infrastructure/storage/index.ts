@@ -1,38 +1,33 @@
 import { config } from '@config/index';
-import type { ObjectStorage } from './storage.types.js';
-import { LocalDiskStorage } from './local.storage.js';
-import { InMemoryStorage } from './memory.storage.js';
-import { S3Storage } from './s3.storage.js';
+import type { FileStorage } from './storage.types.js';
+import { LocalFileStorage } from './local-storage.js';
+import { MemoryFileStorage } from './memory-storage.js';
+import { S3FileStorage } from './s3-storage.js';
 
-export type { ObjectStorage, StoredObject } from './storage.types.js';
-export { StorageNotFoundError, STORAGE_KEY_PATTERN } from './storage.types.js';
-export { LocalDiskStorage } from './local.storage.js';
-export { InMemoryStorage } from './memory.storage.js';
-export { S3Storage } from './s3.storage.js';
+export type { FileStorage, StoredFile } from './storage.types.js';
+export { MemoryFileStorage } from './memory-storage.js';
+export { sha256Hex } from './keys.js';
 
-/** Builds the storage named by STORAGE_DRIVER. */
-export function createObjectStorage(
-  storage: typeof config.storage = config.storage
-): ObjectStorage {
-  switch (storage.driver) {
-    case 's3':
-      return new S3Storage(storage.s3Bucket, storage.s3Region);
-    case 'memory':
-      return new InMemoryStorage();
-    case 'local':
-    default:
-      return new LocalDiskStorage(storage.localDir);
+let storage: FileStorage | undefined;
+
+/** The configured storage: S3 in production, local disk in development, memory under tests. */
+export function getStorage(): FileStorage {
+  if (!storage) {
+    const { driver, localDir, s3 } = config.storage;
+    if (driver === 's3') {
+      if (!s3.bucket) throw new Error('STORAGE_S3_BUCKET is not configured');
+      storage = new S3FileStorage(s3.bucket, s3.region, s3.prefix);
+    } else {
+      storage = driver === 'memory' ? new MemoryFileStorage() : new LocalFileStorage(localDir);
+    }
   }
+  return storage;
 }
 
-let current: ObjectStorage | undefined;
-
-export function getObjectStorage(): ObjectStorage {
-  current ??= createObjectStorage();
+/** The test storage. Throws when the driver is not `memory`. */
+export function getTestStorage(): MemoryFileStorage {
+  const current = getStorage();
+  if (!(current instanceof MemoryFileStorage))
+    throw new Error('The test storage needs STORAGE_DRIVER=memory');
   return current;
-}
-
-/** Replaces the storage; for tests only. */
-export function setObjectStorage(storage: ObjectStorage): void {
-  current = storage;
 }

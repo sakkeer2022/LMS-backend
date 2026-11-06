@@ -39,7 +39,20 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 | POST | `/consent/guardian-signatures` | `signGuardianConsent` | public | decision-required |
 | GET | `/consent/guardian-signatures/file` | `getPendingGuardianConsentFile` | public | ready-for-review |
 | GET | `/students/me/guardian-consent/file` | `getOwnGuardianConsentFile` | student (self only) | ready-for-review |
-| GET | `/admin/students/{studentId}/guardian-consent/file` | `getStudentGuardianConsentFileAdmin` | admin; students.read | ready-for-review |
+| GET | `/admin/students/{studentId}/guardian-consent` | `getStudentGuardianConsentAdmin` | admin; student.read | ready-for-review |
+| GET | `/admin/students` | `listStudentsAdmin` | admin; student.read | ready-for-review |
+| GET | `/admin/students/{studentId}` | `getStudentAdmin` | admin; student.read | ready-for-review |
+| GET | `/admin/policies` | `listPoliciesAdmin` | admin; policy.read | ready-for-review |
+| POST | `/admin/policies` | `uploadPolicyAdmin` | admin; policy.create | ready-for-review |
+| GET | `/admin/policies/coverage` | `getPolicyCoverageAdmin` | admin; policy.read | ready-for-review |
+| PUT | `/admin/policies/{policyId}/current` | `setPolicyCurrentAdmin` | admin; policy.update | ready-for-review |
+| GET | `/admin/students/{studentId}/guardian-consent/file` | `getStudentGuardianConsentFileAdmin` | admin; student.read | ready-for-review |
+
+## Regions
+
+| Method | Path | Operation ID | Access | Review status |
+|---|---|---|---|---|
+| GET | `/regions/countries` | `listCountries` | public | ready-for-review |
 
 ## Faculty
 

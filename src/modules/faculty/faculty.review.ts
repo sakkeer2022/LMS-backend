@@ -1,5 +1,5 @@
 import { prisma } from '@infrastructure/database/index';
-import { getObjectStorage, StorageNotFoundError } from '@infrastructure/storage/index';
+import { getStorage } from '@infrastructure/storage/index';
 import { getEmailProvider } from '@infrastructure/email/index';
 import { ConflictError, NotFoundError } from '@core/errors/index';
 import { logger } from '@core/logger/index';
@@ -176,18 +176,10 @@ export async function getDocumentFile(
 ): Promise<DocumentFile> {
   const doc = await prisma.facultyDocument.findFirst({ where: { id: documentId, facultyId } });
   if (!doc) throw new NotFoundError('Document');
-  let stored;
-  try {
-    stored = await getObjectStorage().get(doc.storageKey);
-  } catch (err) {
-    if (err instanceof StorageNotFoundError) {
-      logger.error(
-        { documentId, facultyId },
-        'Faculty document row exists but its file is missing'
-      );
-      throw new NotFoundError('Document file');
-    }
-    throw err;
+  const body = await getStorage().get(doc.storageKey);
+  if (!body) {
+    logger.error({ documentId, facultyId }, 'Faculty document row exists but its file is missing');
+    throw new NotFoundError('Document file');
   }
   try {
     await logAction({
@@ -202,7 +194,7 @@ export async function getDocumentFile(
     logger.error({ err }, 'Failed to audit a document view');
   }
   return {
-    body: stored.body,
+    body,
     contentType: doc.mimeType,
     fileName: doc.originalFileName,
     previewable: isPreviewableMime(doc.mimeType),

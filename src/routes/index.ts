@@ -16,7 +16,11 @@ import {
   facultyOnboardingRouter,
   facultySelfRouter,
 } from '@modules/faculty/index.js';
-import { registrationRouter } from '@modules/registration/index.js';
+import { registrationRouter, studentRegisterRouter } from '@modules/registration/index.js';
+import { adminPoliciesRouter, policiesRouter } from '@modules/policies/index.js';
+import { adminStudentsRouter } from '@modules/students/index.js';
+import { adminConsentRouter, consentRouter, studentConsentRouter } from '@modules/consent/index.js';
+import { regionsRouter } from '@modules/regions/index.js';
 import { passwordRouter, recoveryRouter } from '@modules/account-recovery/index.js';
 import { auditLogMiddleware } from '@middleware/audit.middleware';
 import { catalogueRouter, adminCatalogueRouter } from '@modules/catalogue/index.js';
@@ -37,6 +41,14 @@ router.use(auditLogMiddleware);
 // this list to check every implemented route against docs/openapi.yaml.
 export const featureRouters: ReadonlyArray<readonly [path: string, router: Router]> = [
   ['/auth/registration', registrationRouter],
+  ['/auth/register', studentRegisterRouter],
+  ['/regions', regionsRouter],
+  ['/policies', policiesRouter],
+  ['/consent', consentRouter],
+  ['/students/me', studentConsentRouter],
+  ['/admin/students', adminStudentsRouter],
+  ['/admin/students', adminConsentRouter],
+  ['/admin/policies', adminPoliciesRouter],
   ['/auth/recovery', recoveryRouter],
   ['/auth/password', passwordRouter],
   ['/auth', authRouter],

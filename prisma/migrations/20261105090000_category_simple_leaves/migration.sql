@@ -14,17 +14,17 @@ BEGIN;
 -- A category curriculum has no subject
 ALTER TABLE "curricula" ALTER COLUMN "subject_id" DROP NOT NULL;
 
--- Something already depends on the category: a learner profile, or one of its
--- curricula has a tutor, a price, a learner subject or a library material.
+-- Something already depends on the category: one of its curricula has a tutor, a price,
+-- a learner subject or a library material. (Students reach a leaf only through
+-- student_subjects since 20261104120000_student_interests.)
 CREATE OR REPLACE FUNCTION "category_in_use"(cat UUID) RETURNS BOOLEAN LANGUAGE sql STABLE AS $$
-  SELECT EXISTS (SELECT 1 FROM "student_profiles" sp WHERE sp."category_id" = cat)
-      OR EXISTS (
-        SELECT 1 FROM "curricula" cu
-        WHERE cu."category_id" = cat AND (
-             EXISTS (SELECT 1 FROM "faculty_assignments" fa WHERE fa."curriculum_id" = cu."id")
-          OR EXISTS (SELECT 1 FROM "price_rules" pr WHERE pr."curriculum_id" = cu."id")
-          OR EXISTS (SELECT 1 FROM "student_subjects" ss WHERE ss."curriculum_id" = cu."id")
-          OR EXISTS (SELECT 1 FROM "library_materials" lm WHERE lm."curriculum_id" = cu."id")))
+  SELECT EXISTS (
+    SELECT 1 FROM "curricula" cu
+    WHERE cu."category_id" = cat AND (
+         EXISTS (SELECT 1 FROM "faculty_assignments" fa WHERE fa."curriculum_id" = cu."id")
+      OR EXISTS (SELECT 1 FROM "price_rules" pr WHERE pr."curriculum_id" = cu."id")
+      OR EXISTS (SELECT 1 FROM "student_subjects" ss WHERE ss."curriculum_id" = cu."id")
+      OR EXISTS (SELECT 1 FROM "library_materials" lm WHERE lm."curriculum_id" = cu."id")))
 $$;
 
 -- Makes one category's leaf state match its children.

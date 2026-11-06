@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@infrastructure/database/index';
-import { getObjectStorage } from '@infrastructure/storage/index';
+import { getStorage } from '@infrastructure/storage/index';
 import { getEmailProvider } from '@infrastructure/email/index';
 import { ConflictError, ValidationError } from '@core/errors/index';
 import { logger } from '@core/logger/index';
@@ -147,7 +147,7 @@ export async function submitApplication(
   const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
 
   // ── Store files, then write everything in one transaction ──
-  const storage = getObjectStorage();
+  const storage = getStorage();
   const stored: string[] = [];
   try {
     for (const doc of documents) {

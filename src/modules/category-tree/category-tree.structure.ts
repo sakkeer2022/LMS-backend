@@ -174,7 +174,9 @@ export async function deleteCategory(id: string, version: number, actor: Actor):
       tx.priceRule.count({ where: { curriculum: { categoryId: id } } }),
       tx.studentSubject.count({ where: { curriculum: { categoryId: id } } }),
       tx.libraryMaterial.count({ where: { curriculum: { categoryId: id } } }),
-      tx.studentProfile.count({ where: { categoryId: id } }),
+      tx.studentProfile.count({
+        where: { subjects: { some: { curriculum: { categoryId: id } } } },
+      }),
       tx.level.count({ where: { categoryId: id } }),
       tx.catalogueNode.count({ where: { categoryId: id } }),
     ]);

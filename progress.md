@@ -1,5 +1,13 @@
 # Progress Log
 
+## 2026-11-06 — Merge development (LMS-99 policies, consent, students) into the faculty pricing branch
+
+- Conflicts resolved: routes (faculty onboarding and self routers next to policies, consent, students and regions), `tests/env-setup.ts`, `.gitignore`, contract generator tags, decision log, progress and findings.
+- One file storage: faculty documents now use development's `FileStorage` (`getStorage`; tests `getTestStorage`); the branch's `ObjectStorage` drivers and duplicate `STORAGE_*` settings are removed. `STORAGE_LOCAL_DIR` defaults to `.data/storage`.
+- Student profiles no longer have a category (`20261104120000_student_interests`): `category_in_use` in `20261105090000_category_simple_leaves` and the category delete check use `student_subjects` instead. The migration was edited in place (it failed on a fresh database otherwise, and has not been deployed anywhere shared); `20261106090000_category_in_use_after_student_interests` re-creates the function for databases that applied the earlier version.
+- `curricula.subject_id` is nullable: student registration refuses a leaf's category curriculum (learners still pick subjects, CT6); the admin student detail shows the leaf name for one.
+- `npx vitest run`: ✅ 75 files, 909 passed.
+
 ## 2026-11-04 — Faculty onboarding, review, pricing gate and price consent (LMS-81, 83, 84, 86, 58, 59)
 
 - Migration `20261104090000_faculty_onboarding`: onboarding columns on `faculty_profiles`, `PAN_CARD`, `faculty_price_consents`, sequence `faculty_application_reference_seq`.
@@ -8,6 +16,38 @@
 - Pricing: `GET /admin/prices/awaiting` lists approved tutors' unpriced cards; price changes notify faculty through `registerTutorPriceListener`.
 - Sign-in gate in the faculty portal login; `GET/POST /faculty/me/price-consent`.
 - `npx vitest run`: ✅ 62 files, 790 passed.
+
+## 2026-11-04 — Admin students list and detail (LMS-99)
+
+- Contract and endpoints: `GET /admin/students` (newest first, paginated; filters `q` for name, email or mobile, `country`, `minor`, `consent` = signed, missing or not_required) and `GET /admin/students/{studentId}` (student profile id: learning profile names, guardian contact, and for a minor with a signed consent the consent record). Both need `student.read` and are private, no-store.
+- A student is a minor when below the consent age of their own country, read from the `countries` table. The database filter uses a per-country birth-date cut-off (`latestBirthDateForAge`), tested to agree with `completedYears` on every day of a leap year and its neighbours, including 29 February. `consentStatus`: signed when a consent is linked, missing for a minor without one, not_required otherwise.
+- New `students` module. Tests: `students.test.ts` (India, the UAE and a country set to 21; the day before and the day of the 18th birthday; each filter, search, pagination, detail, 404 and 422, 401 and 403) and the cut-off test.
+- For the admin screens (next): the list with a consent column, the detail with the guardian contact, and the consent download (needs the reauthentication modal).
+
+## 2026-11-03 — Admin policy upload (LMS-99)
+
+- Contract and endpoints: `GET /admin/policies` (every version, filter by country and type), `GET /admin/policies/coverage` (types missing a current version per active country), `POST /admin/policies` (multipart PDF, type, country, version, title, effective date: checked as a readable PDF, 409 for a version that exists, stored and made current in one transaction, the old version kept) and `PUT /admin/policies/{id}/current` (roll back). New permissions `policy.read`, `policy.create`, `policy.update`; uploads and rollbacks need recent reauthentication and are audited (`policy.published`, `policy.set_current`). `POLICY_MAX_BYTES` (10 MiB) limits the file.
+- `PdfService.inspect` and `renderTextDocument`; `npm run policies:load` loads a folder with a manifest or, in development only, clearly marked placeholder PDFs for any country and type without a current version.
+- Tests: `admin-policies.test.ts` (coverage, upload per country, history and rollback, duplicates, file and field checks, size limit, permission, reauthentication, CSRF), PDF tests.
+
+## 2026-11-03 — Guardian consent signing, downloads and purge (LMS-99)
+
+- `src/infrastructure/pdf/`: `PdfService.stampConsent` appends a "Parent/guardian consent" page (printed name, UTC time, IP, signature, policy hash). Latin, Devanagari and Arabic names print correctly (checked by rendering).
+- `consent` module: `POST /consent/guardian-signatures` (multipart, PNG magic bytes, 1 MiB, strict per-IP limit; the age rule is the consent age of the policy's country, 18 for India and the UAE; returns a single-use token whose hash is the only copy stored), `GET /consent/guardian-signatures/file` (token in a header, 404 for unknown, expired or linked, does not consume it), `GET /students/me/guardian-consent/file`, and for admins `GET /admin/students/{studentId}/guardian-consent` (record) and `/file` (reauthentication, audit `consent.downloaded`); `student.read` is a new permission. Every file read re-checks its SHA-256 (503 if missing or altered).
+- Purge: `purgeExpiredConsents` deletes only rows still unlinked and expired at the moment of deletion, then their files; an hourly BullMQ job (`purge-expired-consents`) runs it.
+- Retention: migration `20261103120000_consent_retention`: deleting a student profile that holds a consent is refused (was a cascade that left the PDF behind).
+- `TRUST_PROXY_HOPS` sets Express `trust proxy` so the signing IP is the real client IP behind a proxy.
+- Tests: `consent.test.ts` (India and UAE, the day before and the day of the 18th birthday, a country with age 21, names in three scripts, downloads, admin reauth and audit, purge race), `consent-rate-limit.test.ts`, `pdf-stamp.test.ts`, `dates.test.ts`.
+- Next: admin policy upload endpoints, the policy loader command, `POST /auth/register` (needs the catalogue confirmation).
+
+## 2026-11-03 — Policies, countries list and file storage (LMS-99)
+
+- Contract: `GET /policies/current` takes a required `country`; new public `GET /regions/countries` (code, name, dial code, default time zone) for the mobile picker; new admin `GET /admin/students/{id}/guardian-consent` (consent metadata). `Policy` gains `country`.
+- Migration `20261103110000_policy_country`: `policy_documents.country` (foreign key to `countries`), unique `(type, country, version)`, a partial unique index allowing one current version per type and country.
+- `src/infrastructure/storage/`: `FileStorage` interface with local, S3 and memory drivers (`STORAGE_DRIVER`, production requires `s3` and `STORAGE_S3_BUCKET`). The database keeps only driver-independent keys, so moving to S3 is a file copy. The S3 driver is written and unit tested with a fake client; it is untried against AWS until credentials exist.
+- `policies` module: current policies per country (503 until all four are loaded, 422 for an unsupported country, never another country's text) and the policy PDF (inline, public cache per version, hash re-checked on every read, 503 if the file is missing or altered); `publishPolicy` makes a version current in one transaction and keeps the old one on record.
+- Tests: `policies.test.ts`, `storage.test.ts`, config tests.
+- Next: PDF interface and the signing endpoint, the three consent downloads, the purge job, a policy loader command, then registration.
 
 ## 2026-11-04 — Tests use TEST_DATABASE_URL from .env
 

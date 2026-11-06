@@ -77,7 +77,7 @@ The full column list is in `docs/database/schema-data-dictionary.md` (§4.1, §4
 - `src/modules/faculty/`: `faculty.onboarding*.ts` (public flow), `faculty.documents.ts` (allowed types, magic bytes, keys), `faculty.review*.ts` (drawer and decisions), `faculty.access.ts` (sign-in gate, pricing state, snapshot hash, `onTutorPricesChanged`), `faculty.consent.ts`, `faculty.emails.ts`.
 - `src/modules/pricing/pricing.events.ts`: `registerTutorPriceListener` / `notifyTutorPricesChanged`, called after create, update and bulk. Faculty registers its listener in its `index.ts`, so there is no circular import.
 - `src/modules/pricing/pricing.awaiting.ts`, and `src/modules/category-tree/category-tree.picker.ts` (`getOfferingTree`, `describeOfferings`).
-- `src/infrastructure/storage/`: `ObjectStorage` with `local` (disk, traversal guard), `s3` (SSE AES256) and `memory` (tests) drivers.
+- `src/infrastructure/storage/`: since the merge of `development` (2026-11-06) faculty documents use the shared `FileStorage` (`getStorage`, `getTestStorage` in tests), the same store as consents and policies.
 - `src/modules/auth/portal-login.service.ts`: the faculty portal calls `assertFacultyCanSignIn` after the email check. `requiresTermsAcceptance` in the login response now means "price consent pending".
 - `src/core/security/rbac.ts`: new permissions `faculty.approve`, `faculty.documents` (admin) and `faculty.read_self`, `faculty.update_self` (the faculty role's only permissions).
 
@@ -92,7 +92,7 @@ The accepted types are PDF, JPG, PNG, DOC, DOCX, PPT and PPTX, checked by magic 
 | `FACULTY_APP_URL` | `http://localhost:3003` | Invitation and login links; https in production |
 | `APP_BASE_URL` | `http://localhost:3001` | Now means the **admin** app (the "price declined" email links to `/admin/pricing`) |
 | `STORAGE_DRIVER` | `local` (`memory` under test) | `memory` is refused in production |
-| `STORAGE_LOCAL_DIR` | `storage/private` | Outside any web root, and backed up; `/storage/` is git-ignored |
+| `STORAGE_LOCAL_DIR` | `.data/storage` | Outside any web root, and backed up; `.data/` is git-ignored (older checkouts used `storage/private`) |
 | `STORAGE_S3_BUCKET` | — | Required when `STORAGE_DRIVER=s3` |
 | `FACULTY_ONBOARDING_RATE_LIMIT_WINDOW_MS` / `_MAX` | 900000 / 20 | Per IP, public onboarding routes |
 

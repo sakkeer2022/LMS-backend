@@ -38,6 +38,8 @@ function testDatabaseUrl(): string | undefined {
 }
 
 process.env.NODE_ENV = 'test';
+// A local .env may choose another transport (log, smtp); tests always read the in-memory outbox
+process.env.EMAIL_TRANSPORT = 'memory';
 process.env.DATABASE_URL =
   testDatabaseUrl() || 'postgresql://postgres:password@localhost:5432/amentorz_test?schema=public';
 process.env.JWT_SECRET ??= 'test-jwt-secret-deterministic';
@@ -61,6 +63,7 @@ process.env.REFRESH_RATE_LIMIT_MAX_PER_IP ??= '100000';
 process.env.OTP_SEND_RATE_LIMIT_MAX_PER_IP ??= '100000';
 process.env.OTP_SEND_RATE_LIMIT_MAX_PER_EMAIL ??= '100000';
 process.env.OTP_VERIFY_RATE_LIMIT_MAX_PER_IP ??= '100000';
+process.env.CONSENT_SIGN_RATE_LIMIT_MAX_PER_IP ??= '100000';
 
 // Faculty onboarding (LMS-39): every suite calls the public routes from 127.0.0.1, so the
 // per-IP budget is raised; the limiter itself is covered by tests/unit/rate-limit.test.ts.
