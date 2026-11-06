@@ -237,42 +237,45 @@ async function assertFacultyUsable(tx: Tx, facultyId: string): Promise<void> {
     throw new ValidationError('The faculty profile is not active', { code: 'INACTIVE_FACULTY' });
 }
 
+/** Creates one rule inside a transaction; throws a typed error when it cannot apply. */
+async function applyCreate(tx: Tx, input: CreatePriceRuleInput, actor: Actor): Promise<PriceRule> {
+  await lockCurriculum(tx, input.curriculumId);
+  if (input.facultyId) await assertFacultyUsable(tx, input.facultyId);
+
+  const effectiveFrom = input.effectiveFrom ?? new Date();
+  const effectiveTo = input.effectiveTo ?? null;
+  if (effectiveTo && effectiveTo <= effectiveFrom) {
+    throw new ValidationError('effectiveTo must be after effectiveFrom', {
+      code: 'INVALID_WINDOW',
+    });
+  }
+  if (input.isActive) {
+    await assertNoOverlap(tx, {
+      curriculumId: input.curriculumId,
+      facultyId: input.facultyId,
+      effectiveFrom,
+      effectiveTo,
+    });
+  }
+  return tx.priceRule.create({
+    data: {
+      curriculumId: input.curriculumId,
+      facultyId: input.facultyId,
+      ...computeStoredAmounts(input.sessionPricePaise, DEFAULT_GST_RATE_BPS),
+      effectiveFrom,
+      effectiveTo,
+      isActive: input.isActive,
+      createdById: actor.userId,
+      updatedById: actor.userId,
+    },
+  });
+}
+
 export async function createPriceRule(
   input: CreatePriceRuleInput,
   actor: Actor
 ): Promise<PriceRuleView> {
-  const rule = await prisma.$transaction(async (tx) => {
-    await lockCurriculum(tx, input.curriculumId);
-    if (input.facultyId) await assertFacultyUsable(tx, input.facultyId);
-
-    const effectiveFrom = input.effectiveFrom ?? new Date();
-    const effectiveTo = input.effectiveTo ?? null;
-    if (effectiveTo && effectiveTo <= effectiveFrom) {
-      throw new ValidationError('effectiveTo must be after effectiveFrom', {
-        code: 'INVALID_WINDOW',
-      });
-    }
-    if (input.isActive) {
-      await assertNoOverlap(tx, {
-        curriculumId: input.curriculumId,
-        facultyId: input.facultyId,
-        effectiveFrom,
-        effectiveTo,
-      });
-    }
-    return tx.priceRule.create({
-      data: {
-        curriculumId: input.curriculumId,
-        facultyId: input.facultyId,
-        ...computeStoredAmounts(input.sessionPricePaise, DEFAULT_GST_RATE_BPS),
-        effectiveFrom,
-        effectiveTo,
-        isActive: input.isActive,
-        createdById: actor.userId,
-        updatedById: actor.userId,
-      },
-    });
-  });
+  const rule = await prisma.$transaction((tx) => applyCreate(tx, input, actor));
 
   logger.info(
     { priceRuleId: rule.id, curriculumId: rule.curriculumId, actorId: actor.userId },
@@ -353,36 +356,51 @@ export async function updatePriceRule(
   return toView(after);
 }
 
-/** Screen 29b: every change or none. Rejected rows are reported as changes[i]. */
+const isRowError = (err: unknown): err is ConflictError | NotFoundError | ValidationError =>
+  err instanceof ConflictError || err instanceof NotFoundError || err instanceof ValidationError;
+
+/**
+ * Screen 29b: every change or none. Edits of existing rules are reported as changes[i];
+ * first tutor prices for unpriced subject cards as creates[i].
+ */
 export async function bulkUpdatePriceRules(
   input: BulkUpdatePriceRulesInput,
   actor: Actor
 ): Promise<PriceRuleView[]> {
-  const results = await prisma.$transaction(async (tx) => {
+  const { updated, created } = await prisma.$transaction(async (tx) => {
     const fieldErrors: Record<string, string[]> = {};
-    const applied: { before: PriceRule; after: PriceRule }[] = [];
+    const updated: { before: PriceRule; after: PriceRule }[] = [];
+    const created: PriceRule[] = [];
     for (const [i, change] of input.changes.entries()) {
       try {
-        applied.push(await applyUpdate(tx, change.id, change, actor));
+        updated.push(await applyUpdate(tx, change.id, change, actor));
       } catch (err) {
-        if (
-          !(
-            err instanceof ConflictError ||
-            err instanceof NotFoundError ||
-            err instanceof ValidationError
-          )
-        )
-          throw err;
+        if (!isRowError(err)) throw err;
         fieldErrors[`changes[${i}]`] = [err.message];
+      }
+    }
+    for (const [i, create] of input.creates.entries()) {
+      try {
+        created.push(await applyCreate(tx, { ...create, isActive: true }, actor));
+      } catch (err) {
+        if (!isRowError(err)) throw err;
+        fieldErrors[`creates[${i}]`] = [err.message];
       }
     }
     // Throwing rolls the whole transaction back
     if (Object.keys(fieldErrors).length > 0) throw new BulkUpdateError(fieldErrors);
-    return applied;
+    return { updated, created };
   });
 
-  logger.info({ count: results.length, actorId: actor.userId }, 'Price rules bulk updated');
-  for (const { before, after } of results) await audit(actor, 'bulk_update', after, before);
-  await notifyTutorPricesChanged(results.map((r) => r.after.facultyId));
-  return toViews(results.map((r) => r.after));
+  logger.info(
+    { updated: updated.length, created: created.length, actorId: actor.userId },
+    'Price rules bulk saved'
+  );
+  for (const { before, after } of updated) await audit(actor, 'bulk_update', after, before);
+  for (const rule of created) await audit(actor, 'bulk_create', rule, null);
+  await notifyTutorPricesChanged([
+    ...updated.map((r) => r.after.facultyId),
+    ...created.map((r) => r.facultyId),
+  ]);
+  return toViews([...updated.map((r) => r.after), ...created]);
 }

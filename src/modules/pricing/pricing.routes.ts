@@ -138,6 +138,7 @@ adminPricesRouter.post('/', manage, Pricing.createPriceRule);
  * /admin/prices/bulk:
  *   put:
  *     summary: Save several price changes atomically (screen 29b)
+ *     description: changes edits existing rules; creates sets the first tutor price of subject cards from GET /admin/prices/awaiting. At least one entry, at most 200 in total.
  *     tags: [Pricing]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
@@ -148,7 +149,6 @@ adminPricesRouter.post('/', manage, Pricing.createPriceRule);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [changes]
  *             properties:
  *               changes:
  *                 type: array
@@ -160,10 +160,20 @@ adminPricesRouter.post('/', manage, Pricing.createPriceRule);
  *                     id: { type: string, format: uuid }
  *                     sessionPricePaise: { type: integer, minimum: 1 }
  *                     expectedRevision: { type: integer, minimum: 1 }
+ *               creates:
+ *                 type: array
+ *                 maxItems: 200
+ *                 items:
+ *                   type: object
+ *                   required: [curriculumId, facultyId, sessionPricePaise]
+ *                   properties:
+ *                     curriculumId: { type: string, format: uuid }
+ *                     facultyId: { type: string, format: uuid }
+ *                     sessionPricePaise: { type: integer, minimum: 1 }
  *     responses:
  *       200: { description: All changes saved }
  *       403: { description: Missing pricing.manage or CSRF token }
- *       409: { description: 'Nothing saved; errors lists the rejected rows as changes[i]' }
+ *       409: { description: 'Nothing saved; errors lists the rejected rows as changes[i] or creates[i]' }
  *       422: { description: Invalid body }
  */
 adminPricesRouter.put('/bulk', manage, Pricing.bulkUpdatePriceRules);

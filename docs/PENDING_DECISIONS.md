@@ -72,6 +72,7 @@ Evidence references: SOW = Software Development Agreement, Annexure 1 (the signe
 
 | Date       | Decision                                                                                                                                                                  | By        |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| 2026-11-06 | Pricing (screen 29): subject cards awaiting a tutor price are listed as rows of the price table with a "Not priced" highlight, not as a separate card panel. They are selected, edited and saved with the other rows (`PUT /admin/prices/bulk` `creates`); the row's "…" menu opens the right-hand drawer to set the price | Product   |
 | 2026-11-05 | Categories & content keeps only the tree: name, order, enable/disable and delete. The bookable flag, requires board/level, allowed levels and offerings are removed from the admin; a category without sub-categories is the leaf tutors pick, with one category curriculum per leaf | Client    |
 | 2026-11-04 | Faculty sign-in requires approval AND an active tutor price on every subject card; until then login returns 403 with `FACULTY_PENDING_REVIEW` / `FACULTY_PENDING_PRICING` | Developer |
 | 2026-11-04 | Declining the prices records the decision, keeps the tutor on the consent screen and emails the admin; any re-price asks for consent again                                | Developer |

@@ -143,8 +143,16 @@ category curricula.
   typing; the server recalculates on save (`PUT /admin/prices/bulk`, all or nothing,
   rejected rows highlighted).
 - The rule drawer's offering picker is a single "Category" select of leaf paths.
-- Kept beyond the frame: search / category / status filters, "Awaiting tutor price"
-  panel, "Test price resolution" panel. **Not built: Import CSV** (no backend).
+- Kept beyond the frame: search / category / status filters, "Test price resolution"
+  panel. **Not built: Import CSV** (no backend).
+- **Not priced rows (2026-11-06).** Subject cards awaiting a tutor price
+  (`GET /admin/prices/awaiting`) are no longer a separate card panel: they are the first rows
+  of the table on page 1 (hidden under "Inactive"; search and category filters apply),
+  highlighted with a "Not priced" badge and a dashed "Set price" box. They are selected and
+  edited like any row; "Save N changes" sends them as `creates` in the same
+  `PUT /admin/prices/bulk` (all or nothing, rejected rows as `creates[i]`). Their "…" menu
+  "Set price" opens the right-hand drawer with the tutor preset; existing rows' menu is
+  "Edit price". Helpers: `src/features/pricing/components/awaiting-rows.ts`.
 
 ---
 

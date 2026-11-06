@@ -8223,7 +8223,7 @@
           "Pricing"
         ],
         "summary": "Save several price changes atomically",
-        "description": "Current active, email-verified admin; pricing.manage identity; server checks role, permission and resource ownership on every request. Rule per curriculum (category+board+subject+level offering) and optional tutor; facultyId null = default price. At most one active rule per curriculumId+facultyId (null treated as a value) for any overlapping effective window; overlap 409. gstPaise and studentPaysPaise are computed by the server on every create/update/bulk update and never accepted from clients. Integer paise >0; proposed safety maximum INR 1,000,000 requires review. Currency INR and duration 60 are fixed, not client input. No packages, bundles or credits. Screen 29b. All changes or none: any stale revision or unknown id returns 409 with errors keyed changes[i] and nothing is saved; an invalid body returns 422. GST and student totals recalculate on save. Audit each changed rule.",
+        "description": "Current active, email-verified admin; pricing.manage identity; server checks role, permission and resource ownership on every request. Rule per curriculum (category+board+subject+level offering) and optional tutor; facultyId null = default price. At most one active rule per curriculumId+facultyId (null treated as a value) for any overlapping effective window; overlap 409. gstPaise and studentPaysPaise are computed by the server on every create/update/bulk update and never accepted from clients. Integer paise >0; proposed safety maximum INR 1,000,000 requires review. Currency INR and duration 60 are fixed, not client input. No packages, bundles or credits. Screen 29b. changes edits existing rules; creates prices the \"Not priced\" subject cards listed in the same table (at least one entry, at most 200 in total). All or none: any stale revision, unknown id, overlap or unusable tutor returns 409 with errors keyed changes[i] or creates[i] and nothing is saved; an invalid body returns 422. GST and student totals recalculate on save. Audit each changed rule.",
         "x-required-role": "admin; pricing.manage",
         "x-review-status": "ready-for-review",
         "security": [
@@ -15312,13 +15312,40 @@
               ]
             },
             "maxItems": 200,
-            "minItems": 1,
-            "description": "Each id at most once."
+            "description": "Edits of existing rules. Each id at most once."
+          },
+          "creates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "curriculumId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "facultyId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "sessionPricePaise": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100000000
+                }
+              },
+              "required": [
+                "curriculumId",
+                "facultyId",
+                "sessionPricePaise"
+              ]
+            },
+            "maxItems": 200,
+            "description": "First tutor price of subject cards from GET /admin/prices/awaiting (active, starting now, no end). Each curriculumId+facultyId at most once."
           }
-        },
-        "required": [
-          "changes"
-        ]
+        }
       },
       "PriceResolution": {
         "oneOf": [

@@ -288,6 +288,38 @@ describe('Pricing API', () => {
       expect(a.sessionPricePaise).toBe(145000);
       expect(a.revision).toBe(1);
     });
+
+    it('creates first tutor prices together with edits', async () => {
+      const res = await send('put', '/api/v1/admin/prices/bulk').send({
+        changes: [{ id: ruleA.id, sessionPricePaise: 155000, expectedRevision: 1 }],
+        creates: [{ curriculumId: cbsePhysics11.curriculum.id, facultyId: anil.id, sessionPricePaise: 170000 }],
+      });
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(2);
+      expect(res.body.data[1]).toMatchObject({ facultyId: anil.id, isActive: true, revision: 1 });
+      expect(res.body.data[1].amounts).toMatchObject({ sessionPricePaise: 170000, gstPaise: 30600 });
+      const entries = await prisma.auditLog.findMany({ where: { entity: 'price_rule', resourceId: res.body.data[1].id } });
+      expect(entries.map((e) => e.action)).toEqual(['bulk_create']);
+    });
+
+    it('saves nothing when a create is rejected and lists it as creates[i]', async () => {
+      await createRule({ curriculumId: icsePhysics11.curriculum.id, facultyId: meera.id, sessionPricePaise: 150000 });
+      const res = await send('put', '/api/v1/admin/prices/bulk').send({
+        changes: [{ id: ruleA.id, sessionPricePaise: 155000, expectedRevision: 1 }],
+        creates: [
+          { curriculumId: cbsePhysics11.curriculum.id, facultyId: anil.id, sessionPricePaise: 170000 },
+          { curriculumId: icsePhysics11.curriculum.id, facultyId: meera.id, sessionPricePaise: 180000 },
+        ],
+      });
+      expect(res.status).toBe(409);
+      expect(Object.keys(res.body.errors)).toEqual(['creates[1]']);
+      expect(await prisma.priceRule.count({ where: { facultyId: anil.id } })).toBe(0);
+      expect((await prisma.priceRule.findUniqueOrThrow({ where: { id: ruleA.id } })).revision).toBe(1);
+    });
+
+    it('rejects an empty bulk save', async () => {
+      expect((await send('put', '/api/v1/admin/prices/bulk').send({ changes: [], creates: [] })).status).toBe(422);
+    });
   });
 
   describe('list and audit', () => {
