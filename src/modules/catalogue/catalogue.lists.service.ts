@@ -173,6 +173,8 @@ export async function listCurricula(
   const scope = query.categoryId ? await categoryScope(prisma, query.categoryId) : {};
   const where: Prisma.CurriculumWhereInput = {
     ...scope,
+    // Category curricula (no subject) are chosen through the category tree, not here
+    subjectId: { not: null },
     ...(query.boardId ? { boardId: query.boardId } : {}),
     ...(query.levelId ? { levelId: query.levelId } : {}),
     ...(options.publicOnly
@@ -227,11 +229,12 @@ function toCurriculumView(
     id: row.id,
     categoryId: row.categoryId,
     boardId: row.boardId,
-    subjectId: row.subjectId,
+    // Never null: listCurricula leaves category curricula out
+    subjectId: row.subjectId as string,
     levelId: row.levelId,
     nodeId: row.nodeId,
     // Display label composed from the master names; curricula have no stored name
-    name: [row.board?.name, row.subject.name, row.level?.name].filter(Boolean).join(' · '),
+    name: [row.board?.name, row.subject?.name, row.level?.name].filter(Boolean).join(' · '),
     syllabus: row.syllabus,
     isActive: row.isActive,
   };

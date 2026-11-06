@@ -12,7 +12,6 @@ const name = z.string().trim().min(1).max(MAX_NAME_LENGTH);
 const version = z.number().int().min(1);
 
 export const CategoryIdParamsDto = uuidParams('categoryId');
-export const CurriculumIdParamsDto = uuidParams('curriculumId');
 
 // ── Admin ───────────────────────────────────────────────────────────────────
 /** Without parentId: the whole tree (cached). With parentId: only its direct children (lazy load). */
@@ -32,19 +31,6 @@ export const UpdateCategoryDto = z
   .refine((v) => v.name !== undefined || v.code !== undefined || v.isActive !== undefined, {
     message: 'Provide name, code or isActive',
   });
-
-export const LeafSettingsDto = z
-  .object({
-    version,
-    isBookable: z.boolean(),
-    requiresBoard: z.boolean(),
-    requiresLevel: z.boolean(),
-    levelIds: z
-      .array(z.uuid())
-      .max(200)
-      .refine((ids) => new Set(ids).size === ids.length, { message: 'levelIds must not repeat' }),
-  })
-  .strict();
 
 export const ReorderDto = z
   .object({
@@ -68,16 +54,6 @@ export const MoveDto = z
 
 export const DeleteQueryDto = z.object({ version: z.coerce.number().int().min(1) }).strict();
 
-export const AddOfferingDto = z
-  .object({
-    subjectId: z.uuid(),
-    boardId: z.uuid().nullable().optional(),
-    levelId: z.uuid().nullable().optional(),
-  })
-  .strict();
-
-export const UpdateOfferingDto = z.object({ isActive: z.boolean() }).strict();
-
 // ── Learner ─────────────────────────────────────────────────────────────────
 export const LearnerChildrenQueryDto = z.object({ parentId: z.uuid().optional() }).strict();
 
@@ -98,8 +74,6 @@ export const ResolveOfferingQueryDto = z
 
 export type CreateNodeInput = z.infer<typeof CreateRootDto>;
 export type UpdateCategoryInput = z.infer<typeof UpdateCategoryDto>;
-export type LeafSettingsInput = z.infer<typeof LeafSettingsDto>;
 export type ReorderInput = z.infer<typeof ReorderDto>;
 export type MoveInput = z.infer<typeof MoveDto>;
-export type AddOfferingInput = z.infer<typeof AddOfferingDto>;
 export type LearnerLeavesQuery = z.infer<typeof LearnerLeavesQueryDto>;

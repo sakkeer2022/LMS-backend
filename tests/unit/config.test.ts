@@ -22,6 +22,7 @@ describe('Configuration Schema & Razorpay Validation Unit Tests', () => {
     COOKIE_SECRET: 'production-cookie-secret-at-least-32-chars-long',
     ALLOWED_ORIGINS: 'https://app.amentorz.com,https://admin.amentorz.com',
     APP_BASE_URL: 'https://app.amentorz.com',
+    FACULTY_APP_URL: 'https://tutors.amentorz.com',
     RAZORPAY_KEY_ID: 'rzp_live_1234567890abcdef',
     RAZORPAY_KEY_SECRET: 'live_secret_key_minimum_16_chars',
     RAZORPAY_WEBHOOK_SECRET: 'live_webhook_secret_min_16_chars',

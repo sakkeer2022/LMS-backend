@@ -184,10 +184,24 @@ export function snapshot(row: LockedRow): Record<string, unknown> {
     code: row.code,
     name: row.name,
     path: row.path,
-    isBookable: row.is_bookable,
-    requiresBoard: row.requires_board,
-    requiresLevel: row.requires_level,
     isActive: row.is_active,
     version: row.version,
   };
+}
+
+/**
+ * A leaf that tutors or learners already use cannot get sub-categories, because they
+ * would lose the thing they picked (migration 20261105090000_category_simple_leaves).
+ * The categories_leaf_sync trigger enforces the same rule; this gives the clear message.
+ */
+export async function assertCanHaveChildren(tx: Tx, parent: LockedRow): Promise<void> {
+  if (!parent.is_bookable) return;
+  const [row] = await tx.$queryRaw<{ in_use: boolean }[]>`
+    SELECT category_in_use(${parent.id}::uuid) AS in_use`;
+  if (row?.in_use) {
+    throw treeError(
+      'CATEGORY_IN_USE',
+      `${parent.name} is already used by tutors, prices or learners, so it cannot have sub-categories. Add the sub-category somewhere else.`
+    );
+  }
 }

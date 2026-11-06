@@ -75,10 +75,10 @@ describe('Faculty admin API (LMS-78, LMS-79)', () => {
       expect(mail.sent).toHaveLength(1);
       const sent = mail.sent[0]!;
       expect(sent.to).toBe('ananya.iyer@gmail.com');
-      const link = /http:\/\/localhost:3001\/faculty\/onboarding\?token=([A-Za-z0-9_-]{43})/.exec(sent.text);
+      const link = /http:\/\/localhost:3003\/onboarding\?token=([A-Za-z0-9_-]{43})/.exec(sent.text);
       expect(link).not.toBeNull();
       const token = link![1]!;
-      expect(sent.html).toContain(`/faculty/onboarding?token=${token}`);
+      expect(sent.html).toContain(`/onboarding?token=${token}`);
 
       const row = await prisma.facultyInvitation.findUniqueOrThrow({ where: { id: view.id } });
       expect(row).toMatchObject({
@@ -121,7 +121,7 @@ describe('Faculty admin API (LMS-78, LMS-79)', () => {
       expect(res.body.data.invitations[0]).toMatchObject({ deliveryMethod: 'link', delivered: null, sentAt: null });
       expect(mail.sent).toHaveLength(0);
       const url = new URL(res.body.data.inviteUrl);
-      expect(url.origin + url.pathname).toBe('http://localhost:3001/faculty/onboarding');
+      expect(url.origin + url.pathname).toBe('http://localhost:3003/onboarding');
       const row = await prisma.facultyInvitation.findFirstOrThrow({ where: { email: 'link@example.com' } });
       expect(row.tokenHash).toBe(hashInviteToken(url.searchParams.get('token')!));
       expect(row.deliveryMethod).toBe('LINK');
@@ -347,7 +347,7 @@ describe('Faculty admin API (LMS-78, LMS-79)', () => {
         kind: 'profile',
         fullName: 'Anjali Deshpande',
         qualification: 'Ph.D. · IIT Bombay',
-        documents: { uploaded: 3, required: 4 },
+        documents: { uploaded: 3, required: 3 },
         invitation: null,
       });
       expect([...row.subjects].sort()).toEqual([subject.name, subject2.name].sort());

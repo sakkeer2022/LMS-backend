@@ -95,8 +95,9 @@ const envSchema = z
     // real one, never the first X-Forwarded-For entry.
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),
 
-    // File storage for signed consents and policy PDFs (src/infrastructure/storage). `local` and `memory` are
-    // for development and tests; production uses a private S3 bucket of its own.
+    // File storage for signed consents, policy PDFs and faculty verification documents
+    // (src/infrastructure/storage). `local` and `memory` are for development and tests;
+    // production uses a private S3 bucket of its own.
     STORAGE_DRIVER: z.enum(['local', 's3', 'memory', 'dropbox']).optional(),
     STORAGE_LOCAL_DIR: z.string().default('.data/storage'),
     STORAGE_S3_BUCKET: z.string().optional(),
@@ -141,12 +142,29 @@ const envSchema = z
       .default('http://localhost:3001')
       .transform((url) => url.replace(/\/+$/, '')),
 
+    // Faculty web app origin (amentorz-faculty); invitation links open its onboarding page
+    FACULTY_APP_URL: z
+      .url()
+      .default('http://localhost:3003')
+      .transform((url) => url.replace(/\/+$/, '')),
+
+    // ── Faculty onboarding (LMS-39) ──
+    FACULTY_ONBOARDING_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+    FACULTY_ONBOARDING_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
+
     // ── Faculty invitations (LMS-79) ──
     FACULTY_INVITE_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(72),
     FACULTY_INVITE_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
     FACULTY_INVITE_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
   })
   .superRefine((env, ctx) => {
+    if (env.STORAGE_DRIVER === 's3' && !env.STORAGE_S3_BUCKET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'STORAGE_S3_BUCKET is required when STORAGE_DRIVER=s3',
+        path: ['STORAGE_S3_BUCKET'],
+      });
+    }
     if (env.EMAIL_TRANSPORT === 'sendgrid') {
       if (!env.SENDGRID_API_KEY || env.SENDGRID_API_KEY.trim() === '') {
         ctx.addIssue({
@@ -241,6 +259,20 @@ const envSchema = z
           code: z.ZodIssueCode.custom,
           message: 'ALLOWED_ORIGINS is required in production',
           path: ['ALLOWED_ORIGINS'],
+        });
+      }
+      if (env.STORAGE_DRIVER === 'memory') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'STORAGE_DRIVER=memory is for tests and cannot be used in production',
+          path: ['STORAGE_DRIVER'],
+        });
+      }
+      if (!env.FACULTY_APP_URL.startsWith('https://')) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'FACULTY_APP_URL must use https in production',
+          path: ['FACULTY_APP_URL'],
         });
       }
       if (!env.APP_BASE_URL.startsWith('https://')) {
@@ -477,6 +509,12 @@ export const config = {
   },
 
   appBaseUrl: env.APP_BASE_URL,
+  facultyAppUrl: env.FACULTY_APP_URL,
+
+  facultyOnboarding: {
+    rateLimitWindowMs: env.FACULTY_ONBOARDING_RATE_LIMIT_WINDOW_MS,
+    rateLimitMax: env.FACULTY_ONBOARDING_RATE_LIMIT_MAX,
+  },
 
   facultyInvitations: {
     ttlHours: env.FACULTY_INVITE_TTL_HOURS,

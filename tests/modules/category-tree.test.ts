@@ -8,12 +8,16 @@ import {
   createLookups,
   createOffering,
   createTreeNode,
+  leafCurriculum,
+  priceCurriculum,
   setFlag,
   type TreeNodeFixture,
 } from '../helpers/category-tree.js';
 import { prisma } from '@infrastructure/database/index.js';
 
-// ADR-0005: category tree admin API, invariants, concurrency and learner read path
+// ADR-0005: category tree admin API, invariants, concurrency and learner read path.
+// Since 20261105090000_category_simple_leaves a leaf is any category without
+// sub-categories, and it owns one category curriculum that tutors pick.
 describe('Category tree API', () => {
   let csrf: { csrfToken: string; csrfCookie: string };
   let admin: { userId: string; token: string };
@@ -91,8 +95,12 @@ describe('Category tree API', () => {
       expect(child.body.data).toMatchObject({
         path: 'non-academic/skills',
         depth: 1,
-        isBookable: false,
+        isLeaf: true,
       });
+      // The new leaf has its category curriculum; the parent gave its own up
+      expect(await leafCurriculum(child.body.data.id)).toBeTruthy();
+      expect(await prisma.curriculum.count({ where: { categoryId: root.body.data.id } })).toBe(0);
+      expect((await node(root.body.data.id)).isBookable).toBe(false);
       expect(child.body.data.breadcrumb.map((b: { name: string }) => b.name)).toEqual([
         'Non-academic',
       ]);
@@ -127,12 +135,17 @@ describe('Category tree API', () => {
       ).toBe(201);
     });
 
-    it('refuses a child under a bookable leaf, in the service and in the database', async () => {
-      const leaf = await createTreeNode(school, { code: 'cbse-only', isBookable: true });
+    it('refuses a child under a leaf that is in use, in the service and in the database', async () => {
+      const leaf = await createTreeNode(school, { code: 'cbse-only', name: 'CBSE only' });
+      await priceCurriculum((await leafCurriculum(leaf.id)).id);
       const res = await send('post', `${base}/${leaf.id}/children`).send({ code: 'x', name: 'X' });
       expect(res.status).toBe(409);
-      expect(res.body.code).toBe('PARENT_IS_BOOKABLE');
+      expect(res.body.code).toBe('CATEGORY_IN_USE');
+      expect(res.body.message).toContain('CBSE only');
       await expect(createTreeNode(leaf, { code: 'direct' })).rejects.toThrow();
+      // An unused leaf can get sub-categories
+      const free = await send('post', `${base}/${k12.id}/children`).send({ code: 'cbse', name: 'CBSE' });
+      expect(free.status).toBe(201);
     });
 
     it('rejects bad codes and an unknown parent without exposing database errors', async () => {
@@ -149,36 +162,23 @@ describe('Category tree API', () => {
   });
 
   describe('tree read', () => {
-    it('lists every node with child and curricula counts and caches until the next write', async () => {
-      await prisma.category.update({
-        where: { id: k12.id },
-        data: { isBookable: true, requiresLevel: false },
-      });
-      await createOffering({
-        categoryId: k12.id,
-        subjectId: lookups.subject.id,
-        boardId: lookups.board.id,
-      });
-
+    it('lists every node with child and tutor counts and caches until the next write', async () => {
       const first = await request(app).get(base).set(auth(reader));
       expect(first.status).toBe(200);
       expect(first.headers['x-cache']).toBe('MISS');
       const byPath = new Map(first.body.data.nodes.map((n: { path: string }) => [n.path, n]));
       expect(byPath.get('academic/school')).toMatchObject({
         childrenCount: 1,
-        curriculaCount: 0,
-        subtreeCurriculaCount: 1,
+        isLeaf: false,
+        tutorCount: 0,
       });
       expect(byPath.get('academic/school/k-12')).toMatchObject({
         childrenCount: 0,
-        curriculaCount: 1,
-        isBookable: true,
+        isLeaf: true,
+        tutorCount: 0,
       });
-      expect(first.body.data.stats).toMatchObject({
-        categories: 3,
-        bookableLeaves: 1,
-        curricula: 1,
-      });
+      expect(first.body.data.nodes[0]).not.toHaveProperty('isBookable');
+      expect(first.body.data.stats).toEqual({ categories: 3, leaves: 1 });
 
       expect((await request(app).get(base).set(auth(reader))).headers['x-cache']).toBe('HIT');
       await send('patch', `${base}/${k12.id}`).send({
@@ -229,61 +229,6 @@ describe('Category tree API', () => {
       expect((await node(k12.id)).path).toBe('academic/schools/k-12');
       expect((await node(physics.id)).path).toBe('academic/schools/k-12/physics');
       expect(await verify()).toEqual([]);
-    });
-  });
-
-  describe('leaf settings', () => {
-    it('saves the flags and allowed levels of a leaf', async () => {
-      const res = await send('put', `${base}/${k12.id}/leaf-settings`).send({
-        version: (await node(k12.id)).version,
-        isBookable: true,
-        requiresBoard: true,
-        requiresLevel: true,
-        levelIds: [lookups.level.id, lookups.level2.id],
-      });
-      expect(res.status).toBe(200);
-      expect(res.body.data).toMatchObject({
-        isBookable: true,
-        requiresBoard: true,
-        requiresLevel: true,
-      });
-      expect(res.body.data.allowedLevels).toHaveLength(2);
-    });
-
-    it('enforces invariants 3, 4 and 5 with clear reasons', async () => {
-      const settings = async (id: string, body: Record<string, unknown>) =>
-        send('put', `${base}/${id}/leaf-settings`).send({
-          version: (await node(id)).version,
-          isBookable: true,
-          requiresBoard: false,
-          requiresLevel: true,
-          levelIds: [lookups.level.id],
-          ...body,
-        });
-
-      const branch = await settings(school.id, {});
-      expect([branch.status, branch.body.code]).toEqual([409, 'HAS_CHILDREN']);
-      expect(branch.body.message).toContain('1 sub-category');
-
-      const noLevels = await settings(k12.id, { levelIds: [] });
-      expect([noLevels.status, noLevels.body.code]).toEqual([422, 'LEVELS_REQUIRED']);
-
-      expect((await settings(k12.id, {})).status).toBe(200);
-      await createOffering({
-        categoryId: k12.id,
-        subjectId: lookups.subject.id,
-        levelId: lookups.level.id,
-      });
-
-      const removeUsed = await settings(k12.id, { levelIds: [lookups.level2.id] });
-      expect([removeUsed.status, removeUsed.body.code]).toEqual([409, 'LEVEL_IN_USE']);
-
-      const unbook = await settings(k12.id, { isBookable: false });
-      expect([unbook.status, unbook.body.code]).toEqual([409, 'CATEGORY_REFERENCED']);
-      expect(unbook.body.message).toContain('1 curriculum');
-
-      const needBoard = await settings(k12.id, { requiresBoard: true });
-      expect([needBoard.status, needBoard.body.code]).toEqual([409, 'BOARD_REQUIRED_BY_CURRICULA']);
     });
   });
 
@@ -374,7 +319,7 @@ describe('Category tree API', () => {
       expect(await verify()).toEqual([]);
     });
 
-    it('blocks cycles, bookable parents, code clashes and stale versions', async () => {
+    it('blocks cycles, leaves in use, code clashes and stale versions', async () => {
       const physics = await createTreeNode(k12, { code: 'physics' });
       const v = (await node(school.id)).version;
       const intoSelf = await send('put', `${base}/${school.id}/move`).send({
@@ -388,12 +333,13 @@ describe('Category tree API', () => {
       expect([intoSelf.body.code, intoChild.body.code]).toEqual(['CYCLE', 'CYCLE']);
       expect(intoChild.status).toBe(422);
 
-      const leaf = await createTreeNode(academic, { code: 'leaf', isBookable: true });
+      const leaf = await createTreeNode(academic, { code: 'leaf' });
+      await priceCurriculum((await leafCurriculum(leaf.id)).id);
       const intoLeaf = await send('put', `${base}/${physics.id}/move`).send({
         version: (await node(physics.id)).version,
         parentId: leaf.id,
       });
-      expect([intoLeaf.status, intoLeaf.body.code]).toEqual([409, 'PARENT_IS_BOOKABLE']);
+      expect([intoLeaf.status, intoLeaf.body.code]).toEqual([409, 'CATEGORY_IN_USE']);
 
       await createTreeNode(academic, { code: 'physics' });
       const clash = await send('put', `${base}/${physics.id}/move`).send({
@@ -419,23 +365,15 @@ describe('Category tree API', () => {
       );
       expect([res.status, res.body.code]).toEqual([409, 'DELETE_BLOCKED']);
       expect(res.body.message).toBe(
-        'School cannot be deleted because it has 1 sub-category. Deactivate it instead.'
+        'School cannot be deleted because it has 1 sub-category. Disable it instead.'
       );
 
-      await prisma.category.update({
-        where: { id: k12.id },
-        data: { isBookable: true, requiresLevel: false },
-      });
-      await createOffering({
-        categoryId: k12.id,
-        subjectId: lookups.subject.id,
-        boardId: lookups.board.id,
-      });
+      await priceCurriculum((await leafCurriculum(k12.id)).id);
       const referenced = await send(
         'delete',
         `${base}/${k12.id}?version=${(await node(k12.id)).version}`
       );
-      expect(referenced.body.message).toContain('1 curriculum');
+      expect(referenced.body.message).toContain('1 price');
     });
 
     it('deletes an unreferenced leaf and checks the version', async () => {
@@ -447,6 +385,9 @@ describe('Category tree API', () => {
         204
       );
       expect(await prisma.category.count({ where: { id: empty.id } })).toBe(0);
+      // Its category curriculum went with it, and the parent is a leaf again only when
+      // it has no other children
+      expect(await prisma.curriculum.count({ where: { categoryId: empty.id } })).toBe(0);
       expect((await send('delete', `${base}/${empty.id}?version=1`)).status).toBe(404);
     });
   });
@@ -479,22 +420,6 @@ describe('Category tree API', () => {
       const k12Path = (await node(k12.id)).path;
       for (const s of subs) expect(s.path).toBe(`${k12Path}/${s.code}`);
     });
-
-    it('never ends with children under a bookable node when both happen at once', async () => {
-      const v = (await node(k12.id)).version;
-      const [book, child] = await Promise.all([
-        send('put', `${base}/${k12.id}/leaf-settings`).send({
-          version: v,
-          isBookable: true,
-          requiresBoard: false,
-          requiresLevel: false,
-          levelIds: [],
-        }),
-        send('post', `${base}/${k12.id}/children`).send({ code: 'late', name: 'Late' }),
-      ]);
-      expect([book.status, child.status]).toContain(200);
-      expect(await verify()).toEqual([]);
-    });
   });
 
   describe('database invariants', () => {
@@ -513,11 +438,25 @@ describe('Category tree API', () => {
       ).rejects.toThrow();
     });
 
-    it('rejects a level the leaf does not allow and a missing required board', async () => {
-      await prisma.category.update({
-        where: { id: k12.id },
-        data: { isBookable: true, requiresLevel: true },
+    it('keeps exactly one category curriculum on every leaf and none on a branch', async () => {
+      const physics = await createTreeNode(k12, { code: 'physics' });
+      const class11 = await createTreeNode(physics, { code: 'class-11' });
+      const own = { subjectId: null, boardId: null, levelId: null };
+      expect(await prisma.curriculum.count({ where: { categoryId: k12.id } })).toBe(0);
+      expect(await prisma.curriculum.count({ where: { categoryId: physics.id } })).toBe(0);
+      expect(await prisma.curriculum.count({ where: { categoryId: class11.id, ...own } })).toBe(1);
+      expect((await node(class11.id)).isBookable).toBe(true);
+
+      // Moving the only child away makes the old parent a leaf again
+      await send('put', `${base}/${class11.id}/move`).send({
+        version: (await node(class11.id)).version,
+        parentId: k12.id,
       });
+      expect(await prisma.curriculum.count({ where: { categoryId: physics.id, ...own } })).toBe(1);
+      expect(await verify()).toEqual([]);
+    });
+
+    it('rejects a level the leaf does not allow', async () => {
       await allowLevels(k12.id, [lookups.level.id]);
       await expect(
         createOffering({
@@ -531,55 +470,10 @@ describe('Category tree API', () => {
         createOffering({
           categoryId: k12.id,
           subjectId: lookups.subject.id,
-          levelId: lookups.level.id,
-        })
-      ).rejects.toThrow();
-      await expect(
-        createOffering({
-          categoryId: k12.id,
-          subjectId: lookups.subject.id,
           boardId: lookups.board.id,
           levelId: lookups.level.id,
         })
       ).resolves.toBeTruthy();
-    });
-  });
-
-  describe('offerings', () => {
-    beforeEach(async () => {
-      await prisma.category.update({
-        where: { id: k12.id },
-        data: { isBookable: true, requiresLevel: true },
-      });
-      await allowLevels(k12.id, [lookups.level.id]);
-    });
-
-    it('adds an offering idempotently and applies the leaf rules', async () => {
-      const body = {
-        subjectId: lookups.subject.id,
-        boardId: lookups.board.id,
-        levelId: lookups.level.id,
-      };
-      const first = await send('post', `${base}/${k12.id}/offerings`).send(body);
-      const again = await send('post', `${base}/${k12.id}/offerings`).send(body);
-      expect([first.status, again.status]).toEqual([201, 200]);
-      expect(again.body.data.curriculumId).toBe(first.body.data.curriculumId);
-
-      const noBoard = await send('post', `${base}/${k12.id}/offerings`).send({
-        subjectId: lookups.subject.id,
-        levelId: lookups.level.id,
-      });
-      expect([noBoard.status, noBoard.body.code]).toEqual([422, 'BOARD_REQUIRED']);
-      const wrongLevel = await send('post', `${base}/${k12.id}/offerings`).send({
-        ...body,
-        levelId: lookups.level2.id,
-      });
-      expect(wrongLevel.body.code).toBe('LEVEL_NOT_ALLOWED');
-      const branch = await send('post', `${base}/${school.id}/offerings`).send(body);
-      expect(branch.body.code).toBe('NOT_BOOKABLE');
-
-      const list = await request(app).get(`${base}/${k12.id}/offerings`).set(auth(reader));
-      expect(list.body.data).toHaveLength(1);
     });
   });
 
@@ -588,10 +482,6 @@ describe('Category tree API', () => {
     let university: TreeNodeFixture;
 
     beforeEach(async () => {
-      await prisma.category.update({
-        where: { id: k12.id },
-        data: { isBookable: true, requiresLevel: true },
-      });
       await allowLevels(k12.id, [lookups.level.id]);
       await createOffering({
         categoryId: k12.id,
@@ -599,14 +489,10 @@ describe('Category tree API', () => {
         boardId: lookups.board.id,
         levelId: lookups.level.id,
       });
-      university = await createTreeNode(academic, {
-        code: 'university',
-        name: 'University',
-        isBookable: true,
-        requiresLevel: false,
-      });
+      university = await createTreeNode(academic, { code: 'university', name: 'University' });
       await createOffering({ categoryId: university.id, subjectId: lookups.subject2.id });
-      await createTreeNode(academic, { code: 'empty-branch', name: 'Empty' });
+      const branch = await createTreeNode(academic, { code: 'empty-branch', name: 'Empty' });
+      await createTreeNode(branch, { code: 'hidden-leaf', name: 'Hidden', isActive: false });
       await setFlag('catalogue.category_tree', true);
     });
 
@@ -635,11 +521,14 @@ describe('Category tree API', () => {
       expect((await request(app).get(`${learner}/leaves/${k12.id}`)).status).toBe(404);
     });
 
-    it('shows the board and level fields only when the leaf requires them', async () => {
+    it('never asks for a board or level on a leaf', async () => {
       const k12Leaf = await request(app).get(`${learner}/leaves/${k12.id}`);
-      expect(k12Leaf.body.data).toMatchObject({ requiresBoard: true, requiresLevel: true });
-      expect(k12Leaf.body.data.boards).toHaveLength(1);
-      expect(k12Leaf.body.data.levels.map((l: { id: string }) => l.id)).toEqual([lookups.level.id]);
+      expect(k12Leaf.body.data).toMatchObject({
+        requiresBoard: false,
+        requiresLevel: false,
+        boards: [],
+        levels: [],
+      });
       expect(k12Leaf.body.data.breadcrumb.map((b: { name: string }) => b.name)).toEqual([
         'Academic',
         'School',
@@ -664,10 +553,10 @@ describe('Category tree API', () => {
       expect(withAll.status).toBe(200);
       expect(withAll.body.data.categoryPath).toBe('academic/school/k-12');
 
-      const missingBoard = await request(app).get(
+      const otherBoard = await request(app).get(
         `${learner}/leaves/${k12.id}/offering?subjectId=${lookups.subject.id}&levelId=${lookups.level.id}`
       );
-      expect([missingBoard.status, missingBoard.body.code]).toEqual([422, 'BOARD_REQUIRED']);
+      expect([otherBoard.status, otherBoard.body.code]).toEqual([404, 'NO_OFFERING']);
 
       const none = await request(app).get(
         `${learner}/leaves/${university.id}/offering?subjectId=${lookups.subject2.id}`

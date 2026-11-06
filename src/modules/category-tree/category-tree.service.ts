@@ -3,13 +3,12 @@ import { treeError } from './category-tree.errors.js';
 import {
   MAX_DEPTH,
   MAX_PATH_LENGTH,
-  checkLeafSettings,
   checkMoveLimits,
   childDepth,
   childPath,
-  countLabel,
 } from './category-tree.rules.js';
 import {
+  assertCanHaveChildren,
   assertCodeFree,
   audit,
   lockOne,
@@ -23,15 +22,12 @@ import {
   type Actor,
   type LockedRow,
 } from './category-tree.tx.js';
-import type {
-  CreateNodeInput,
-  LeafSettingsInput,
-  UpdateCategoryInput,
-} from './category-tree.dto.js';
+import type { CreateNodeInput, UpdateCategoryInput } from './category-tree.dto.js';
 
 /**
- * Category tree node writes (ADR-0005): create, update (name, code, active) and leaf
- * settings. Each is one transaction: rows are locked with SELECT … FOR UPDATE, the
+ * Category tree node writes (ADR-0005): create and update (name, code, active). Leaves
+ * are derived (a category without sub-categories); the categories_leaf_sync trigger
+ * keeps their category curriculum in step. Each is one transaction: rows are locked with SELECT … FOR UPDATE, the
  * version and the rule are checked, then the change is written; the deferred triggers
  * re-check the invariants. Structural writes (reorder, move, delete) are in
  * category-tree.structure.ts.
@@ -59,12 +55,7 @@ export async function createCategory(
     if (parentId) {
       parent = (await lockRows(tx, [parentId])).get(parentId);
       if (!parent) throw treeError('PARENT_NOT_FOUND');
-      if (parent.is_bookable) {
-        throw treeError(
-          'PARENT_IS_BOOKABLE',
-          `${parent.name} is bookable, so it cannot have sub-categories. Turn off booking on it first.`
-        );
-      }
+      await assertCanHaveChildren(tx, parent);
     } else {
       // Serialise root creation so display orders do not collide
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('category_tree:roots'))`;
@@ -91,8 +82,6 @@ export async function createCategory(
         name: input.name,
         path,
         depth,
-        // Children inherit the board rule of their parent (School's sub-categories need a board)
-        requiresBoard: parent?.requires_board ?? false,
         displayOrder: await nextDisplayOrder(tx, parentId),
       },
       select: { id: true },
@@ -180,121 +169,6 @@ export async function updateCategory(
       name: node.name,
       path: node.path,
       isActive: node.isActive,
-      version: node.version,
-    });
-  }
-  return node;
-}
-
-// ── Leaf settings ────────────────────────────────────────────────────────────
-
-export async function setLeafSettings(
-  id: string,
-  input: LeafSettingsInput,
-  actor: Actor
-): Promise<CategoryDetail> {
-  const outcome = await write('category.leaf_settings', id, async (tx) => {
-    const node = await lockOne(tx, id);
-    const current = await tx.categoryLevel.findMany({
-      where: { categoryId: id },
-      select: { levelId: true },
-    });
-    const currentIds = new Set(current.map((c) => c.levelId));
-    const unchanged =
-      node.is_bookable === input.isBookable &&
-      node.requires_board === input.requiresBoard &&
-      node.requires_level === input.requiresLevel &&
-      currentIds.size === input.levelIds.length &&
-      input.levelIds.every((l) => currentIds.has(l));
-    if (unchanged) return { before: null };
-    if (node.version !== input.version)
-      throw treeError(
-        'STALE_VERSION',
-        `Someone else changed ${node.name}. Reload to see the latest version, then try again.`
-      );
-
-    const [
-      childCount,
-      curricula,
-      students,
-      levelsInUse,
-      curriculaWithoutLevel,
-      curriculaWithoutBoard,
-      studentsWithoutBoard,
-    ] = await Promise.all([
-      tx.category.count({ where: { parentId: id } }),
-      tx.curriculum.count({ where: { categoryId: id } }),
-      tx.studentProfile.count({
-        where: { subjects: { some: { curriculum: { categoryId: id } } } },
-      }),
-      tx.curriculum.findMany({
-        where: { categoryId: id, levelId: { not: null } },
-        select: { levelId: true },
-        distinct: ['levelId'],
-      }),
-      tx.curriculum.count({ where: { categoryId: id, levelId: null } }),
-      tx.curriculum.count({ where: { categoryId: id, boardId: null } }),
-      tx.studentProfile.count({
-        where: { subjects: { some: { curriculum: { categoryId: id, boardId: null } } } },
-      }),
-    ]);
-
-    const error = checkLeafSettings(input, {
-      childCount,
-      referenceCount: curricula + students,
-      levelsInUse: new Set(levelsInUse.flatMap((l) => (l.levelId ? [l.levelId] : []))),
-      curriculaWithoutLevel,
-      referencesWithoutBoard: curriculaWithoutBoard + studentsWithoutBoard,
-    });
-    if (error === 'HAS_CHILDREN') {
-      throw treeError(
-        error,
-        `${node.name} has ${countLabel(childCount, 'sub-category', 'sub-categories')}. Only a category without sub-categories can be bookable or have levels.`
-      );
-    }
-    if (error === 'CATEGORY_REFERENCED') {
-      throw treeError(
-        error,
-        `${node.name} is used by ${countLabel(curricula, 'curriculum', 'curricula')} and ${countLabel(students, 'student', 'students')}. Deactivate it instead of turning off booking.`
-      );
-    }
-    if (error) throw treeError(error);
-
-    const levels = await tx.level.findMany({
-      where: { id: { in: input.levelIds } },
-      select: { id: true, name: true, isActive: true },
-    });
-    if (levels.length !== input.levelIds.length) throw treeError('UNKNOWN_LEVEL');
-    const inactiveNew = levels.find((l) => !l.isActive && !currentIds.has(l.id));
-    if (inactiveNew)
-      throw treeError('INACTIVE_LEVEL', `${inactiveNew.name} is not active, so it cannot be added`);
-
-    await tx.categoryLevel.deleteMany({
-      where: { categoryId: id, levelId: { notIn: input.levelIds } },
-    });
-    await tx.categoryLevel.createMany({
-      data: input.levelIds.map((levelId) => ({ categoryId: id, levelId })),
-      skipDuplicates: true,
-    });
-    await tx.category.update({
-      where: { id },
-      data: {
-        isBookable: input.isBookable,
-        requiresBoard: input.requiresBoard,
-        requiresLevel: input.requiresLevel,
-        version: { increment: 1 },
-      },
-    });
-    return { before: { ...snapshot(node), levelIds: [...currentIds].sort() } };
-  });
-
-  const node = await getCategoryDetail(id);
-  if (outcome.before) {
-    await audit(actor, 'category.leaf_settings', id, outcome.before, {
-      isBookable: node.isBookable,
-      requiresBoard: node.requiresBoard,
-      requiresLevel: node.requiresLevel,
-      levelIds: node.allowedLevels.map((l) => l.id).sort(),
       version: node.version,
     });
   }
