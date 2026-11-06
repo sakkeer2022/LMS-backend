@@ -5,7 +5,7 @@
 const fs = require('fs');
 const { execSync } = require('child_process');
 
-const LONG_LIVED = ['main', 'development'];
+const LONG_LIVED = ['main', 'development', 'qa'];
 const WORK_BRANCH = /^(feature|bugfix|hotfix|release)\/LMS-\d+-[a-z0-9]+(-[a-z0-9]+)*$/;
 const DELETE_SHA = /^0+$/;
 
@@ -50,7 +50,7 @@ if (refs) {
 if (errors.length > 0) {
   for (const message of errors) console.error(message);
   console.error(
-    'Branches: main, development or <feature|bugfix|hotfix|release>/LMS-<ticket>-<short-kebab-description>,'
+    'Branches: main, development, qa or <feature|bugfix|hotfix|release>/LMS-<ticket>-<short-kebab-description>,'
   );
   console.error('for example feature/LMS-38-student-registration. See src/docs/CONTRIBUTING.md.');
   process.exit(1);
