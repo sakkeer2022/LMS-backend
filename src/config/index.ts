@@ -111,7 +111,7 @@ const envSchema = z
 
     // Email transport. smtp (default): SMTP_*; sendgrid: SendGrid v3 HTTP API (SENDGRID_*);
     // log: development, records that a message would be sent; memory: in process (tests only).
-    EMAIL_TRANSPORT: z.enum(['smtp', 'sendgrid', 'resend', 'log', 'memory']).optional(),
+    EMAIL_TRANSPORT: z.enum(['smtp', 'sendgrid', 'log', 'memory']).optional(),
     EMAIL_FROM: z.string().default('Amentorz <no-reply@amentorz.local>'),
     SMTP_HOST: z.string().optional(),
     SMTP_PORT: z.coerce.number().int().positive().default(587),
@@ -129,8 +129,6 @@ const envSchema = z
     // Who must confirm a password change with an email code: admin and super_admin accounts, or every role
     PASSWORD_CHANGE_OTP_ROLES: z.enum(['admin', 'all']).default('admin'),
     RESET_GRANT_EXPIRES_MINUTES: z.coerce.number().int().positive().default(5),
-    // Resend HTTP API, used when EMAIL_TRANSPORT=resend; the sender is EMAIL_FROM
-    RESEND_API_KEY: z.string().optional(),
     // SendGrid v3 HTTP API, used when EMAIL_TRANSPORT=sendgrid (LMS-79)
     SENDGRID_API_KEY: z.string().optional(),
     SENDGRID_FROM_EMAIL: z.email().optional(),
@@ -180,13 +178,6 @@ const envSchema = z
           path: ['SENDGRID_FROM_EMAIL'],
         });
       }
-    }
-    if (env.EMAIL_TRANSPORT === 'resend' && !env.RESEND_API_KEY?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'RESEND_API_KEY is required when EMAIL_TRANSPORT=resend',
-        path: ['RESEND_API_KEY'],
-      });
     }
     if (env.STORAGE_DRIVER === 'dropbox') {
       for (const name of [
@@ -454,8 +445,6 @@ export const config = {
       user: env.SMTP_USER,
       pass: env.SMTP_PASS,
     },
-    // Resend (EMAIL_TRANSPORT=resend)
-    resendApiKey: env.RESEND_API_KEY,
     // SendGrid (EMAIL_TRANSPORT=sendgrid)
     sendgridApiKey: env.SENDGRID_API_KEY,
     fromEmail: env.SENDGRID_FROM_EMAIL,
