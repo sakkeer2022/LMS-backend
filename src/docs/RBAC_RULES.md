@@ -40,7 +40,7 @@
 
 - The template `viewer` role is no longer seeded. Existing databases keep it until it is deleted.
 - `super_admin` is an internal operator role, not a client role. The SOW (A1.5) defines three roles (student, faculty and admin) and puts new user roles under change control, so `super_admin` is never offered in the product or the API contract.
-- **Known escalation path:** `admin` holds `user.assign_role` and `role.assign_permission`, so an admin can grant itself `super_admin` or extra permissions. Accepted for now. Restricting who may grant system roles is tracked in LMS-104.
+- **System role changes (LMS-104):** only `super_admin` can assign, remove or inherit from the `super_admin` and `admin` roles, change the permissions of any system role, or edit a system role. An `admin` can still assign `student` and `faculty` and manage custom roles. Refused attempts return 403 and are written to the audit log (`user.roles_changed_denied`, `role.system_changed_denied`). Guard: `src/modules/roles/system-role-guard.ts`. Only `super_admin` can also grant a permission it does not hold: adding permissions to a role, assigning a role, or setting a parent role is refused when it would give more than the actor has (`role.permissions_granted_denied`, `user.roles_changed_denied`).
 - **Portal guard:** routes are protected by permissions, which already blocks students and faculty from admin routes. A role-based portal guard for portal-only routes (for example student-only endpoints) is added with the first such route in LMS-100.
 
 ## Access Token Claims [Implemented]

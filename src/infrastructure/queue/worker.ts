@@ -5,6 +5,7 @@ import { queueConnection } from './client.js';
 import { logger } from '@core/logger/index';
 import { backgroundJobsProcessedTotal } from '@core/metrics/index';
 import { config } from '@config/index';
+import { purgeExpiredConsents } from '@modules/consent/index.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -118,6 +119,9 @@ export const backgroundWorker = new Worker(
         switch (job.name) {
           case 'process-billing':
             // Task: Process subscription updates
+            break;
+          case 'purge-expired-consents':
+            await purgeExpiredConsents();
             break;
           case 'scan-file':
             await handleScanFileJob(job.data);

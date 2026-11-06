@@ -25,6 +25,9 @@ import {
 export function createApp(): Application {
   const app = express();
 
+  // The client IP (consent signing, audit) comes from the trusted proxy chain, never from a client-set header
+  if (config.trustProxyHops > 0) app.set('trust proxy', config.trustProxyHops);
+
   // ── Context ──────────────────────────────────────────────
   app.use(requestContextMiddleware);
 
@@ -84,6 +87,13 @@ export function createApp(): Application {
   app.use(express.json({ limit: '100kb' }));
   app.use(express.urlencoded({ extended: true, limit: '100kb' }));
   app.use(cookieParser(config.security.cookieSecret));
+
+  // ── Development delay (DEV_API_DELAY_MS, development only) ─
+  if (config.devApiDelayMs > 0) {
+    app.use('/api/v1', (_req, _res, next) => {
+      setTimeout(() => next(), config.devApiDelayMs);
+    });
+  }
 
   // ── CSRF Protection ───────────────────────────────────────
   app.use('/api/v1', (req, res, next) => {

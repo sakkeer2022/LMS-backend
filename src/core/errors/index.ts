@@ -8,6 +8,11 @@ export interface ErrorOptions {
   severity?: ErrorSeverity;
   context?: Record<string, unknown>;
   rootCause?: Error;
+  /**
+   * Per-field messages returned to the client in `errors` (operational errors only),
+   * for example which emails in a batch conflict. Never put secrets here.
+   */
+  fieldErrors?: Record<string, string[]>;
 }
 
 export class AppError extends Error {
@@ -19,6 +24,7 @@ export class AppError extends Error {
   public readonly severity: ErrorSeverity;
   public readonly context: Record<string, unknown>;
   public readonly rootCause?: Error;
+  public readonly fieldErrors?: Record<string, string[]>;
 
   constructor(
     message: string,
@@ -35,6 +41,7 @@ export class AppError extends Error {
     this.severity = options.severity ?? 'error';
     this.context = options.context ?? {};
     this.rootCause = options.rootCause;
+    this.fieldErrors = options.fieldErrors;
 
     Object.setPrototypeOf(this, new.target.prototype);
     Error.captureStackTrace(this, this.constructor);
@@ -109,6 +116,12 @@ export class TooManyRequestsError extends OperationalError {
 export class PayloadTooLargeError extends OperationalError {
   constructor(message = 'Payload Too Large', options?: ErrorOptions) {
     super(message, 413, { code: 'PAYLOAD_TOO_LARGE', ...options });
+  }
+}
+
+export class BadGatewayError extends OperationalError {
+  constructor(message = 'Bad Gateway', options?: ErrorOptions) {
+    super(message, 502, { code: 'BAD_GATEWAY', retryable: true, ...options });
   }
 }
 

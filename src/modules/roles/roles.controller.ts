@@ -6,6 +6,7 @@ import {
   PaginationQueryDto,
 } from './roles.dto.js';
 import * as RolesService from './roles.service.js';
+import { actorFrom } from './system-role-guard.js';
 import { successResponse } from '@core/response/index';
 
 export async function listRoles(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -30,7 +31,7 @@ export async function getRoleById(req: Request, res: Response, next: NextFunctio
 export async function createRole(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const dto = CreateRoleDto.parse(req.body);
-    const role = await RolesService.createRole(dto);
+    const role = await RolesService.createRole(dto, actorFrom(req));
     res.status(201).json(successResponse(role, 'Role created'));
   } catch (err) {
     next(err);
@@ -40,7 +41,7 @@ export async function createRole(req: Request, res: Response, next: NextFunction
 export async function updateRole(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const dto = UpdateRoleDto.parse(req.body);
-    const role = await RolesService.updateRole(req.params['id'] as string, dto);
+    const role = await RolesService.updateRole(req.params['id'] as string, dto, actorFrom(req));
     res.json(successResponse(role, 'Role updated'));
   } catch (err) {
     next(err);
@@ -63,7 +64,11 @@ export async function assignPermissions(
 ): Promise<void> {
   try {
     const dto = AssignPermissionsDto.parse(req.body);
-    const role = await RolesService.assignPermissions(req.params['id'] as string, dto);
+    const role = await RolesService.assignPermissions(
+      req.params['id'] as string,
+      dto,
+      actorFrom(req)
+    );
     res.json(successResponse(role, 'Permissions assigned'));
   } catch (err) {
     next(err);
@@ -77,7 +82,11 @@ export async function removePermissions(
 ): Promise<void> {
   try {
     const dto = AssignPermissionsDto.parse(req.body);
-    const role = await RolesService.removePermissions(req.params['id'] as string, dto);
+    const role = await RolesService.removePermissions(
+      req.params['id'] as string,
+      dto,
+      actorFrom(req)
+    );
     res.json(successResponse(role, 'Permissions removed'));
   } catch (err) {
     next(err);
@@ -91,7 +100,7 @@ export async function setPermissions(
 ): Promise<void> {
   try {
     const dto = AssignPermissionsDto.parse(req.body);
-    const role = await RolesService.setPermissions(req.params['id'] as string, dto);
+    const role = await RolesService.setPermissions(req.params['id'] as string, dto, actorFrom(req));
     res.json(successResponse(role, 'Permissions updated'));
   } catch (err) {
     next(err);

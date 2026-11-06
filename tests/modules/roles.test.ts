@@ -2,15 +2,13 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../helpers/app.js';
 import { getCsrfData } from '../helpers/csrf.js';
-import { signIn } from '../helpers/users.js';
+import { signIn, registerTestUser } from '../helpers/users.js';
 import { prisma } from '@infrastructure/database/index.js';
 
 describe('Roles API', () => {
   let adminToken: string;
 
   beforeEach(async () => {
-    const { csrfToken, csrfCookie } = await getCsrfData();
-
     // 1. Create a super_admin role
     const adminRole = await prisma.role.create({
       data: {
@@ -37,15 +35,11 @@ describe('Roles API', () => {
     });
 
     // 2. Register a user
-    await request(app)
-      .post('/api/v1/auth/register')
-      .set('Cookie', typeof csrfCookie !== 'undefined' ? csrfCookie : '')
-      .set('x-csrf-token', typeof csrfToken !== 'undefined' ? csrfToken : '')
-      .send({
-        email: 'admin@example.com',
-        password: 'Password123!',
-        fullName: 'Admin User',
-      });
+    await registerTestUser({
+      email: 'admin@example.com',
+      password: 'Password123!',
+      fullName: 'Admin User',
+    });
 
     const user = await prisma.user.findFirst({ where: { email: 'admin@example.com' } });
 
@@ -189,11 +183,7 @@ describe('Roles API', () => {
         fullName: 'Normal User',
       };
 
-      await request(app)
-        .post('/api/v1/auth/register')
-        .set('Cookie', typeof csrfCookie !== 'undefined' ? csrfCookie : '')
-        .set('x-csrf-token', typeof csrfToken !== 'undefined' ? csrfToken : '')
-        .send(payload);
+      await registerTestUser(payload);
 
       const loginRes = await signIn({
         email: payload.email,
@@ -228,11 +218,7 @@ describe('Roles API', () => {
         fullName: 'Regular Admin',
       };
 
-      await request(app)
-        .post('/api/v1/auth/register')
-        .set('Cookie', typeof csrfCookie !== 'undefined' ? csrfCookie : '')
-        .set('x-csrf-token', typeof csrfToken !== 'undefined' ? csrfToken : '')
-        .send(payload);
+      await registerTestUser(payload);
 
       const regAdminRole = await prisma.role.create({
         data: {

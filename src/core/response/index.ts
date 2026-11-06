@@ -4,6 +4,8 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   meta?: PaginationMeta;
   errors?: Record<string, string[]>;
+  /** Machine-readable error code (for example STALE_VERSION), for clients that map errors */
+  code?: string;
   traceId?: string;
 }
 
@@ -25,7 +27,14 @@ export function successResponse<T>(
 export function errorResponse(
   message: string,
   errors?: Record<string, string[]>,
-  traceId?: string
+  traceId?: string,
+  code?: string
 ): ApiResponse<never> {
-  return { success: false, message, ...(errors && { errors }), ...(traceId && { traceId }) };
+  return {
+    success: false,
+    message,
+    ...(errors && { errors }),
+    ...(code && { code }),
+    ...(traceId && { traceId }),
+  };
 }

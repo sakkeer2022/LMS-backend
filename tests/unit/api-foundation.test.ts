@@ -213,8 +213,8 @@ describe('API Foundation & Shared Conventions', () => {
       expect(contract.info.version).toContain('draft');
       // Draft-only paths must not leak into the implemented spec
       const implemented = getImplementedApiSpec() as unknown as Spec;
-      expect(contract.paths).toHaveProperty('/admin/faculty');
-      expect(implemented.paths).not.toHaveProperty('/admin/faculty');
+      expect(contract.paths).toHaveProperty('/faculty/me/profile');
+      expect(implemented.paths).not.toHaveProperty('/faculty/me/profile');
     });
   });
 });

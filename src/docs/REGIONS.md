@@ -72,7 +72,7 @@ Backend changes made for scalability (reference tables, configuration, extra col
 
 - `users.mobile_number` (E.164), `users.timezone` (IANA) and `boards.country` exist.
 - `student_profiles.country` has no default: registration sets it from the mobile number's dialling code (see above). `boards.country` still defaults to `IN` until the catalogue API (LMS-54) asks for a country; remove that default then.
-- `policy_documents` has **no country** yet. Country-specific consent and policies (LMS-99) need a `country` column and a unique `(type, country, version)` with a migration.
+- `policy_documents.country` exists (migration `20261103110000_policy_country`): unique `(type, country, version)` and one current version per `(type, country)`. `GET /policies/current?country=` never falls back to another country.
 
 ## Open decisions
 
