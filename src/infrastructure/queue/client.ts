@@ -11,3 +11,17 @@ export const backgroundJobQueue = new Queue('background-jobs', {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   connection: queueConnection as any,
 });
+
+/** Runs the purge of expired, unused guardian consents every hour (adding it again is harmless). */
+export async function scheduleConsentPurge(): Promise<void> {
+  await backgroundJobQueue.add(
+    'purge-expired-consents',
+    {},
+    {
+      repeat: { every: 60 * 60 * 1000 },
+      jobId: 'purge-expired-consents',
+      removeOnComplete: true,
+      removeOnFail: 20,
+    }
+  );
+}

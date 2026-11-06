@@ -1,64 +1,18 @@
-import bcrypt from 'bcrypt';
 import { prisma } from '@infrastructure/database/index';
-import type { Prisma } from '@prisma/client';
-import { verifyAccessToken, verifyRefreshToken, type TokenPair } from '@core/security/jwt';
+import { verifyAccessToken, verifyRefreshToken } from '@core/security/jwt';
 import { redisClient } from '@infrastructure/redis/connection';
-import { ConflictError, NotFoundError } from '@core/errors/index';
 import { logger } from '@core/logger/index';
-import type { RegisterInput } from './auth.dto.js';
 import { markSessionRevoked } from '@core/security/session-revocation';
-import { issueTokenPair, hashToken } from './session.js';
+import { hashToken } from './session.js';
 import { resolveCountry, detectImpossibleTravel } from '@core/security/travel';
 
-const BCRYPT_ROUNDS = 12;
-
 export const mockImpossibleTravelSuspensions = new Set<string>();
-
-// ── Public profile shape ──────────────────────────────────────────
-export interface UserProfile {
-  id: string;
-  email: string;
-  fullName: string;
-  isActive: boolean;
-  roles: Array<{
-    id: string;
-    name: string;
-    permissions: Array<{ name: string }>;
-  }>;
-}
 
 // ── Service ──────────────────────────────────────────────────────
 export interface SessionContext {
   ipAddress: string;
   userAgent: string;
   deviceFingerprint: string;
-}
-
-export async function register(
-  dto: RegisterInput,
-  context: SessionContext
-): Promise<{ user: UserProfile; tokens: TokenPair }> {
-  const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
-
-  return prisma.$transaction(async (tx) => {
-    const existing = await tx.user.findFirst({
-      where: { email: dto.email, deletedAt: null },
-    });
-    if (existing) throw new ConflictError('Email is already in use');
-
-    const user = await tx.user.create({
-      data: {
-        email: dto.email,
-        passwordHash,
-        fullName: dto.fullName,
-      },
-    });
-
-    const tokens = await issueTokenPair(user, context, tx);
-    const profile = await _buildProfile(user.id, tx);
-
-    return { user: profile, tokens };
-  });
 }
 
 /**
@@ -169,47 +123,4 @@ export async function logout(rawRefreshToken?: string, rawAccessToken?: string):
       // already invalid — ignore
     }
   }
-}
-
-// ── Private helpers ───────────────────────────────────────────────
-async function _buildProfile(userId: string, tx?: Prisma.TransactionClient): Promise<UserProfile> {
-  const db = tx || prisma;
-  const user = await db.user.findFirst({
-    where: { id: userId, deletedAt: null },
-    include: {
-      roles: {
-        include: {
-          role: {
-            include: {
-              permissions: {
-                include: {
-                  permission: {
-                    select: { name: true },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-
-  if (!user) throw new NotFoundError('User');
-
-  const mappedRoles = user.roles.map((ur) => ({
-    id: ur.role.id,
-    name: ur.role.name,
-    permissions: ur.role.permissions.map((rp) => ({
-      name: rp.permission.name,
-    })),
-  }));
-
-  return {
-    id: user.id,
-    email: user.email,
-    fullName: user.fullName,
-    isActive: user.isActive,
-    roles: mappedRoles,
-  };
 }

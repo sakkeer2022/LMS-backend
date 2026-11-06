@@ -44,3 +44,6 @@ Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
+
+# Local file storage (development)
+.data/

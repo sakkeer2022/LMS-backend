@@ -6,6 +6,7 @@ import { createApp } from './app.js';
 import { config } from '@config/index';
 import { logger } from '@core/logger/index';
 import { connectDatabase, disconnectDatabase } from '@infrastructure/database/index';
+import { scheduleConsentPurge } from '@infrastructure/queue/index';
 import { redisClient } from '@infrastructure/redis/connection';
 
 async function bootstrap(): Promise<void> {
@@ -21,6 +22,13 @@ async function bootstrap(): Promise<void> {
       logger.error({ err }, 'Failed to connect to Redis during bootstrap');
       process.exit(1);
     }
+  }
+
+  // Unused signed consents expire; this removes them (and their PDFs) every hour
+  try {
+    await scheduleConsentPurge();
+  } catch (err) {
+    logger.error({ err }, 'Could not schedule the consent purge job');
   }
 
   const server = app.listen(config.port, () => {
