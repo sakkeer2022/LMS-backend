@@ -70,6 +70,15 @@ describe('Email and invitation configuration (LMS-79)', () => {
     ).toBe(true);
   });
 
+  it('requires RESEND_API_KEY for the resend transport', () => {
+    expect(messages({ ...dev, EMAIL_TRANSPORT: 'resend' })).toEqual([
+      'RESEND_API_KEY is required when EMAIL_TRANSPORT=resend',
+    ]);
+    expect(
+      envSchema.safeParse({ ...dev, EMAIL_TRANSPORT: 'resend', RESEND_API_KEY: 're_x' }).success
+    ).toBe(true);
+  });
+
   it('rejects a malformed SENDGRID_FROM_EMAIL', () => {
     expect(envSchema.safeParse({ ...dev, SENDGRID_FROM_EMAIL: 'no-reply' }).success).toBe(false);
   });

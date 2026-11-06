@@ -3,6 +3,7 @@ import {
   EmailDeliveryError,
   InMemoryEmailProvider,
   LogEmailProvider,
+  ResendEmailProvider,
   SendGridEmailProvider,
   createEmailProvider,
   getEmailProvider,
@@ -32,7 +33,9 @@ function sendgrid(fetchImpl: typeof fetch) {
 
 describe('SendGridEmailProvider', () => {
   it('posts a v3 Mail Send request with the key only in the Authorization header', async () => {
-    const fetchImpl = vi.fn(async () => new Response(null, { status: 202, headers: { 'x-message-id': 'abc123' } }));
+    const fetchImpl = vi.fn(
+      async () => new Response(null, { status: 202, headers: { 'x-message-id': 'abc123' } })
+    );
     const result = await sendgrid(fetchImpl as unknown as typeof fetch).send(message);
 
     expect(result).toEqual({ messageId: 'abc123' });
@@ -56,12 +59,16 @@ describe('SendGridEmailProvider', () => {
 
   it('returns a null message id when SendGrid sends none', async () => {
     const fetchImpl = vi.fn(async () => new Response(null, { status: 202 }));
-    expect(await sendgrid(fetchImpl as unknown as typeof fetch).send(message)).toEqual({ messageId: null });
+    expect(await sendgrid(fetchImpl as unknown as typeof fetch).send(message)).toEqual({
+      messageId: null,
+    });
   });
 
   it('throws a non-retryable EmailDeliveryError on 4xx without leaking the key or body', async () => {
     const fetchImpl = vi.fn(async () => new Response(`bad key ${API_KEY}`, { status: 401 }));
-    const err = await sendgrid(fetchImpl as unknown as typeof fetch).send(message).catch((e: unknown) => e);
+    const err = await sendgrid(fetchImpl as unknown as typeof fetch)
+      .send(message)
+      .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(EmailDeliveryError);
     expect(err).toMatchObject({ provider: 'sendgrid', status: 401, retryable: false });
     expect((err as Error).message).toBe('SendGrid rejected the message (HTTP 401)');
@@ -70,7 +77,9 @@ describe('SendGridEmailProvider', () => {
 
   it.each([429, 500, 503])('marks HTTP %s as retryable', async (status) => {
     const fetchImpl = vi.fn(async () => new Response(null, { status }));
-    await expect(sendgrid(fetchImpl as unknown as typeof fetch).send(message)).rejects.toMatchObject({
+    await expect(
+      sendgrid(fetchImpl as unknown as typeof fetch).send(message)
+    ).rejects.toMatchObject({
       status,
       retryable: true,
     });
@@ -80,7 +89,9 @@ describe('SendGridEmailProvider', () => {
     const fetchImpl = vi.fn(async () => {
       throw new TypeError('fetch failed');
     });
-    await expect(sendgrid(fetchImpl as unknown as typeof fetch).send(message)).rejects.toMatchObject({
+    await expect(
+      sendgrid(fetchImpl as unknown as typeof fetch).send(message)
+    ).rejects.toMatchObject({
       message: 'SendGrid could not be reached',
       status: null,
       retryable: true,
@@ -91,7 +102,9 @@ describe('SendGridEmailProvider', () => {
     const fetchImpl = vi.fn(async () => {
       throw Object.assign(new Error('timeout'), { name: 'TimeoutError' });
     });
-    await expect(sendgrid(fetchImpl as unknown as typeof fetch).send(message)).rejects.toMatchObject({
+    await expect(
+      sendgrid(fetchImpl as unknown as typeof fetch).send(message)
+    ).rejects.toMatchObject({
       message: 'SendGrid timed out',
     });
   });
@@ -116,7 +129,10 @@ describe('LogEmailProvider', () => {
 
   it('logs the category only, never the recipient, subject or body', async () => {
     const info = vi.spyOn(logger, 'info').mockImplementation(() => undefined as never);
-    const result = await new LogEmailProvider().send({ ...message, html: '<a href="https://x/?token=secret">' });
+    const result = await new LogEmailProvider().send({
+      ...message,
+      html: '<a href="https://x/?token=secret">',
+    });
     expect(result.messageId).toMatch(/^log-/);
     const logged = JSON.stringify(info.mock.calls);
     expect(logged).toContain('faculty-invitation');
@@ -157,5 +173,61 @@ describe('createEmailProvider', () => {
     const replacement = new InMemoryEmailProvider();
     setEmailProvider(replacement);
     expect(getEmailProvider()).toBe(replacement);
+  });
+});
+
+describe('ResendEmailProvider', () => {
+  const resend = (fetchImpl: typeof fetch) =>
+    new ResendEmailProvider({
+      apiKey: 're_secret',
+      from: 'Amentorz <onboarding@resend.dev>',
+      fetchImpl,
+    });
+
+  it('posts to the Resend API with the key only in the Authorization header', async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ id: 'msg_1' }));
+    const result = await resend(fetchImpl as unknown as typeof fetch).send(message);
+
+    expect(result).toEqual({ messageId: 'msg_1' });
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://api.resend.com/emails');
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer re_secret');
+    expect(JSON.parse(init.body as string)).toEqual({
+      from: 'Amentorz <onboarding@resend.dev>',
+      to: ['tutor@example.org'],
+      subject: 'Subject line',
+      text: 'Hello',
+      html: '<p>Hello</p>',
+    });
+    expect(init.body).not.toContain('re_secret');
+  });
+
+  it('throws a non-retryable EmailDeliveryError on 4xx without leaking the key', async () => {
+    const fetchImpl = vi.fn(async () => new Response('bad key re_secret', { status: 403 }));
+    const err = await resend(fetchImpl as unknown as typeof fetch)
+      .send(message)
+      .catch((e: unknown) => e);
+    expect(err).toMatchObject({ provider: 'resend', status: 403, retryable: false });
+    expect((err as Error).message).toBe('Resend rejected the message (HTTP 403)');
+  });
+
+  it('marks 5xx and network failures as retryable', async () => {
+    const server = vi.fn(async () => new Response('', { status: 503 }));
+    expect(
+      await resend(server as unknown as typeof fetch)
+        .send(message)
+        .catch((e: unknown) => e)
+    ).toMatchObject({ retryable: true });
+    const down = vi.fn(async () => {
+      throw new TypeError('fetch failed');
+    });
+    expect(
+      await resend(down as unknown as typeof fetch)
+        .send(message)
+        .catch((e: unknown) => e)
+    ).toMatchObject({
+      message: 'Resend could not be reached',
+      retryable: true,
+    });
   });
 });
