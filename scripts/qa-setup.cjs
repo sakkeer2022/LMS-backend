@@ -14,6 +14,14 @@ const run = (cmd) => execSync(cmd, { stdio: 'inherit' });
 run('npx prisma migrate deploy');
 run('npx prisma db seed');
 
+// Signup needs a current policy of every type for each country; real ones come from the admin Legal page.
+// shortcut: files go to local storage, which Render wipes on each deploy, so use STORAGE_DRIVER=s3 to keep them.
+if (process.env.NODE_ENV === 'production') {
+  console.log('NODE_ENV=production: skipping placeholder policies.');
+} else {
+  run('npx tsx prisma/load-policies.ts --placeholders'); // skips countries and types that already have one
+}
+
 if (process.env.INITIAL_ADMIN_EMAIL && process.env.INITIAL_ADMIN_PASSWORD) {
   run('npx tsx prisma/create-admin.ts'); // does nothing when a super_admin already exists
 } else {

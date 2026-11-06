@@ -9,7 +9,7 @@ Render web service (free tier, no shell, no pre-deploy command):
 - Start command: `npm start`
 - Health check path: `/health`
 
-`npm run qa:setup` (scripts/qa-setup.cjs) runs `prisma migrate deploy`, `prisma db seed` and `create-admin` on every deploy.
+`npm run qa:setup` (scripts/qa-setup.cjs) runs `prisma migrate deploy`, `prisma db seed`, placeholder policies (not in production) and `create-admin` on every deploy.
 All three are idempotent. It refuses to run unless `APP_ENV=staging`.
 
 Extra environment variables for it: `APP_ENV=staging`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD`
