@@ -1,19 +1,25 @@
 import bcrypt from 'bcrypt';
 import { z } from 'zod';
 import { prisma } from '../src/infrastructure/database/connection.js';
-import { RegisterDto } from '../src/modules/auth/auth.dto.js';
 import { seedRbac } from './seed-rbac.js';
 
 /**
  * Creates the first super_admin from INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD (and an optional
  * INITIAL_ADMIN_NAME). There are no defaults: nothing is created unless both are set, and the
- * password follows the registration policy. Does nothing when a super_admin already exists, so it is
+ * password must be 12+ characters with upper, lower, number and symbol. Does nothing when a super_admin already exists, so it is
  * safe to run on every deployment. Run `npm run db:seed` first (it is repeated here if roles are missing).
  */
+// The admin password rule is stricter than the platform rule (src/shared/validation/password.ts)
 const InputSchema = z.object({
-  email: RegisterDto.shape.email,
-  password: RegisterDto.shape.password,
-  fullName: RegisterDto.shape.fullName,
+  email: z.string().email('Invalid email address').toLowerCase(),
+  password: z
+    .string()
+    .min(12, 'Password must be at least 12 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
+  fullName: z.string().min(1).max(150).trim(),
 });
 
 async function main() {
