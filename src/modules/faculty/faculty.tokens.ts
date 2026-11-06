@@ -11,9 +11,9 @@ export function hashInviteToken(token: string): string {
   return createHash('sha256').update(token, 'utf8').digest('hex');
 }
 
-/** Onboarding link for a token. The faculty onboarding page itself is a placeholder route for now. */
+/** Onboarding link for a token: the faculty app's /onboarding page (screens 43b-43e). */
 export function buildInviteUrl(appBaseUrl: string, token: string): string {
-  const url = new URL('/faculty/onboarding', `${appBaseUrl.replace(/\/+$/, '')}/`);
+  const url = new URL('/onboarding', `${appBaseUrl.replace(/\/+$/, '')}/`);
   url.searchParams.set('token', token);
   return url.toString();
 }

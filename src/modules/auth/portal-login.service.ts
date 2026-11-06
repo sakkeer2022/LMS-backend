@@ -11,6 +11,7 @@ import { assessLoginLocation, type SessionContext } from './auth.service.js';
 import { issueTokenPair } from './session.js';
 import { supersedeDeviceSessions } from './session.service.js';
 import { loadContractUser, type ContractUser } from './contract-user.js';
+import { assertFacultyCanSignIn } from '@modules/faculty/index';
 
 export interface PortalLoginResult {
   user: ContractUser;
@@ -38,7 +39,8 @@ type FailureReason =
   | 'wrong_password'
   | 'account_inactive'
   | 'wrong_portal'
-  | 'email_unverified';
+  | 'email_unverified'
+  | 'faculty_not_ready';
 
 async function auditFailure(
   portal: Portal,
@@ -114,6 +116,17 @@ export async function loginToPortal(
     throw new ForbiddenError('Email address is not verified');
   }
 
+  // Faculty (LMS-39): approved and every subject priced, else 403 with a code saying why
+  let requiresPriceConsent = false;
+  if (portal === 'faculty') {
+    try {
+      ({ requiresPriceConsent } = await assertFacultyCanSignIn(user.id));
+    } catch (err) {
+      await auditFailure(portal, 'faculty_not_ready', context, user.id);
+      throw err;
+    }
+  }
+
   const country = await assessLoginLocation(user, context);
 
   const familyId = crypto.randomUUID();
@@ -157,8 +170,8 @@ export async function loginToPortal(
     remember: dto.rememberMe,
     accessExpiresAt: new Date(Date.now() + tokens.expiresIn * 1000),
     sessionExpiresAt,
-    // No terms or activation data exists yet: terms arrive with the faculty onboarding work
-    requiresTermsAcceptance: false,
+    // Faculty: the session prices still need the tutor's acceptance (price consent screen)
+    requiresTermsAcceptance: requiresPriceConsent,
     requiresPasswordChange: user.status === 'PENDING_ACTIVATION',
   };
 }

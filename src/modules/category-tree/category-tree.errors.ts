@@ -14,6 +14,7 @@ export type TreeErrorCode =
   | 'STALE_VERSION'
   | 'STALE_SIBLINGS'
   | 'PARENT_IS_BOOKABLE'
+  | 'CATEGORY_IN_USE'
   | 'CYCLE'
   | 'PATH_TOO_LONG'
   | 'TOO_DEEP'
@@ -43,6 +44,7 @@ const STATUS: Record<TreeErrorCode, 404 | 409 | 422> = {
   STALE_VERSION: 409,
   STALE_SIBLINGS: 409,
   PARENT_IS_BOOKABLE: 409,
+  CATEGORY_IN_USE: 409,
   CYCLE: 422,
   PATH_TOO_LONG: 422,
   TOO_DEEP: 422,
@@ -75,6 +77,8 @@ const DEFAULT_MESSAGE: Record<TreeErrorCode, string> = {
   STALE_SIBLINGS: 'The sub-categories changed while you were reordering. Reload and try again.',
   PARENT_IS_BOOKABLE:
     'A bookable category cannot have sub-categories. Turn off booking on it first.',
+  CATEGORY_IN_USE:
+    'This category is already used by tutors, prices or learners, so it cannot have sub-categories. Add the sub-category somewhere else.',
   CYCLE: 'A category cannot move inside itself or one of its own sub-categories',
   PATH_TOO_LONG: 'The category path would be longer than 500 characters. Use shorter codes.',
   TOO_DEEP: 'The tree would be deeper than 20 levels',
@@ -116,6 +120,7 @@ export function treeError(
 const TRIGGER_CODES: Record<string, TreeErrorCode> = {
   PATH_MISMATCH: 'CONCURRENT_CHANGE',
   PARENT_IS_BOOKABLE: 'PARENT_IS_BOOKABLE',
+  CATEGORY_IN_USE: 'CATEGORY_IN_USE',
   BOOKABLE_HAS_CHILDREN: 'HAS_CHILDREN',
   CATEGORY_NOT_BOOKABLE: 'NOT_BOOKABLE',
   CATEGORY_REFERENCED: 'CATEGORY_REFERENCED',

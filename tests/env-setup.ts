@@ -46,6 +46,12 @@ process.env.JWT_SECRET ??= 'test-jwt-secret-deterministic';
 process.env.JWT_REFRESH_SECRET ??= 'test-jwt-refresh-secret-deterministic';
 process.env.COOKIE_SECRET ??= 'test-cookie-secret-deterministic';
 
+// Tests never send real email or write real files. Set unconditionally: src/config loads
+// .env without overriding variables that are already set, so a developer .env with
+// EMAIL_TRANSPORT=smtp or STORAGE_DRIVER=local would otherwise reach the test run.
+process.env.EMAIL_TRANSPORT = 'memory';
+process.env.STORAGE_DRIVER = 'memory';
+
 // Faculty invitations (LMS-79): a small per-admin budget so the 429 path is testable.
 // Each integration test logs in a new admin, so every test starts with a full budget.
 process.env.FACULTY_INVITE_RATE_LIMIT_MAX ??= '5';
@@ -58,3 +64,7 @@ process.env.OTP_SEND_RATE_LIMIT_MAX_PER_IP ??= '100000';
 process.env.OTP_SEND_RATE_LIMIT_MAX_PER_EMAIL ??= '100000';
 process.env.OTP_VERIFY_RATE_LIMIT_MAX_PER_IP ??= '100000';
 process.env.CONSENT_SIGN_RATE_LIMIT_MAX_PER_IP ??= '100000';
+
+// Faculty onboarding (LMS-39): every suite calls the public routes from 127.0.0.1, so the
+// per-IP budget is raised; the limiter itself is covered by tests/unit/rate-limit.test.ts.
+process.env.FACULTY_ONBOARDING_RATE_LIMIT_MAX ??= '500';

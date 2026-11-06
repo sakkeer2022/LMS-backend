@@ -2,6 +2,15 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@infrastructure/database/index';
 import { ValidationError } from '@core/errors/index';
 import { buildPaginationMeta, type PaginatedResult } from '@shared/types/pagination';
+import { ONBOARDING_DOCUMENTS } from './faculty.documents.js';
+import {
+  consentStatuses,
+  decideAccess,
+  priceSnapshotHash,
+  pricedSubjects,
+  pricingStatusOf,
+  type PricingStatus,
+} from './faculty.access.js';
 import type {
   FacultyCountsQuery,
   FacultySort,
@@ -46,7 +55,7 @@ export const TAB_STATUSES: Record<Exclude<FacultyTab, 'all'>, readonly FacultyRo
  * Verification documents expected from every tutor (screen 27b shows four). The
  * exact checklist is a pending product decision (docs/PENDING_DECISIONS.md, F2).
  */
-export const REQUIRED_VERIFICATION_DOCUMENTS = 4;
+export const REQUIRED_VERIFICATION_DOCUMENTS = ONBOARDING_DOCUMENTS.length;
 
 export interface FacultyListItem {
   id: string;
@@ -59,6 +68,8 @@ export interface FacultyListItem {
   /** Most recent qualification, e.g. "Ph.D. · IIT Bombay". */
   qualification: string | null;
   documents: { uploaded: number; required: number } | null;
+  /** Pricing after approval (screen 29); `none` for invitations and unapproved tutors. */
+  pricing: PricingStatus;
   /** Profile creation, or invitation creation for invitation rows. */
   appliedAt: Date;
   invitation: { sentAt: Date | null; expiresAt: Date; deliveryMethod: 'email' | 'link' } | null;
@@ -206,6 +217,11 @@ export async function listFaculty(
         where: { id: { in: profileIds } },
         select: {
           id: true,
+          isActive: true,
+          approvalStatus: true,
+          highestQualification: true,
+          studiedAt: true,
+          user: { select: { isActive: true, status: true } },
           qualifications: {
             select: { degree: true, institution: true },
             orderBy: [{ yearOfPassing: 'desc' }, { createdAt: 'desc' }],
@@ -215,13 +231,35 @@ export async function listFaculty(
           assignments: {
             where: { isActive: true },
             select: {
-              curriculum: { select: { subject: { select: { name: true, sortOrder: true } } } },
+              curriculum: {
+                select: {
+                  subject: { select: { name: true, sortOrder: true } },
+                  category: { select: { name: true, displayOrder: true } },
+                },
+              },
             },
           },
         },
       })
     : [];
   const byId = new Map(details.map((d) => [d.id, d]));
+
+  // Pricing state for approved tutors on this page (batched)
+  const approvedIds = details.filter((d) => d.approvalStatus === 'APPROVED').map((d) => d.id);
+  const subjectsById = await pricedSubjects(approvedIds);
+  const readyHashes = new Map<string, string>();
+  const stateById = new Map<string, ReturnType<typeof decideAccess>>();
+  for (const d of details.filter((x) => x.approvalStatus === 'APPROVED')) {
+    const subjects = subjectsById.get(d.id) ?? [];
+    const state = decideAccess(d, subjects);
+    stateById.set(d.id, state);
+    if (state === 'READY') readyHashes.set(d.id, priceSnapshotHash(subjects));
+  }
+  const consents = await consentStatuses([...readyHashes.keys()], readyHashes);
+  const pricingOf = (id: string): PricingStatus => {
+    const state = stateById.get(id);
+    return state ? pricingStatusOf({ state, consent: consents.get(id)?.status ?? null }) : 'none';
+  };
 
   const items = rows.map((row): FacultyListItem => {
     if (row.kind === 'invitation') {
@@ -234,6 +272,7 @@ export async function listFaculty(
         subjects: [],
         qualification: null,
         documents: null,
+        pricing: 'none',
         appliedAt: row.applied_at,
         invitation: {
           sentAt: row.sent_at,
@@ -246,12 +285,23 @@ export async function listFaculty(
     const subjects = [
       ...new Map(
         (detail?.assignments ?? [])
-          .map((a) => a.curriculum.subject)
+          // A category curriculum is named by its leaf (Class 11)
+          .map(
+            (a) =>
+              a.curriculum.subject ?? {
+                name: a.curriculum.category.name,
+                sortOrder: a.curriculum.category.displayOrder,
+              }
+          )
           .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
           .map((s) => [s.name, s.name])
       ).values(),
     ];
-    const qualification = detail?.qualifications[0];
+    // Onboarding answers first ("M.Sc. Physics · Delhi University"), then the qualification records
+    const recorded = detail?.qualifications[0];
+    const onboarding = detail?.highestQualification
+      ? [detail.highestQualification, detail.studiedAt].filter(Boolean).join(' · ')
+      : null;
     return {
       id: row.id,
       kind: 'profile',
@@ -259,11 +309,12 @@ export async function listFaculty(
       email: row.email,
       status: row.status,
       subjects,
-      qualification: qualification ? formatQualification(qualification) : null,
+      qualification: onboarding ?? (recorded ? formatQualification(recorded) : null),
       documents: {
         uploaded: detail?._count.documents ?? 0,
         required: REQUIRED_VERIFICATION_DOCUMENTS,
       },
+      pricing: pricingOf(row.id),
       appliedAt: row.applied_at,
       invitation: null,
     };

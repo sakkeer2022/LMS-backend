@@ -75,7 +75,7 @@ describe('Category tree performance', () => {
 
     const tree = await loadAdminTree();
     expect(tree.nodes).toHaveLength(total);
-    expect(tree.stats.bookableLeaves).toBe(ROOTS * TIERS * LEAVES);
+    expect(tree.stats.leaves).toBe(ROOTS * TIERS * LEAVES);
   }, 60_000);
 
   it('serves the cached tree and the learner reads quickly', async () => {

@@ -4,7 +4,9 @@ import { prisma } from '@infrastructure/database/index';
 /**
  * Category-tree fixtures (ADR-0005) written straight to the database, so suites never
  * depend on the module's HTTP API. Paths and depths are computed here the same way the
- * service does, so the deferred tree trigger accepts them.
+ * service does, so the deferred tree trigger accepts them. Whether a node is a leaf
+ * (is_bookable) and its category curriculum are kept by the categories_leaf_sync
+ * trigger, so the booking flags passed here are normalised by the database.
  */
 
 const unique = () => randomUUID().slice(0, 8);
@@ -94,5 +96,25 @@ export async function setFlag(name: string, isEnabled: boolean): Promise<void> {
     where: { name },
     create: { name, isEnabled },
     update: { isEnabled },
+  });
+}
+
+/** The category curriculum of a leaf (no subject, board or level): what tutors pick. */
+export async function leafCurriculum(categoryId: string) {
+  return prisma.curriculum.findFirstOrThrow({
+    where: { categoryId, subjectId: null, boardId: null, levelId: null },
+  });
+}
+
+/** A default (all tutors) price on a curriculum, which puts its category in use. */
+export async function priceCurriculum(curriculumId: string, sessionPricePaise = 100000) {
+  const gstPaise = Math.floor((sessionPricePaise * 1800 + 5000) / 10000);
+  return prisma.priceRule.create({
+    data: {
+      curriculumId,
+      sessionPricePaise,
+      gstPaise,
+      studentPaysPaise: sessionPricePaise + gstPaise,
+    },
   });
 }

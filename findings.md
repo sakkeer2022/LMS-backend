@@ -1,5 +1,15 @@
 # Findings & Decisions
 
+## 2026-11-04 — Faculty onboarding and price consent
+
+| Finding / Decision | Detail |
+|---|---|
+| One-request application | Text fields and the three documents go in one multipart request; files are stored first, then one transaction creates everything; stored files are deleted if it fails |
+| Sign-in gate | `assertFacultyCanSignIn` in the faculty portal login: approved, not suspended, and every active subject card has an active tutor price. Codes `FACULTY_PENDING_REVIEW`, `FACULTY_PENDING_PRICING`, `FACULTY_REJECTED`, `FACULTY_SUSPENDED` |
+| Consent by snapshot | Consent stores a SHA-256 of the priced cards; any re-price changes the hash, so consent is asked again. A stale hash returns 409 `PRICES_CHANGED` |
+| Circular import avoided | Pricing notifies faculty through a listener registry (`registerTutorPriceListener`), registered in the faculty `index.ts` |
+| Two app origins | `APP_BASE_URL` = admin app, `FACULTY_APP_URL` = faculty app (invitation and login links) |
+
 ## 2026-11-03 — Stamped consent PDFs (LMS-99)
 
 | Finding / Decision | Detail |
