@@ -17,9 +17,11 @@ run('npx prisma db seed');
 // Signup needs a current policy of every type for each country; real ones come from the admin Legal page.
 // shortcut: files go to local storage, which Render wipes on each deploy, so use STORAGE_DRIVER=dropbox (QA) or s3 to keep them.
 if (process.env.NODE_ENV === 'production') {
-  console.log('NODE_ENV=production: skipping placeholder policies.');
+  console.log('NODE_ENV=production: skipping placeholder policies and the learning catalogue.');
 } else {
   run('npx tsx prisma/load-policies.ts --placeholders'); // skips countries and types that already have one
+  // Category-tree flag, teaching languages and offerings, so student onboarding has categories to pick
+  run('npm run db:seed:learning');
 }
 
 if (process.env.INITIAL_ADMIN_EMAIL && process.env.INITIAL_ADMIN_PASSWORD) {

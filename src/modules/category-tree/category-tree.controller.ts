@@ -3,14 +3,11 @@ import { successResponse } from '@core/response/index';
 import { logger } from '@core/logger/index';
 import { isFeatureEnabled } from '@modules/feature-flags/index';
 import {
-  AddOfferingDto,
   AdminTreeQueryDto,
   CategoryIdParamsDto,
   CreateChildDto,
   CreateRootDto,
-  CurriculumIdParamsDto,
   DeleteQueryDto,
-  LeafSettingsDto,
   LearnerChildrenQueryDto,
   LearnerLeafQueryDto,
   LearnerLeavesQueryDto,
@@ -18,10 +15,10 @@ import {
   ReorderDto,
   ResolveOfferingQueryDto,
   UpdateCategoryDto,
-  UpdateOfferingDto,
 } from './category-tree.dto.js';
 import { treeError } from './category-tree.errors.js';
 import { getAdminTree, getCategoryDetail, listAdminChildren } from './category-tree.reads.js';
+import { getOfferingTree } from './category-tree.picker.js';
 import * as Service from './category-tree.service.js';
 import * as Structure from './category-tree.structure.js';
 import * as Offerings from './category-tree.offerings.js';
@@ -91,17 +88,6 @@ export const updateCategory = handler(async (req, res) => {
   );
 });
 
-export const setLeafSettings = handler(async (req, res) => {
-  const { categoryId } = CategoryIdParamsDto.parse(req.params);
-  const body = LeafSettingsDto.parse(req.body);
-  res.json(
-    successResponse(
-      await Service.setLeafSettings(categoryId, body, actorOf(req)),
-      'Booking settings saved'
-    )
-  );
-});
-
 export const reorder = handler(async (req, res) => {
   const body = ReorderDto.parse(req.body);
   res.json(successResponse(await Structure.reorderSiblings(body, actorOf(req)), 'Order saved'));
@@ -122,29 +108,9 @@ export const remove = handler(async (req, res) => {
   res.status(204).end();
 });
 
-export const listOfferings = handler(async (req, res) => {
-  const { categoryId } = CategoryIdParamsDto.parse(req.params);
-  res.json(successResponse(await Offerings.listOfferings(categoryId), 'Offerings retrieved'));
-});
-
-export const addOffering = handler(async (req, res) => {
-  const { categoryId } = CategoryIdParamsDto.parse(req.params);
-  const body = AddOfferingDto.parse(req.body);
-  const { offering, created } = await Offerings.addOffering(categoryId, body, actorOf(req));
-  res
-    .status(created ? 201 : 200)
-    .json(successResponse(offering, created ? 'Offering added' : 'Offering already exists'));
-});
-
-export const updateOffering = handler(async (req, res) => {
-  const { curriculumId } = CurriculumIdParamsDto.parse(req.params);
-  const { isActive } = UpdateOfferingDto.parse(req.body);
-  res.json(
-    successResponse(
-      await Offerings.setOfferingActive(curriculumId, isActive, actorOf(req)),
-      'Offering updated'
-    )
-  );
+export const getPicker = handler(async (_req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  res.json(successResponse(await getOfferingTree(), 'Offering tree retrieved'));
 });
 
 export const getStatus = handler(async (_req, res) => {

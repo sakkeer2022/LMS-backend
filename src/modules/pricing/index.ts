@@ -20,3 +20,5 @@ export {
   toPriceAmounts,
   type PriceAmounts,
 } from './pricing.engine.js';
+export { registerTutorPriceListener } from './pricing.events.js';
+export { listAwaitingPrices, type AwaitingPrice } from './pricing.awaiting.js';

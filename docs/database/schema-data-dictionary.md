@@ -424,6 +424,16 @@
 | `approved_at` | `TIMESTAMP(3)` | Yes | `NULL` | Approval timestamp | Application |
 | `approved_by` | `UUID` | Yes | `NULL` | Foreign Key to `users` (admin approver) | Database (`faculty_profiles_approved_by_fkey`) |
 | `revision` | `INTEGER` | No | `1` | Optimistic locking revision counter | Application |
+| `city` | `VARCHAR(100)` | Yes | `NULL` | City from onboarding (43b) | Application |
+| `highest_qualification` | `VARCHAR(150)` | Yes | `NULL` | Screening: highest qualification | Application |
+| `studied_at` | `VARCHAR(200)` | Yes | `NULL` | Screening: institution | Application |
+| `teaching_experience` | `VARCHAR(10)` | Yes | `NULL` | Band code `0-1`, `1-3`, `3-5`, `5-10`, `10+` | Database (CHECK) |
+| `offers_offline_classes` | `BOOLEAN` | No | `false` | Tutor also offers offline classes (43c) | Database |
+| `application_reference` | `VARCHAR(20)` | Yes | `NULL` | `AMZ-T-<n>` from sequence `faculty_application_reference_seq` (starts 1001; hand-written) | Database (unique) |
+| `submitted_at` | `TIMESTAMP(3)` | Yes | `NULL` | Onboarding application submitted | Application |
+| `declaration_accepted_at` | `TIMESTAMP(3)` | Yes | `NULL` | Onboarding declaration ticked | Application |
+| `invitation_id` | `UUID` | Yes | `NULL` | Unique FK to `faculty_invitations` (ON DELETE SET NULL) | Database |
+| `access_ready_at` | `TIMESTAMP(3)` | Yes | `NULL` | First time the tutor became able to sign in (approved + all cards priced); the "account ready" email is sent once | Application |
 | `ratings_average` | `DECIMAL(3,2)` | No | `0.00` | Aggregate tutor rating (0.00–5.00) | Database |
 | `ratings_count` | `INTEGER` | No | `0` | Count of published student reviews | Database |
 | `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Creation timestamp | Database |
@@ -583,6 +593,25 @@
   - `faculty_invitations_token_hash_key` (UNIQUE, `token_hash`)
   - `faculty_invitations_one_pending_per_email` (UNIQUE partial, `email` WHERE `status = 'PENDING'`; hand-written, not in `schema.prisma`)
   - `faculty_invitations_email_status_idx`, `faculty_invitations_status_expires_at_idx` (INDEX)
+
+---
+
+### 4.8 `faculty_price_consents`
+- **Purpose:** The tutor's accept/decline of the admin-set prices (append-only; the latest row per tutor counts, and only while its `snapshot_hash` matches the current prices).
+- **Physical Table:** `faculty_price_consents`
+
+| Column | Type | Nullable | Default | Description & Constraints | Enforcement |
+|---|---|:---:|---|---|---|
+| `id` | `UUID` | No | `gen_random_uuid()` | Primary Key | Database |
+| `faculty_id` | `UUID` | No | — | FK to `faculty_profiles` (ON DELETE CASCADE) | Database |
+| `decision` | `FacultyPriceConsentDecision` | No | — | ACCEPTED or REJECTED | Database |
+| `snapshot_hash` | `VARCHAR(64)` | No | — | SHA-256 hex of the priced cards (order-independent) | Database (hex CHECK) |
+| `price_snapshot` | `JSONB` | No | — | The prices shown at decision time | Application |
+| `ip_address` | `VARCHAR(45)` | Yes | `NULL` | Request IP | Application |
+| `user_agent` | `VARCHAR(500)` | Yes | `NULL` | Request user agent | Application |
+| `decided_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Decision time | Database |
+
+- Enum `FacultyDocumentType` gains `PAN_CARD` (migration `20261104090000_faculty_onboarding`).
 
 ---
 

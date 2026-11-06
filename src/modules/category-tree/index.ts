@@ -4,3 +4,11 @@ export { adminCategoryTreeRouter, learnerCategoryTreeRouter } from './category-t
 export { LEARNER_FLAG } from './category-tree.controller.js';
 export { resolveBookableOffering, type BookableOffering } from './category-tree.offerings.js';
 export { invalidateAdminTree } from './category-tree.reads.js';
+export {
+  getOfferingTree,
+  describeOfferings,
+  type OfferingTree,
+  type OfferingLabel,
+  type PickerNode,
+  type PickerOffering,
+} from './category-tree.picker.js';

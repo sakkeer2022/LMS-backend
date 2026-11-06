@@ -11,6 +11,7 @@ import {
 } from './pricing.dto.js';
 import * as Pricing from './pricing.service.js';
 import { quoteSessionPrices, resolveSessionPrice } from './pricing.resolve.js';
+import { listAwaitingPrices } from './pricing.awaiting.js';
 
 const actorOf = (req: Request): Pricing.Actor => ({ userId: req.user?.sub ?? null });
 
@@ -63,4 +64,11 @@ export const resolvePrice = handler(async (req, res) => {
 
 export const quotePrices = handler(async (req, res) => {
   res.json(successResponse(await quoteSessionPrices(QuotePricesDto.parse(req.body))));
+});
+
+export const listAwaiting = handler(async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(
+    successResponse(await listAwaitingPrices(), 'Subjects awaiting a tutor price retrieved')
+  );
 });

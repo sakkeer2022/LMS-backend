@@ -55,6 +55,10 @@ async function checkCurricula(
     throw new ValidationError('One of the chosen subjects is no longer available.');
   }
   for (const row of rows) {
+    // A leaf's own category curriculum has no subject; learners do not pick those yet (CT6)
+    if (!row.subjectId) {
+      throw new ValidationError('One of the chosen subjects is no longer available.');
+    }
     const offering = await resolveBookableOffering(
       {
         categoryId: row.categoryId,

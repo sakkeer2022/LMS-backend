@@ -90,8 +90,15 @@ describe('Seeded system roles', () => {
     expect(denied.every((g) => g.startsWith('feature_flags.'))).toBe(true);
   });
 
-  it.each(['student', 'faculty'])('gives %s no admin permissions', (role) => {
-    expect(guards.filter((g) => hasPermission(grantsOf(role), g))).toEqual([]);
+  it('gives student no admin permissions', () => {
+    expect(guards.filter((g) => hasPermission(grantsOf('student'), g))).toEqual([]);
+  });
+
+  it('gives faculty only their self-service permissions', () => {
+    expect(guards.filter((g) => hasPermission(grantsOf('faculty'), g))).toEqual([
+      'faculty.read_self',
+      'faculty.update_self',
+    ]);
   });
 
   it('never seeds the admin.* global wildcard', () => {

@@ -5,6 +5,13 @@ import { validateRequest } from '@middleware/validate';
 import { createRouteRateLimiter } from '@middleware/rate-limit';
 import * as FacultyController from './faculty.controller.js';
 import { FacultyCountsQueryDto, InviteFacultyDto, ListFacultyQueryDto } from './faculty.dto.js';
+import * as ReviewController from './faculty.review.controller.js';
+import {
+  DocumentVerificationDto,
+  FacultyDocumentParamsDto,
+  FacultyIdParamsDto,
+  ReviewFacultyDto,
+} from './faculty.review.dto.js';
 
 export const adminFacultyRouter = Router();
 
@@ -135,4 +142,125 @@ adminFacultyRouter.post(
   inviteRateLimit,
   validateRequest({ body: InviteFacultyDto }),
   FacultyController.inviteFaculty
+);
+
+// ── Verification (screen 27b, LMS-39) ──
+
+/**
+ * @openapi
+ * /admin/faculty/{facultyId}:
+ *   get:
+ *     summary: One tutor's application for the verification drawer
+ *     description: Profile and screening answers, documents (with verification state), the subjects chosen at onboarding with their current tutor price, and the pricing/consent state. Requires faculty.read.
+ *     tags: [Faculty]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: facultyId, required: true, schema: { type: string, format: uuid } }
+ *     responses:
+ *       200: { description: The application }
+ *       401: { description: Missing or invalid token }
+ *       403: { description: Requires faculty.read }
+ *       404: { description: Unknown faculty profile }
+ */
+adminFacultyRouter.get(
+  '/:facultyId',
+  requirePermission('faculty.read'),
+  validateRequest({ params: FacultyIdParamsDto }),
+  ReviewController.getFaculty
+);
+
+/**
+ * @openapi
+ * /admin/faculty/{facultyId}/documents/{documentId}/file:
+ *   get:
+ *     summary: Download a tutor verification document
+ *     description: The stored bytes, as an attachment with Cache-Control private no-store, nosniff and a sandbox CSP. X-Document-Previewable says whether the admin app may show it inline (PDF and images). Every access is audited. Requires faculty.documents.
+ *     tags: [Faculty]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: facultyId, required: true, schema: { type: string, format: uuid } }
+ *       - { in: path, name: documentId, required: true, schema: { type: string, format: uuid } }
+ *     responses:
+ *       200: { description: File bytes }
+ *       401: { description: Missing or invalid token }
+ *       403: { description: Requires faculty.documents }
+ *       404: { description: Unknown document for this tutor }
+ */
+adminFacultyRouter.get(
+  '/:facultyId/documents/:documentId/file',
+  requirePermission('faculty.documents'),
+  validateRequest({ params: FacultyDocumentParamsDto }),
+  ReviewController.getDocumentFile
+);
+
+/**
+ * @openapi
+ * /admin/faculty/{facultyId}/documents/{documentId}/verification:
+ *   put:
+ *     summary: Mark a verification document as verified (or not)
+ *     description: Requires faculty.approve and CSRF. Audited.
+ *     tags: [Faculty]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: facultyId, required: true, schema: { type: string, format: uuid } }
+ *       - { in: path, name: documentId, required: true, schema: { type: string, format: uuid } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { type: object, additionalProperties: false, required: [isVerified], properties: { isVerified: { type: boolean } } }
+ *     responses:
+ *       200: { description: The updated application }
+ *       401: { description: Missing or invalid token }
+ *       403: { description: Requires faculty.approve, or CSRF token missing }
+ *       404: { description: Unknown document for this tutor }
+ *       422: { description: Invalid body }
+ */
+adminFacultyRouter.put(
+  '/:facultyId/documents/:documentId/verification',
+  requirePermission('faculty.approve'),
+  validateRequest({ params: FacultyDocumentParamsDto, body: DocumentVerificationDto }),
+  ReviewController.setDocumentVerification
+);
+
+/**
+ * @openapi
+ * /admin/faculty/{facultyId}/review:
+ *   put:
+ *     summary: Approve ("Verify & publish") or reject a tutor application
+ *     description: >
+ *       Only pending applications can be decided (409 INVALID_TRANSITION). Approve verifies the
+ *       remaining documents and sets isPublished to publish; reject needs a reason and unpublishes.
+ *       expectedRevision must match (409 STALE_REVISION). The tutor is emailed. Approval alone does
+ *       not allow sign-in: every subject needs a tutor price first. Requires faculty.approve and CSRF.
+ *     tags: [Faculty]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: facultyId, required: true, schema: { type: string, format: uuid } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             additionalProperties: false
+ *             required: [decision, expectedRevision]
+ *             properties:
+ *               decision: { type: string, enum: [approve, reject] }
+ *               reason: { type: string, maxLength: 1000 }
+ *               publish: { type: boolean, default: false }
+ *               expectedRevision: { type: integer, minimum: 1 }
+ *     responses:
+ *       200: { description: The updated application }
+ *       401: { description: Missing or invalid token }
+ *       403: { description: Requires faculty.approve, or CSRF token missing }
+ *       404: { description: Unknown faculty profile }
+ *       409: { description: INVALID_TRANSITION or STALE_REVISION }
+ *       422: { description: Missing reason or invalid body }
+ */
+adminFacultyRouter.put(
+  '/:facultyId/review',
+  requirePermission('faculty.approve'),
+  validateRequest({ params: FacultyIdParamsDto, body: ReviewFacultyDto }),
+  ReviewController.reviewFaculty
 );

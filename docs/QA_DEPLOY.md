@@ -9,12 +9,19 @@ Render web service (free tier, no shell, no pre-deploy command):
 - Start command: `npm start`
 - Health check path: `/health`
 
-`npm run qa:setup` (scripts/qa-setup.cjs) runs `prisma migrate deploy`, `prisma db seed`, placeholder policies (not in production) and `create-admin` on every deploy.
+`npm run qa:setup` (scripts/qa-setup.cjs) runs `prisma migrate deploy`, `prisma db seed`, placeholder policies and the learning catalogue (neither in production) and `create-admin` on every deploy.
 All three are idempotent. It refuses to run unless `APP_ENV=staging`.
 
 Extra environment variables for it: `APP_ENV=staging`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD`
 (only used while no super_admin exists; change the password after first sign-in).
 `DATABASE_URL` must be the Supabase **session pooler** string (port 5432 on the pooler host).
+
+## Email on SendGrid
+
+Render's free tier blocks outbound SMTP, so QA sends through the SendGrid HTTP API. Local development uses SMTP.
+
+Render environment: `EMAIL_TRANSPORT=sendgrid`, `SENDGRID_API_KEY` (Mail Send permission only), `SENDGRID_FROM_EMAIL`
+(a sender verified in SendGrid) and optionally `SENDGRID_FROM_NAME`. Never commit the key.
 
 ## File storage on Dropbox (temporary QA only)
 

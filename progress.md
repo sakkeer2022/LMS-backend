@@ -1,5 +1,22 @@
 # Progress Log
 
+## 2026-11-06 — Merge development (LMS-99 policies, consent, students) into the faculty pricing branch
+
+- Conflicts resolved: routes (faculty onboarding and self routers next to policies, consent, students and regions), `tests/env-setup.ts`, `.gitignore`, contract generator tags, decision log, progress and findings.
+- One file storage: faculty documents now use development's `FileStorage` (`getStorage`; tests `getTestStorage`); the branch's `ObjectStorage` drivers and duplicate `STORAGE_*` settings are removed. `STORAGE_LOCAL_DIR` defaults to `.data/storage`.
+- Student profiles no longer have a category (`20261104120000_student_interests`): `category_in_use` in `20261105090000_category_simple_leaves` and the category delete check use `student_subjects` instead. The migration was edited in place (it failed on a fresh database otherwise, and has not been deployed anywhere shared); `20261106090000_category_in_use_after_student_interests` re-creates the function for databases that applied the earlier version.
+- `curricula.subject_id` is nullable: student registration refuses a leaf's category curriculum (learners still pick subjects, CT6); the admin student detail shows the leaf name for one.
+- `npx vitest run`: ✅ 75 files, 909 passed.
+
+## 2026-11-04 — Faculty onboarding, review, pricing gate and price consent (LMS-81, 83, 84, 86, 58, 59)
+
+- Migration `20261104090000_faculty_onboarding`: onboarding columns on `faculty_profiles`, `PAN_CARD`, `faculty_price_consents`, sequence `faculty_application_reference_seq`.
+- Public onboarding (`/faculty/onboarding/session`, `/catalogue`, `/applications`): token check, column-picker catalogue, multipart application (3 documents, magic-byte checked, private storage) that consumes the invitation and creates the user, profile, subject cards and documents in one transaction.
+- Admin review: `GET /admin/faculty/:id` (drawer 27b), document file and verification, `PUT /admin/faculty/:id/review` (approve/publish or reject with a reason).
+- Pricing: `GET /admin/prices/awaiting` lists approved tutors' unpriced cards; price changes notify faculty through `registerTutorPriceListener`.
+- Sign-in gate in the faculty portal login; `GET/POST /faculty/me/price-consent`.
+- `npx vitest run`: ✅ 62 files, 790 passed.
+
 ## 2026-11-04 — Admin students list and detail (LMS-99)
 
 - Contract and endpoints: `GET /admin/students` (newest first, paginated; filters `q` for name, email or mobile, `country`, `minor`, `consent` = signed, missing or not_required) and `GET /admin/students/{studentId}` (student profile id: learning profile names, guardian contact, and for a minor with a signed consent the consent record). Both need `student.read` and are private, no-store.

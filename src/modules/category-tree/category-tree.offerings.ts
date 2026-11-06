@@ -1,56 +1,14 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@infrastructure/database/index';
-import { logger } from '@core/logger/index';
-import { toTreeError, treeError } from './category-tree.errors.js';
-import { invalidateAdminTree, type Db } from './category-tree.reads.js';
+import { treeError } from './category-tree.errors.js';
+import { type Db } from './category-tree.reads.js';
 import { checkSelection, type SelectionError } from './category-tree.rules.js';
-import type { AddOfferingInput } from './category-tree.dto.js';
-import { checkDeferredConstraints, type Actor } from './category-tree.service.js';
 
 /**
- * Offerings of a bookable leaf: its curricula, each a (subject, board?, level?) choice.
- * A leaf's subject and board options are the distinct values of its active curricula;
- * its level options come from category_levels (ADR-0005).
+ * Learner-side checks on leaves (ADR-0005). Admins no longer manage offerings: every
+ * category without sub-categories is a leaf with one category curriculum, kept by the
+ * categories_leaf_sync trigger (migration 20261105090000_category_simple_leaves).
  */
-
-export interface OfferingView {
-  curriculumId: string;
-  categoryId: string;
-  subject: { id: string; name: string };
-  board: { id: string; name: string } | null;
-  level: { id: string; name: string } | null;
-  isActive: boolean;
-}
-
-const offeringInclude = {
-  subject: { select: { id: true, name: true, isActive: true } },
-  board: { select: { id: true, name: true, isActive: true } },
-  level: { select: { id: true, name: true, isActive: true } },
-} satisfies Prisma.CurriculumInclude;
-
-function toView(
-  row: Prisma.CurriculumGetPayload<{ include: typeof offeringInclude }>
-): OfferingView {
-  return {
-    curriculumId: row.id,
-    categoryId: row.categoryId,
-    subject: { id: row.subject.id, name: row.subject.name },
-    board: row.board ? { id: row.board.id, name: row.board.name } : null,
-    level: row.level ? { id: row.level.id, name: row.level.name } : null,
-    isActive: row.isActive,
-  };
-}
-
-export async function listOfferings(categoryId: string): Promise<OfferingView[]> {
-  const exists = await prisma.category.count({ where: { id: categoryId } });
-  if (!exists) throw treeError('CATEGORY_NOT_FOUND');
-  const rows = await prisma.curriculum.findMany({
-    where: { categoryId },
-    include: offeringInclude,
-    orderBy: [{ subject: { sortOrder: 'asc' } }, { subject: { name: 'asc' } }, { id: 'asc' }],
-  });
-  return rows.map(toView);
-}
 
 interface LeafRow {
   id: string;
@@ -67,97 +25,6 @@ const SELECTION_MESSAGE: Record<SelectionError, (leaf: string) => string> = {
   LEVEL_NOT_ALLOWED: (leaf) => `That level is not one of the levels ${leaf} allows`,
 };
 
-/** Adds an offering to a leaf. Adding an identical one again returns it (idempotent). */
-export async function addOffering(
-  categoryId: string,
-  input: AddOfferingInput,
-  actor: Actor
-): Promise<{ offering: OfferingView; created: boolean }> {
-  let result: { id: string; created: boolean };
-  try {
-    result = await prisma.$transaction(async (tx) => {
-      // FOR SHARE: the leaf's flags cannot change until this offering is committed
-      const [leaf] = await tx.$queryRaw<LeafRow[]>`
-        SELECT id, name, is_bookable, requires_board, requires_level FROM categories
-        WHERE id = ${categoryId}::uuid FOR SHARE`;
-      if (!leaf) throw treeError('CATEGORY_NOT_FOUND');
-      const allowed = await tx.categoryLevel.findMany({
-        where: { categoryId },
-        select: { levelId: true },
-      });
-      const error = checkSelection(
-        {
-          isBookable: leaf.is_bookable,
-          requiresBoard: leaf.requires_board,
-          requiresLevel: leaf.requires_level,
-          allowedLevelIds: new Set(allowed.map((a) => a.levelId)),
-        },
-        input
-      );
-      if (error) throw treeError(error, SELECTION_MESSAGE[error](leaf.name));
-
-      const subject = await tx.subject.findFirst({
-        where: { id: input.subjectId, isActive: true },
-      });
-      if (!subject) throw treeError('UNKNOWN_SUBJECT');
-      if (
-        input.boardId &&
-        !(await tx.board.findFirst({ where: { id: input.boardId, isActive: true } }))
-      ) {
-        throw treeError('UNKNOWN_BOARD');
-      }
-      if (
-        input.levelId &&
-        !(await tx.level.findFirst({ where: { id: input.levelId, isActive: true } }))
-      ) {
-        throw treeError('INACTIVE_LEVEL');
-      }
-
-      const key = {
-        categoryId,
-        subjectId: input.subjectId,
-        boardId: input.boardId ?? null,
-        levelId: input.levelId ?? null,
-      };
-      const existing = await tx.curriculum.findFirst({ where: key, select: { id: true } });
-      if (existing) return { id: existing.id, created: false };
-      const created = await tx.curriculum.create({
-        data: { ...key, isActive: true },
-        select: { id: true },
-      });
-      await checkDeferredConstraints(tx);
-      return { id: created.id, created: true };
-    });
-  } catch (err) {
-    throw toTreeError(err);
-  }
-  await invalidateAdminTree();
-  if (result.created)
-    logger.info({ categoryId, curriculumId: result.id, actorId: actor.userId }, 'Offering added');
-  const row = await prisma.curriculum.findUniqueOrThrow({
-    where: { id: result.id },
-    include: offeringInclude,
-  });
-  return { offering: toView(row), created: result.created };
-}
-
-export async function setOfferingActive(
-  curriculumId: string,
-  isActive: boolean,
-  actor: Actor
-): Promise<OfferingView> {
-  const row = await prisma.curriculum.findUnique({ where: { id: curriculumId } });
-  if (!row) throw treeError('NO_OFFERING', 'Offering not found');
-  const updated = await prisma.curriculum.update({
-    where: { id: curriculumId },
-    data: { isActive },
-    include: offeringInclude,
-  });
-  await invalidateAdminTree();
-  logger.info({ curriculumId, isActive, actorId: actor.userId }, 'Offering status changed');
-  return toView(updated);
-}
-
 // ── Learner visibility ───────────────────────────────────────────────────────
 
 /**
@@ -172,12 +39,27 @@ export function visibleTo(alias: string): Prisma.Sql {
       AND left(${c}.path, length(inactive_ancestor.path) + 1) = inactive_ancestor.path || '/')`;
 }
 
-/** SQL condition: the leaf is bookable, visible, and offers at least one active curriculum. */
+/**
+ * SQL condition: a visible leaf with an active curriculum (its category curriculum, or a
+ * subject offering left from the previous model whose subject is still active).
+ */
 export function bookableLeaf(alias: string): Prisma.Sql {
   const c = Prisma.raw(alias);
   return Prisma.sql`${c}.is_bookable AND ${visibleTo(alias)} AND EXISTS (
-    SELECT 1 FROM curricula cu JOIN subjects s ON s.id = cu.subject_id
-    WHERE cu.category_id = ${c}.id AND cu.is_active AND s.is_active)`;
+    SELECT 1 FROM curricula cu LEFT JOIN subjects s ON s.id = cu.subject_id
+    WHERE cu.category_id = ${c}.id AND cu.is_active AND (s.id IS NULL OR s.is_active))`;
+}
+
+/**
+ * SQL condition: a visible leaf with an active category curriculum, the thing tutors pick
+ * on onboarding and admins price.
+ */
+export function selectableLeaf(alias: string): Prisma.Sql {
+  const c = Prisma.raw(alias);
+  return Prisma.sql`${c}.is_bookable AND ${visibleTo(alias)} AND EXISTS (
+    SELECT 1 FROM curricula cu
+    WHERE cu.category_id = ${c}.id AND cu.is_active
+      AND cu.subject_id IS NULL AND cu.board_id IS NULL AND cu.level_id IS NULL)`;
 }
 
 export interface BookableOffering {
@@ -240,7 +122,7 @@ export async function resolveBookableOffering(
     curriculumId: curriculum.id,
     categoryId: leaf.id,
     categoryPath: leaf.path,
-    subjectId: curriculum.subjectId,
+    subjectId: choice.subjectId,
     boardId: curriculum.boardId,
     levelId: curriculum.levelId,
   };

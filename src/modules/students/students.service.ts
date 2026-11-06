@@ -200,7 +200,8 @@ export async function getStudent(studentId: string): Promise<StudentDetailView> 
             .join(' › '),
           board: c.board?.name ?? null,
           level: c.level?.name ?? null,
-          subject: c.subject.name,
+          // A leaf's category curriculum has no subject: the leaf itself is what is learnt
+          subject: c.subject?.name ?? c.category.name,
         }))
         .sort((a, b) =>
           `${a.category} ${a.level} ${a.subject}`.localeCompare(
