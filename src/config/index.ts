@@ -97,11 +97,16 @@ const envSchema = z
 
     // File storage for signed consents and policy PDFs (src/infrastructure/storage). `local` and `memory` are
     // for development and tests; production uses a private S3 bucket of its own.
-    STORAGE_DRIVER: z.enum(['local', 's3', 'memory']).optional(),
+    STORAGE_DRIVER: z.enum(['local', 's3', 'memory', 'dropbox']).optional(),
     STORAGE_LOCAL_DIR: z.string().default('.data/storage'),
     STORAGE_S3_BUCKET: z.string().optional(),
     STORAGE_S3_REGION: z.string().optional(),
     STORAGE_S3_PREFIX: z.string().default(''),
+    // Temporary QA storage (STORAGE_DRIVER=dropbox): a Dropbox app folder, renewed from a refresh token
+    DROPBOX_APP_KEY: z.string().optional(),
+    DROPBOX_APP_SECRET: z.string().optional(),
+    DROPBOX_REFRESH_TOKEN: z.string().optional(),
+    DROPBOX_PATH_PREFIX: z.string().default(''),
 
     // Email transport. smtp (default): SMTP_*; sendgrid: SendGrid v3 HTTP API (SENDGRID_*);
     // log: development, records that a message would be sent; memory: in process (tests only).
@@ -154,6 +159,21 @@ const envSchema = z
           message: 'SENDGRID_FROM_EMAIL is required when EMAIL_TRANSPORT=sendgrid',
           path: ['SENDGRID_FROM_EMAIL'],
         });
+      }
+    }
+    if (env.STORAGE_DRIVER === 'dropbox') {
+      for (const name of [
+        'DROPBOX_APP_KEY',
+        'DROPBOX_APP_SECRET',
+        'DROPBOX_REFRESH_TOKEN',
+      ] as const) {
+        if (!env[name]) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `${name} is required when STORAGE_DRIVER=dropbox`,
+            path: [name],
+          });
+        }
       }
     }
     if (env.NODE_ENV === 'production') {
@@ -373,6 +393,12 @@ export const config = {
       bucket: env.STORAGE_S3_BUCKET,
       region: env.STORAGE_S3_REGION ?? env.AWS_REGION,
       prefix: env.STORAGE_S3_PREFIX,
+    },
+    dropbox: {
+      appKey: env.DROPBOX_APP_KEY,
+      appSecret: env.DROPBOX_APP_SECRET,
+      refreshToken: env.DROPBOX_REFRESH_TOKEN,
+      pathPrefix: env.DROPBOX_PATH_PREFIX,
     },
   },
 
