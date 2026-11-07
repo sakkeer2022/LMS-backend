@@ -240,6 +240,51 @@
         }
       }
     },
+    "/auth/registration/referral-sources": {
+      "get": {
+        "operationId": "listReferralSources",
+        "tags": [
+          "Identity"
+        ],
+        "summary": "List the \"how did you hear about us\" options",
+        "description": "Public; no authenticated identity required. Public. Active options in display order for the optional question on the review step; the option with code other lets the student write their own words. Cache-Control: public, max-age 300.",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "List the \"how did you hear about us\" options.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listReferralSourcesResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
     "/auth/register": {
       "post": {
         "operationId": "registerStudent",
@@ -4871,6 +4916,16 @@
                     "isMinor": true,
                     "consentStatus": "signed",
                     "registeredAt": "2026-10-21T09:00:00Z",
+                    "referral": {
+                      "code": "mathematics",
+                      "name": "Mathematics",
+                      "other": "Example value"
+                    },
+                    "education": {
+                      "level": "school",
+                      "institutionName": "Example value",
+                      "detail": "Example value"
+                    },
                     "learningProfile": {
                       "teachingLanguage": "Example value",
                       "interests": []
@@ -12289,6 +12344,80 @@
           "receivesReportsAndReceipts"
         ]
       },
+      "ReferralSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30,
+            "pattern": "^[a-z_]+$",
+            "example": "instagram"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "Instagram"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
+      "ReferralAnswer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sourceCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30,
+            "pattern": "^[a-z_]+$",
+            "description": "A code from GET /auth/registration/referral-sources. Unknown or inactive codes are a 422."
+          },
+          "other": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "The student's own words. Only with sourceCode other; trimmed, never blank."
+          }
+        },
+        "required": [
+          "sourceCode"
+        ]
+      },
+      "EducationAnswer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "school",
+              "undergraduate",
+              "postgraduate",
+              "working",
+              "other"
+            ],
+            "description": "Currently studying or working: school, undergraduate, postgraduate, working professional, other."
+          },
+          "institutionName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "description": "School, college or organisation. Trimmed."
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Class, course or role, for example Class 10 or B.Tech CSE. Trimmed."
+          }
+        }
+      },
       "RegisterRequest": {
         "type": "object",
         "additionalProperties": false,
@@ -12342,6 +12471,14 @@
           "guardian": {
             "$ref": "#/components/schemas/GuardianContact",
             "description": "Step 3. Required when the student is under 18 on the server-computed date; optional for adults."
+          },
+          "referral": {
+            "$ref": "#/components/schemas/ReferralAnswer",
+            "description": "Optional, asked on the review step: how the student heard about Amentorz. Leave it out when skipped."
+          },
+          "education": {
+            "$ref": "#/components/schemas/EducationAnswer",
+            "description": "Optional, asked on the review step. Leave it out when nothing is filled in; at least one field when present."
           },
           "consentToken": {
             "type": "string",
@@ -12642,6 +12779,89 @@
             "format": "date-time",
             "example": "2026-10-21T09:00:00Z"
           },
+          "referral": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 30
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "other": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "code",
+                  "name",
+                  "other"
+                ]
+              },
+              {
+                "type": "object",
+                "nullable": true,
+                "enum": [
+                  null
+                ]
+              }
+            ]
+          },
+          "education": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "level": {
+                    "type": "string",
+                    "enum": [
+                      "school",
+                      "undergraduate",
+                      "postgraduate",
+                      "working",
+                      "other"
+                    ],
+                    "nullable": true
+                  },
+                  "institutionName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 150,
+                    "nullable": true
+                  },
+                  "detail": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "level",
+                  "institutionName",
+                  "detail"
+                ]
+              },
+              {
+                "type": "object",
+                "nullable": true,
+                "enum": [
+                  null
+                ]
+              }
+            ]
+          },
           "learningProfile": {
             "type": "object",
             "additionalProperties": false,
@@ -12725,6 +12945,8 @@
           "isMinor",
           "consentStatus",
           "registeredAt",
+          "referral",
+          "education",
           "learningProfile"
         ]
       },
@@ -17289,6 +17511,35 @@
           },
           "data": {
             "$ref": "#/components/schemas/RegistrationEmailVerified"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "listReferralSourcesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReferralSource"
+            },
+            "maxItems": 30
           }
         },
         "required": [

@@ -44,6 +44,9 @@ export interface StudentDetailView extends StudentView {
       subject: string;
     }[];
   };
+  /** The optional review-step answers; null when the student skipped them */
+  referral: { code: string; name: string; other: string | null } | null;
+  education: { level: string | null; institutionName: string | null; detail: string | null } | null;
   consent: ConsentSummary | null;
 }
 
@@ -178,6 +181,7 @@ export async function getStudent(studentId: string): Promise<StudentDetailView> 
       user: true,
       guardianConsents: { where: linkedConsent, select: { id: true }, take: 1 },
       teachingLanguage: true,
+      referralSource: true,
       subjects: {
         include: {
           curriculum: { include: { category: true, board: true, level: true, subject: true } },
@@ -209,6 +213,21 @@ export async function getStudent(studentId: string): Promise<StudentDetailView> 
           )
         ),
     },
+    referral: profile.referralSource
+      ? {
+          code: profile.referralSource.code,
+          name: profile.referralSource.name,
+          other: profile.referralSourceOther,
+        }
+      : null,
+    education:
+      profile.educationLevel || profile.institutionName || profile.educationDetail
+        ? {
+            level: profile.educationLevel?.toLowerCase() ?? null,
+            institutionName: profile.institutionName,
+            detail: profile.educationDetail,
+          }
+        : null,
     consent: await findConsentSummary(studentId),
   };
 }

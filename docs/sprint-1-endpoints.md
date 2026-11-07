@@ -9,6 +9,7 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 | GET | `/auth/csrf-token` | `getCsrfToken` | public | ready-for-review |
 | POST | `/auth/registration/email-otp/requests` | `requestRegistrationEmailOtp` | public | decision-required |
 | POST | `/auth/registration/email-otp/verify` | `verifyRegistrationEmailOtp` | public | ready-for-review |
+| GET | `/auth/registration/referral-sources` | `listReferralSources` | public | ready-for-review |
 | POST | `/auth/register` | `registerStudent` | public | decision-required |
 | POST | `/auth/email-verification/requests` | `requestEmailVerification` | public | ready-for-review |
 | POST | `/auth/email-verification/verify` | `verifyEmail` | public | ready-for-review |

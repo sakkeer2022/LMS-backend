@@ -104,6 +104,15 @@ enum GuardianRelationship {
   OTHER
 }
 
+// Optional education detail asked at student onboarding (step 4, review).
+enum EducationLevel {
+  SCHOOL
+  UNDERGRADUATE
+  POSTGRADUATE
+  WORKING
+  OTHER
+}
+
 enum PolicyType {
   TERMS_OF_USE
   PRIVACY_POLICY
@@ -361,12 +370,21 @@ model StudentProfile {
   guardianReceivesReports Boolean               @default(false) @map("guardian_receives_reports")
   // Revenue reports group by country; derived from the mobile number's dialling code at registration
   country                 String                @db.VarChar(2)
+  // Optional, asked on the review step: how the student heard about Amentorz (a referral_sources code) and,
+  // for the "other" option, their own words
+  referralSourceCode      String?               @map("referral_source") @db.VarChar(30)
+  referralSourceOther     String?               @map("referral_source_other") @db.VarChar(100)
+  // Optional education detail: stage, school or college or organisation, and class or course or role
+  educationLevel          EducationLevel?       @map("education_level")
+  institutionName         String?               @map("institution_name") @db.VarChar(150)
+  educationDetail         String?               @map("education_detail") @db.VarChar(100)
   createdAt               DateTime              @default(now()) @map("created_at")
   updatedAt               DateTime              @updatedAt @map("updated_at")
 
   countryRef       Country           @relation(fields: [country], references: [code], onDelete: Restrict)
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   teachingLanguage TeachingLanguage? @relation(fields: [teachingLanguageId], references: [id], onDelete: Restrict)
+  referralSource   ReferralSource?   @relation(fields: [referralSourceCode], references: [code], onDelete: Restrict)
   subjects         StudentSubject[]
   guardianConsents GuardianConsent[]
 
@@ -737,6 +755,20 @@ model Country {
   policies PolicyDocument[]
 
   @@map("countries")
+}
+
+// "How did you hear about Amentorz?" options on the review step. A new option is a row, not a code change.
+model ReferralSource {
+  code         String   @id @db.VarChar(30)
+  name         String   @db.VarChar(100)
+  isActive     Boolean  @default(true) @map("is_active")
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  students StudentProfile[]
+
+  @@map("referral_sources")
 }
 
 model Board {

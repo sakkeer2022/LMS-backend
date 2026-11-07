@@ -7,7 +7,7 @@ import { expectContractResponse } from '../helpers/contract.js';
 import { latestOtp } from '../helpers/email.js';
 import { publishAllPolicies } from '../helpers/policies.js';
 import { strokePng } from '../helpers/pdf.js';
-import { seedCountries } from '../helpers/regions.js';
+import { seedCountries, seedReferralSources } from '../helpers/regions.js';
 import {
   allowLevels,
   createLookups,
@@ -64,6 +64,7 @@ describe('POST /auth/register (student)', () => {
     getTestOutbox().clear();
     getTestStorage().clear();
     await seedCountries();
+    await seedReferralSources();
     await seedRbac(prisma);
     policies = await publishAllPolicies('IN', '1.0', { realPdf: true });
     const root = await createTreeNode(null, { code: 'test-root' });
@@ -238,6 +239,78 @@ describe('POST /auth/register (student)', () => {
     });
     const res = await post(REGISTER, body);
     expect(res.status).toBe(409);
+  });
+
+  it('stores the optional referral and education answers and shows them to the admin', async () => {
+    const res = await post(
+      REGISTER,
+      await payload({
+        referral: { sourceCode: 'other', other: 'A poster at my tuition centre' },
+        education: { level: 'school', institutionName: 'Govt HSS Kochi', detail: 'Class 10' },
+      })
+    );
+    expect(res.status).toBe(201);
+    const profile = await prisma.studentProfile.findUniqueOrThrow({
+      where: { userId: res.body.data.userId },
+    });
+    expect(profile.referralSourceCode).toBe('other');
+    expect(profile.educationLevel).toBe('SCHOOL');
+    const detail = await getStudent(profile.id);
+    expect(detail.referral).toEqual({
+      code: 'other',
+      name: 'Other',
+      other: 'A poster at my tuition centre',
+    });
+    expect(detail.education).toEqual({
+      level: 'school',
+      institutionName: 'Govt HSS Kochi',
+      detail: 'Class 10',
+    });
+  });
+
+  it('registers without either answer and reads them back as null', async () => {
+    const res = await post(REGISTER, await payload());
+    expect(res.status).toBe(201);
+    const profile = await prisma.studentProfile.findUniqueOrThrow({
+      where: { userId: res.body.data.userId },
+    });
+    const detail = await getStudent(profile.id);
+    expect(detail.referral).toBeNull();
+    expect(detail.education).toBeNull();
+  });
+
+  it('accepts a referral source alone, and education with only one field', async () => {
+    const res = await post(
+      REGISTER,
+      await payload({
+        referral: { sourceCode: 'instagram' },
+        education: { institutionName: 'IIT Madras' },
+      })
+    );
+    expect(res.status).toBe(201);
+  });
+
+  it('refuses an unknown referral source, own words without Other, and empty education', async () => {
+    for (const overrides of [
+      { referral: { sourceCode: 'billboard' } },
+      { referral: { sourceCode: 'instagram', other: 'my cousin' } },
+      { education: {} },
+      { education: { level: 'kindergarten' } },
+    ]) {
+      const res = await post(REGISTER, await payload(overrides));
+      expect(res.status).toBe(422);
+    }
+  });
+
+  it('lists the active referral sources without signing in', async () => {
+    await prisma.referralSource.update({ where: { code: 'news_blog' }, data: { isActive: false } });
+    const res = await request(app).get('/api/v1/auth/registration/referral-sources');
+    expect(res.status).toBe(200);
+    expectContractResponse(res, 'get', '/auth/registration/referral-sources');
+    const codes = (res.body.data as { code: string }[]).map((row) => row.code);
+    expect(codes).toContain('instagram');
+    expect(codes).not.toContain('news_blog');
+    expect(codes.at(-1)).toBe('other');
   });
 
   it('refuses unknown fields such as role', async () => {

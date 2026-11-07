@@ -55,6 +55,27 @@ const LearningProfileDto = z.strictObject({
   teachingLanguageId: z.uuid().nullable().optional(),
 });
 
+// Both optional answers come from the review step. A blank answer is left out, not sent empty.
+const ReferralDto = z
+  .strictObject({
+    sourceCode: z.string().regex(/^[a-z_]{1,30}$/),
+    other: z.string().trim().min(1).max(100).optional(),
+  })
+  .refine((value) => value.other === undefined || value.sourceCode === 'other', {
+    message: 'Describe it only when you choose Other',
+    path: ['other'],
+  });
+
+const EducationDto = z
+  .strictObject({
+    level: z.enum(['school', 'undergraduate', 'postgraduate', 'working', 'other']).optional(),
+    institutionName: z.string().trim().min(1).max(150).optional(),
+    detail: z.string().trim().min(1).max(100).optional(),
+  })
+  .refine((value) => Object.values(value).some((entry) => entry !== undefined), {
+    message: 'Leave education out when nothing is filled in',
+  });
+
 /** The four onboarding steps in one request. Unknown fields (role, isActive, permissions) are a 422. */
 export const RegisterStudentDto = z.strictObject({
   emailVerificationToken: z.string().min(1).max(512),
@@ -76,6 +97,8 @@ export const RegisterStudentDto = z.strictObject({
   timezone: z.string().min(1).max(64).refine(isTimeZone, 'Enter an IANA time zone'),
   learningProfile: LearningProfileDto,
   guardian: GuardianDto.optional(),
+  referral: ReferralDto.optional(),
+  education: EducationDto.optional(),
   consentToken: z.string().min(1).max(512).optional(),
   acceptedPolicyIds: uuidList(2, 4),
 });

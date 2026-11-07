@@ -84,6 +84,19 @@ registrationRouter.post(
   RegistrationController.verifyEmailOtp
 );
 
+/**
+ * @openapi
+ * /auth/registration/referral-sources:
+ *   get:
+ *     summary: List the "how did you hear about us" options
+ *     description: Public. The active options in display order for the optional question on the review step. The option with code `other` lets the student write their own words.
+ *     tags: [Registration]
+ *     responses:
+ *       200:
+ *         description: The active referral sources
+ */
+registrationRouter.get('/referral-sources', RegistrationController.listReferralSources);
+
 /** Mounted at /auth/register: the final onboarding step, which creates the student account. */
 export const studentRegisterRouter = Router();
 

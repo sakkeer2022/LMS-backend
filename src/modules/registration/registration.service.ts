@@ -17,6 +17,15 @@ export async function requestRegistrationOtp(
   return issueEmailOtp({ email: input.email, purpose: 'REGISTRATION', deliver: !existing });
 }
 
+/** The active "how did you hear about us" options in display order. */
+export function listReferralSources(): Promise<{ code: string; name: string }[]> {
+  return prisma.referralSource.findMany({
+    where: { isActive: true },
+    orderBy: { displayOrder: 'asc' },
+    select: { code: true, name: true },
+  });
+}
+
 /** Verifies the code and returns the single-use email token that POST /auth/register consumes. */
 export async function verifyRegistrationOtp(
   input: RegistrationOtpVerify
