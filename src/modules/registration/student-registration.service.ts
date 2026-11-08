@@ -1,6 +1,11 @@
 import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
-import { Prisma, type GuardianRelationship, type PolicyType } from '@prisma/client';
+import {
+  Prisma,
+  type EducationLevel,
+  type GuardianRelationship,
+  type PolicyType,
+} from '@prisma/client';
 import { prisma } from '@infrastructure/database/index.js';
 import { ConflictError, ServiceUnavailableError, ValidationError } from '@core/errors/index';
 import { completedYears } from '@shared/dates';
@@ -177,6 +182,16 @@ export async function registerStudent(
         throw new ValidationError('Choose an available teaching language.');
       }
 
+      if (
+        input.referral &&
+        !(await tx.referralSource.findFirst({
+          where: { code: input.referral.sourceCode, isActive: true },
+          select: { code: true },
+        }))
+      ) {
+        throw new ValidationError('Choose one of the listed ways you heard about us.');
+      }
+
       await checkAcceptedPolicies(tx, country.code, minor, input.acceptedPolicyIds);
       await checkCurricula(tx, input.learningProfile);
 
@@ -207,6 +222,12 @@ export async function registerStudent(
           dateOfBirth: new Date(`${input.dateOfBirth}T00:00:00Z`),
           country: country.code,
           teachingLanguageId: languageId,
+          referralSourceCode: input.referral?.sourceCode ?? null,
+          referralSourceOther: input.referral?.other ?? null,
+          educationLevel:
+            (input.education?.level?.toUpperCase() as EducationLevel | undefined) ?? null,
+          institutionName: input.education?.institutionName ?? null,
+          educationDetail: input.education?.detail ?? null,
           ...(guardian && {
             guardianName: guardian.fullName,
             guardianRelationship: guardian.relationship.toUpperCase() as GuardianRelationship,

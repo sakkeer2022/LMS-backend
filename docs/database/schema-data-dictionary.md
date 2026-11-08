@@ -287,6 +287,11 @@
 | `guardian_email` | `VARCHAR(255)` | Yes | `NULL` | Guardian email; required under 18, must differ from the student email | Application |
 | `guardian_receives_reports` | `BOOLEAN` | No | `false` | "Also send progress reports and payment receipts to the guardian" | Database |
 | `country` | `VARCHAR(2)` | No | `'IN'` | ISO country for revenue reports; derived from the mobile number's country code for now (decided 2026-10-29), IP-based or form capture may follow. The SOW also reports by region, which is not stored yet (`src/docs/REGIONS.md`) | Application |
+| `referral_source` | `VARCHAR(30)` | Yes | `NULL` | Optional: how the student heard about Amentorz; a `referral_sources.code` (FK, restrict) | Application |
+| `referral_source_other` | `VARCHAR(100)` | Yes | `NULL` | The student's own words; only with `referral_source = 'other'` (CHECK) | Database / Application |
+| `education_level` | `EducationLevel` | Yes | `NULL` | Optional: `SCHOOL`, `UNDERGRADUATE`, `POSTGRADUATE`, `WORKING`, `OTHER` | Database / Application |
+| `institution_name` | `VARCHAR(150)` | Yes | `NULL` | Optional: school, college or organisation | Application |
+| `education_detail` | `VARCHAR(100)` | Yes | `NULL` | Optional: class, course or role | Application |
 | `created_at` | `TIMESTAMP(3)` | No | `CURRENT_TIMESTAMP` | Profile creation timestamp | Database |
 | `updated_at` | `TIMESTAMP(3)` | No | — | Modification timestamp | Prisma / Database |
 
@@ -329,6 +334,18 @@
 | `language_codes` | `VARCHAR(8)[]` | — | — | ISO 639 codes covered, e.g. `{en,hi}` | Application |
 | `is_active` | `BOOLEAN` | No | `true` | Archive flag | Database |
 | `display_order` | `INTEGER` | No | `0` | Dropdown order | Database |
+| `created_at` / `updated_at` | `TIMESTAMP(3)` | No | — | Timestamps | Database / Prisma |
+
+### 3.3a `referral_sources`
+- **Purpose:** Options for the optional "How did you find Amentorz?" question on the review step. A new option is a row. The option `other` lets the student write their own words (`student_profiles.referral_source_other`).
+- **Physical Table:** `referral_sources`
+
+| Column | Type | Nullable | Default | Description & Constraints | Enforcement |
+|---|---|:---:|---|---|---|
+| `code` | `VARCHAR(30)` | No | — | Primary Key, e.g. `instagram`, `other` | Database |
+| `name` | `VARCHAR(100)` | No | — | Display label | Application |
+| `is_active` | `BOOLEAN` | No | `true` | Hidden from the form when false; old answers keep their value | Database |
+| `display_order` | `INTEGER` | No | `0` | Order of the chips | Database |
 | `created_at` / `updated_at` | `TIMESTAMP(3)` | No | — | Timestamps | Database / Prisma |
 
 ---

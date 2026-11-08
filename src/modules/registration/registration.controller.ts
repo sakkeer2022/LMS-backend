@@ -27,6 +27,20 @@ export async function requestEmailOtp(
   }
 }
 
+export async function listReferralSources(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const sources = await RegistrationService.listReferralSources();
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json(successResponse(sources, 'Referral sources retrieved'));
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function verifyEmailOtp(
   req: Request,
   res: Response,
