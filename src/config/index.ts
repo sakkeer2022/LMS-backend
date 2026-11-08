@@ -113,6 +113,8 @@ const envSchema = z
     // log: development, records that a message would be sent; memory: in process (tests only).
     EMAIL_TRANSPORT: z.enum(['smtp', 'sendgrid', 'log', 'memory']).optional(),
     EMAIL_FROM: z.string().default('Amentorz <no-reply@amentorz.local>'),
+    // Development only: where EMAIL_TRANSPORT=log writes each message so a code can be found without the terminal
+    EMAIL_LOG_FILE: z.string().default('.data/emails/outbox.log'),
     SMTP_HOST: z.string().optional(),
     SMTP_PORT: z.coerce.number().int().positive().default(587),
     SMTP_SECURE: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(false),
@@ -438,6 +440,7 @@ export const config = {
     transport:
       env.EMAIL_TRANSPORT ?? (env.NODE_ENV === 'test' ? ('memory' as const) : ('smtp' as const)),
     from: env.EMAIL_FROM,
+    logFile: env.EMAIL_LOG_FILE,
     smtp: {
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,

@@ -21,6 +21,7 @@
     "test:coverage": "vitest run --coverage",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
+    "mail": "node scripts/dev-mail.cjs",
     "db:seed:learning": "tsx prisma/seed-learning.ts",
     "db:seed:demo": "tsx prisma/seed-demo.ts",
     "db:seed:users": "tsx prisma/seed-dev-users.ts",

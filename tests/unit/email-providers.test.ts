@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   EmailDeliveryError,
@@ -10,6 +13,7 @@ import {
   type EmailMessage,
 } from '../../src/infrastructure/email/index.js';
 import { logger } from '../../src/core/logger/index.js';
+import { MAILBOX_SEPARATOR, writeDevMailbox } from '../../src/infrastructure/email/dev-mailbox.js';
 
 const message: EmailMessage = {
   to: 'tutor@example.org',
@@ -157,5 +161,21 @@ describe('createEmailProvider', () => {
     const replacement = new InMemoryEmailProvider();
     setEmailProvider(replacement);
     expect(getEmailProvider()).toBe(replacement);
+  });
+});
+
+describe('development mailbox file', () => {
+  it('appends each message with its recipient, subject and body, newest last', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mailbox-'));
+    const file = path.join(dir, 'nested', 'outbox.log');
+    writeDevMailbox({ ...message, category: 'registration-otp', text: 'Your code is 123456' }, file);
+    writeDevMailbox({ ...message, category: 'recovery-otp', text: 'Your code is 654321' }, file);
+    const content = fs.readFileSync(file, 'utf8');
+    expect(content).toContain('registration-otp');
+    expect(content).toContain('To: tutor@example.org');
+    expect(content).toContain('Your code is 123456');
+    expect(content.indexOf('123456')).toBeLessThan(content.indexOf('654321'));
+    expect(content.match(new RegExp(`^${MAILBOX_SEPARATOR}`, 'gm'))).toHaveLength(2);
+    fs.rmSync(dir, { recursive: true });
   });
 });
