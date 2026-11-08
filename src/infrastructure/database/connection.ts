@@ -13,6 +13,8 @@ const adapter = new PrismaPg(pool);
 
 export const prisma = new PrismaClient({
   adapter,
+  // Prisma's 5s default expires on hosted free tiers with slow database round trips (QA on Render).
+  transactionOptions: { maxWait: 10_000, timeout: 30_000 },
   log: [
     { emit: 'event', level: 'query' },
     { emit: 'stdout', level: 'info' },
