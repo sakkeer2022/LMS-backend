@@ -82,6 +82,32 @@ npx prisma db seed
 INITIAL_ADMIN_EMAIL=admin@example.com INITIAL_ADMIN_PASSWORD='<12+ chars, mixed>' npm run create-admin
 ```
 
+### Learning catalogue
+
+`npx prisma db seed` does not create the category tree, subjects or offerings that tutors and students pick from. Without them the student form shows "The learning options are not available yet."
+
+```
+npm run db:seed:learning      # refuses NODE_ENV=production; safe to repeat, it only adds missing rows
+```
+
+Re-run it after pulling changes to `prisma/seeds/learning.ts`. After changing roles or permissions in `src/core/security/rbac.ts`, re-run `npx prisma db seed` and sign in again, because permissions are fixed into the token at login.
+
+### Emails in development
+
+With `EMAIL_TRANSPORT=log` each message is written to `.data/emails/outbox.log` (`EMAIL_LOG_FILE`) and the terminal gets a one-line note. Print the latest one with `npm run mail`, or watch for new ones with `npm run mail -- --follow`. With `smtp` (the default) or `sendgrid`, set the variables in `.env.example`.
+
+### First-time local setup, in order
+
+```
+npx prisma migrate deploy
+npx prisma db seed
+npm run db:seed:learning
+npm run policies:load -- --placeholders
+INITIAL_ADMIN_EMAIL=... INITIAL_ADMIN_PASSWORD='...' npm run create-admin
+```
+
+QA runs the same steps on every Render deploy through `npm run qa:setup` (see `docs/QA_DEPLOY.md` on the `qa` branch).
+
 ### Policy documents
 
 The client's policy PDFs are uploaded per country from the admin **Legal documents** screen (or `POST /admin/policies`, which needs `policy.create` and recent reauthentication). For the first setup without the screen:
