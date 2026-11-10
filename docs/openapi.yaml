@@ -4041,7 +4041,7 @@
           "Faculty onboarding"
         ],
         "summary": "Category tree and offerings for the subject picker",
-        "description": "Public; no authenticated identity required. Screen 43c column picker: visible categories that lead to a leaf, and one offering per leaf: its category curriculum, with subject = the leaf itself (id and name) and board and level null. Picking a leaf adds a card; the card is the curriculumId.",
+        "description": "Public; no authenticated identity required. Screen 43c column picker: visible categories that lead to a leaf, and one offering per active subject of a leaf (board and level null). A leaf without an active subject is not listed. Picking a subject adds a card; the card is the curriculumId.",
         "x-required-role": "public",
         "x-review-status": "ready-for-review",
         "security": [],
@@ -9293,7 +9293,7 @@
           "Category tree"
         ],
         "summary": "Whole category tree with child and tutor counts",
-        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. One aggregate query; cached until the next write (header X-Cache HIT/MISS). Cache-Control private, no-store.",
+        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. One aggregate query; cached until the next write (header X-Cache HIT/MISS). Cache-Control private, no-store.",
         "x-required-role": "admin; catalogue.read",
         "x-review-status": "ready-for-review",
         "security": [
@@ -9425,7 +9425,7 @@
           "Category tree"
         ],
         "summary": "Offering picker tree for admin pickers",
-        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Visible branches that lead to a leaf, and each leaf's category curriculum. Same shape as getFacultyOnboardingCatalogue; used by the pricing rule drawer.",
+        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Visible branches that lead to a leaf, and each leaf's active subjects. Same shape as getFacultyOnboardingCatalogue; used by the pricing rule drawer.",
         "x-required-role": "admin; catalogue.read",
         "x-review-status": "ready-for-review",
         "security": [
@@ -9483,7 +9483,7 @@
           "Category tree"
         ],
         "summary": "Create a root category",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 200 for an idempotent retry (same code and name). Duplicate code 409 DUPLICATE_CODE. Audit category.create_root.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 200 for an idempotent retry (same code and name). Duplicate code 409 DUPLICATE_CODE. Audit category.create_root.",
         "x-required-role": "admin; catalogue.manage",
         "x-review-status": "ready-for-review",
         "security": [
@@ -9577,7 +9577,7 @@
           "Category tree"
         ],
         "summary": "Reorder the children of one parent",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Never changes a parent. 409 STALE_SIBLINGS when orderedIds is not exactly the current children. Audit category.reorder.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Never changes a parent. 409 STALE_SIBLINGS when orderedIds is not exactly the current children. Audit category.reorder.",
         "x-required-role": "admin; catalogue.manage",
         "x-review-status": "ready-for-review",
         "security": [
@@ -9653,7 +9653,7 @@
           "Category tree"
         ],
         "summary": "Category detail for the panel",
-        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Breadcrumb comes from the path.",
+        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Breadcrumb comes from the path.",
         "x-required-role": "admin; catalogue.read",
         "x-review-status": "ready-for-review",
         "security": [
@@ -9739,7 +9739,7 @@
           "Category tree"
         ],
         "summary": "Rename, change code, activate or deactivate",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. A code change rebuilds the subtree paths in the same transaction. 409 STALE_VERSION or DUPLICATE_CODE. Audit category.update.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. A code change rebuilds the subtree paths in the same transaction. 409 STALE_VERSION or DUPLICATE_CODE. Audit category.update.",
         "x-required-role": "admin; catalogue.manage",
         "x-review-status": "ready-for-review",
         "security": [
@@ -9844,7 +9844,7 @@
           "Category tree"
         ],
         "summary": "Hard-delete an unreferenced category",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 409 DELETE_BLOCKED while it has children, tutors, prices, learner subjects, library materials, student profiles, scoped levels or a legacy node link; the message lists the reasons and suggests disabling. Unused curricula are deleted with it. 409 STALE_VERSION. Audit category.delete.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 409 DELETE_BLOCKED while it has children, tutors, prices, learner subjects, library materials, student profiles, scoped levels or a legacy node link; the message lists the reasons and suggests disabling. Unused curricula are deleted with it. 409 STALE_VERSION. Audit category.delete.",
         "x-required-role": "admin; catalogue.manage",
         "x-review-status": "ready-for-review",
         "security": [
@@ -9919,7 +9919,7 @@
           "Category tree"
         ],
         "summary": "Create a sub-category",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 409 CATEGORY_IN_USE or DUPLICATE_CODE; 422 PARENT_NOT_FOUND, PATH_TOO_LONG or TOO_DEEP. 200 for an idempotent retry. Audit category.create_child.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 409 CATEGORY_IN_USE or DUPLICATE_CODE; 422 PARENT_NOT_FOUND, PATH_TOO_LONG or TOO_DEEP. 200 for an idempotent retry. Audit category.create_child.",
         "x-required-role": "admin; catalogue.manage",
         "x-review-status": "ready-for-review",
         "security": [
@@ -10026,7 +10026,7 @@
           "Category tree"
         ],
         "summary": "Move a category under a new parent",
-        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Locks the node, the new parent and the subtree (SELECT FOR UPDATE), checks the cycle rule inside the transaction and rebuilds path and depth for the subtree in one statement. 422 CYCLE; 409 CATEGORY_IN_USE, DUPLICATE_CODE, STALE_VERSION, CONCURRENT_CHANGE. Already under that parent: 200, no change. Audit category.move.",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Locks the node, the new parent and the subtree (SELECT FOR UPDATE), checks the cycle rule inside the transaction and rebuilds path and depth for the subtree in one statement. 422 CYCLE; 409 CATEGORY_IN_USE, DUPLICATE_CODE, STALE_VERSION, CONCURRENT_CHANGE. Already under that parent: 200, no change. Audit category.move.",
         "x-required-role": "admin; catalogue.manage",
         "x-review-status": "ready-for-review",
         "security": [
@@ -10126,6 +10126,433 @@
         }
       }
     },
+    "/admin/category-tree/{categoryId}/subjects": {
+      "get": {
+        "operationId": "listLeafSubjects",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Subjects a leaf offers, with usage",
+        "description": "Current active, email-verified admin; catalogue.read identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Migration 20261110090000_leaf_subject_offerings. The leaf rule is checked inside the transaction with the leaf locked: 422 NOT_A_LEAF for a category with sub-categories. Tutors, prices and learners count the assignments, price rules and student subjects on each offering.",
+        "x-required-role": "admin; catalogue.read",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subjects a leaf offers, with usage.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listLeafSubjectsResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "attachLeafSubject",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Offer a subject on a leaf",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Migration 20261110090000_leaf_subject_offerings. The leaf rule is checked inside the transaction with the leaf locked: 422 NOT_A_LEAF for a category with sub-categories. 200 when the leaf already offers the subject (an inactive offering is switched back on). 422 UNKNOWN_SUBJECT for an unknown or inactive subject. Audit category.subject_attach.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Offer a subject on a leaf.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/attachLeafSubjectResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "subjectId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "created": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeafSubjectAttach"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/category-tree/{categoryId}/subjects/{subjectId}": {
+      "patch": {
+        "operationId": "setLeafSubjectActive",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Switch a leaf's subject on or off",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Migration 20261110090000_leaf_subject_offerings. The leaf rule is checked inside the transaction with the leaf locked: 422 NOT_A_LEAF for a category with sub-categories. Tutors and prices keep pointing at an inactive offering. 404 OFFERING_NOT_FOUND. Audit category.subject_toggle.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Switch a leaf's subject on or off.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/setLeafSubjectActiveResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "isActive": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "subjectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeafSubjectActive"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "detachLeafSubject",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Remove a subject from a leaf",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Migration 20261110090000_leaf_subject_offerings. The leaf rule is checked inside the transaction with the leaf locked: 422 NOT_A_LEAF for a category with sub-categories. 409 OFFERING_IN_USE while a tutor, price, learner or library material uses it (deactivate it instead). 404 OFFERING_NOT_FOUND. Audit category.subject_detach.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          },
+          "204": {
+            "description": "Removed."
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          }
+        },
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "subjectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ]
+      }
+    },
+    "/admin/category-tree/subjects/{subjectId}": {
+      "patch": {
+        "operationId": "updateSubject",
+        "tags": [
+          "Category tree"
+        ],
+        "summary": "Rename a subject or switch it off everywhere",
+        "description": "Current active, email-verified admin; catalogue.manage identity; server checks role, permission and resource ownership on every request. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. 422 UNKNOWN_SUBJECT. Audit subject.update.",
+        "x-required-role": "admin; catalogue.manage",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rename a subject or switch it off everywhere.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/updateSubjectResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "name": "Mathematics",
+                    "isActive": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubjectUpdate"
+              }
+            }
+          }
+        }
+      }
+    },
     "/catalogue/category-tree/children": {
       "get": {
         "operationId": "listLearnerCategories",
@@ -10133,7 +10560,7 @@
           "Category tree"
         ],
         "summary": "Children of a category on the way to a bookable leaf",
-        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. ",
+        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. ",
         "x-required-role": "public",
         "x-review-status": "ready-for-review",
         "security": [],
@@ -10191,7 +10618,7 @@
           "Category tree"
         ],
         "summary": "Bookable leaves",
-        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. ",
+        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. ",
         "x-required-role": "public",
         "x-review-status": "ready-for-review",
         "security": [],
@@ -10290,7 +10717,7 @@
           "Category tree"
         ],
         "summary": "Bookable leaf with its options",
-        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. ",
+        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. ",
         "x-required-role": "public",
         "x-review-status": "ready-for-review",
         "security": [],
@@ -10384,7 +10811,7 @@
           "Category tree"
         ],
         "summary": "Resolve a choice on a leaf to its curriculum",
-        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; tutors and learners choose leaves, and each leaf owns one category curriculum (no subject, board or level) kept by the categories_leaf_sync trigger. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. 422 NOT_BOOKABLE, BOARD_REQUIRED, LEVEL_REQUIRED, LEVEL_NOT_ALLOWED; 404 NO_OFFERING. The same check a booking must make (resolveBookableOffering).",
+        "description": "Public; no authenticated identity required. Category tree (ADR-0005): categories only. A leaf is a category without sub-categories; a leaf offers subjects (one curriculum per leaf and subject, no board or level yet), which tutors choose, admins price and learners pick. A leaf that tutors, prices or learners use cannot get sub-categories (409 CATEGORY_IN_USE). path = parent.path + \"/\" + code; codes unique among siblings; every write is one transaction and is checked again by deferred database triggers. Errors carry a code. Behind feature flag catalogue.category_tree (off: 404 FEATURE_DISABLED). Only active categories with no inactive ancestor, and only leaves with an active offering. Cache-Control public, max-age=60. 422 NOT_BOOKABLE, BOARD_REQUIRED, LEVEL_REQUIRED, LEVEL_NOT_ALLOWED; 404 NO_OFFERING. The same check a booking must make (resolveBookableOffering).",
         "x-required-role": "public",
         "x-review-status": "ready-for-review",
         "security": [],
@@ -20418,7 +20845,7 @@
           },
           "isLeaf": {
             "type": "boolean",
-            "description": "No sub-categories. Tutors and learners choose leaves; each leaf has one category curriculum."
+            "description": "No sub-categories. Tutors and learners choose a subject of a leaf; each leaf and subject is one curriculum."
           },
           "isActive": {
             "type": "boolean"
@@ -20553,7 +20980,7 @@
           },
           "isLeaf": {
             "type": "boolean",
-            "description": "No sub-categories. Tutors and learners choose leaves; each leaf has one category curriculum."
+            "description": "No sub-categories. Tutors and learners choose a subject of a leaf; each leaf and subject is one curriculum."
           },
           "isActive": {
             "type": "boolean"
@@ -21060,6 +21487,168 @@
           "levelId"
         ]
       },
+      "LeafSubject": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "curriculumId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "subjectId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "This leaf offers the subject."
+          },
+          "subjectActive": {
+            "type": "boolean",
+            "description": "The subject itself is switched on for every leaf."
+          },
+          "tutors": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "prices": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "learners": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "curriculumId",
+          "subjectId",
+          "name",
+          "isActive",
+          "subjectActive",
+          "tutors",
+          "prices",
+          "learners"
+        ]
+      },
+      "LeafSubjectAttach": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "subjectId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+              }
+            },
+            "required": [
+              "subjectId"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              }
+            },
+            "required": [
+              "name"
+            ]
+          }
+        ],
+        "description": "An existing subject by id, or a new one by name (the same name reuses the subject)."
+      },
+      "LeafSubjectAttached": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "curriculumId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "subjectId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "created": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "curriculumId",
+          "subjectId",
+          "created"
+        ]
+      },
+      "LeafSubjectActive": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "isActive"
+        ]
+      },
+      "SubjectUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "false hides the subject on every leaf."
+          }
+        }
+      },
+      "SubjectSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isActive"
+        ]
+      },
       "getCategoryTreeResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -21330,6 +21919,139 @@
           },
           "data": {
             "$ref": "#/components/schemas/CategoryTreeDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "listLeafSubjectsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeafSubject"
+            },
+            "maxItems": 500
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "attachLeafSubjectResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/LeafSubjectAttached"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "setLeafSubjectActiveResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/LeafSubjectActive"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "detachLeafSubjectResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "object",
+            "nullable": true,
+            "enum": [
+              null
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "updateSubjectResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/SubjectSummary"
           }
         },
         "required": [

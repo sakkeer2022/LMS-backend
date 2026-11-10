@@ -92,7 +92,7 @@ describe('Pricing API', () => {
       });
     });
 
-    it('names a leaf price by the leaf, with the category path above it', async () => {
+    it('names a price by the subject, with the leaf path above it', async () => {
       const k12 = await prisma.category.findUniqueOrThrow({ where: { path: 'academic/school/k-12' } });
       const cbse = await createTreeNode(k12, { code: 'cbse-tree', name: 'CBSE' });
       const physics = await createTreeNode(cbse, { code: 'physics', name: 'Physics' });
@@ -105,10 +105,10 @@ describe('Pricing API', () => {
       });
       expect(res.status).toBe(201);
       expect(res.body.data).toMatchObject({
-        subjectName: 'Class 10',
+        subjectName: 'Leaf test subject',
         boardName: null,
         levelName: null,
-        pathLabel: 'Academic › School › K-12 › CBSE › Physics',
+        pathLabel: 'Academic › School › K-12 › CBSE › Physics › Class 10',
       });
     });
 

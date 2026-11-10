@@ -153,10 +153,10 @@ describe('Faculty onboarding, review, pricing gate and consent (LMS-39, LMS-40)'
       const offerings = res.body.data.offerings.map((o: { curriculumId: string }) => o.curriculumId);
       expect(offerings.sort()).toEqual([catalogue.physics.id, catalogue.chemistry.id].sort());
       const physics = res.body.data.offerings.find((o: { curriculumId: string }) => o.curriculumId === catalogue.physics.id);
-      // The leaf is the choice: titled by its own name, with no board or level
+      // A subject of the leaf, with no board or level
       expect(physics).toMatchObject({
         categoryId: catalogue.physicsLeaf.id,
-        subject: { id: catalogue.physicsLeaf.id, name: 'Class 11' },
+        subject: { id: expect.any(String), name: 'Leaf test subject' },
         board: null,
         level: null,
       });

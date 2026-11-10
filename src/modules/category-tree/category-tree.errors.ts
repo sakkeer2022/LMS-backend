@@ -29,6 +29,9 @@ export type TreeErrorCode =
   | 'INACTIVE_LEVEL'
   | 'UNKNOWN_BOARD'
   | 'UNKNOWN_SUBJECT'
+  | 'NOT_A_LEAF'
+  | 'OFFERING_NOT_FOUND'
+  | 'OFFERING_IN_USE'
   | 'NOT_BOOKABLE'
   | 'BOARD_REQUIRED'
   | 'LEVEL_REQUIRED'
@@ -59,6 +62,9 @@ const STATUS: Record<TreeErrorCode, 404 | 409 | 422> = {
   INACTIVE_LEVEL: 422,
   UNKNOWN_BOARD: 422,
   UNKNOWN_SUBJECT: 422,
+  NOT_A_LEAF: 422,
+  OFFERING_NOT_FOUND: 404,
+  OFFERING_IN_USE: 409,
   NOT_BOOKABLE: 422,
   BOARD_REQUIRED: 422,
   LEVEL_REQUIRED: 422,
@@ -95,6 +101,10 @@ const DEFAULT_MESSAGE: Record<TreeErrorCode, string> = {
   INACTIVE_LEVEL: 'The level is not active',
   UNKNOWN_BOARD: 'Unknown or inactive board',
   UNKNOWN_SUBJECT: 'Unknown or inactive subject',
+  NOT_A_LEAF: 'Subjects can only be added to a category without sub-categories',
+  OFFERING_NOT_FOUND: 'That subject is not offered in this category',
+  OFFERING_IN_USE:
+    'Tutors, prices or learners use this subject in this category. Deactivate it instead.',
   NOT_BOOKABLE: 'This category is not bookable',
   BOARD_REQUIRED: 'Choose a board',
   LEVEL_REQUIRED: 'Choose a level',

@@ -16,8 +16,8 @@ import {
 import { prisma } from '@infrastructure/database/index.js';
 
 // ADR-0005: category tree admin API, invariants, concurrency and learner read path.
-// Since 20261105090000_category_simple_leaves a leaf is any category without
-// sub-categories, and it owns one category curriculum that tutors pick.
+// A leaf is any category without sub-categories (20261105090000_category_simple_leaves);
+// its subjects are its offerings that tutors pick (20261110090000_leaf_subject_offerings).
 describe('Category tree API', () => {
   let csrf: { csrfToken: string; csrfCookie: string };
   let admin: { userId: string; token: string };
@@ -97,8 +97,8 @@ describe('Category tree API', () => {
         depth: 1,
         isLeaf: true,
       });
-      // The new leaf has its category curriculum; the parent gave its own up
-      expect(await leafCurriculum(child.body.data.id)).toBeTruthy();
+      // Neither the new leaf nor its parent has offerings until an admin adds subjects
+      expect(await prisma.curriculum.count({ where: { categoryId: child.body.data.id } })).toBe(0);
       expect(await prisma.curriculum.count({ where: { categoryId: root.body.data.id } })).toBe(0);
       expect((await node(root.body.data.id)).isBookable).toBe(false);
       expect(child.body.data.breadcrumb.map((b: { name: string }) => b.name)).toEqual([
@@ -385,8 +385,7 @@ describe('Category tree API', () => {
         204
       );
       expect(await prisma.category.count({ where: { id: empty.id } })).toBe(0);
-      // Its category curriculum went with it, and the parent is a leaf again only when
-      // it has no other children
+      // Its unused offerings went with it
       expect(await prisma.curriculum.count({ where: { categoryId: empty.id } })).toBe(0);
       expect((await send('delete', `${base}/${empty.id}?version=1`)).status).toBe(404);
     });
@@ -438,13 +437,12 @@ describe('Category tree API', () => {
       ).rejects.toThrow();
     });
 
-    it('keeps exactly one category curriculum on every leaf and none on a branch', async () => {
+    it('derives the leaf flag and creates no offerings', async () => {
       const physics = await createTreeNode(k12, { code: 'physics' });
       const class11 = await createTreeNode(physics, { code: 'class-11' });
-      const own = { subjectId: null, boardId: null, levelId: null };
       expect(await prisma.curriculum.count({ where: { categoryId: k12.id } })).toBe(0);
       expect(await prisma.curriculum.count({ where: { categoryId: physics.id } })).toBe(0);
-      expect(await prisma.curriculum.count({ where: { categoryId: class11.id, ...own } })).toBe(1);
+      expect(await prisma.curriculum.count({ where: { categoryId: class11.id } })).toBe(0);
       expect((await node(class11.id)).isBookable).toBe(true);
 
       // Moving the only child away makes the old parent a leaf again
@@ -452,7 +450,7 @@ describe('Category tree API', () => {
         version: (await node(class11.id)).version,
         parentId: k12.id,
       });
-      expect(await prisma.curriculum.count({ where: { categoryId: physics.id, ...own } })).toBe(1);
+      expect((await node(physics.id)).isBookable).toBe(true);
       expect(await verify()).toEqual([]);
     });
 

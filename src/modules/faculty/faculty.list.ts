@@ -285,14 +285,7 @@ export async function listFaculty(
     const subjects = [
       ...new Map(
         (detail?.assignments ?? [])
-          // A category curriculum is named by its leaf (Class 11)
-          .map(
-            (a) =>
-              a.curriculum.subject ?? {
-                name: a.curriculum.category.name,
-                sortOrder: a.curriculum.category.displayOrder,
-              }
-          )
+          .map((a) => a.curriculum.subject)
           .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
           .map((s) => [s.name, s.name])
       ).values(),

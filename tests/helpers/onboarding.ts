@@ -21,7 +21,7 @@ export async function createInvitationWithToken(email = `tutor-${randomUUID()}@e
 /** Academic › School › K-12 (bookable, board) with two offerings, and Non-academic › Skill. */
 export async function createPickerCatalogue() {
   // Academic › School › K-12 › CBSE › Physics › Class 11, and › Chemistry › Class 11.
-  // A tutor picks leaves; each leaf's category curriculum is the card.
+  // A tutor picks a subject of a leaf; each leaf here offers one default subject.
   const academic = await createTreeNode(null, { code: `academic-${randomUUID().slice(0, 6)}`, name: 'Academic' });
   const school = await createTreeNode(academic, { name: 'School' });
   const k12 = await createTreeNode(school, { name: 'K-12' });

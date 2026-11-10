@@ -5,9 +5,8 @@ import { ancestorPaths } from './category-tree.rules.js';
 /**
  * The category tree as the column picker on faculty onboarding shows it (screen 43c),
  * and the same path labels used wherever a tutor's choice is named (admin drawer,
- * pricing, price consent). A tutor picks leaves: categories without sub-categories.
- * Each leaf has one category curriculum (no subject, board or level), so a choice is
- * still a curriculumId. Only visible branches that lead to a leaf are included. Two
+ * pricing, price consent). A tutor picks a subject of a leaf (a category without
+ * sub-categories): one curriculum per leaf and subject, so a choice is a curriculumId. Only visible branches that lead to a leaf are included. Two
  * queries, whole tree; the tree is small (ADR-0005).
  */
 
@@ -18,10 +17,7 @@ export interface PickerNode {
   isLeaf: boolean;
 }
 
-/**
- * One choosable leaf. Kept in the shape of the earlier subject offerings so existing
- * clients still parse it: subject is the leaf itself, board and level are always null.
- */
+/** One choosable subject of a leaf. Board and level are always null (step 2 adds them). */
 export interface PickerOffering {
   curriculumId: string;
   categoryId: string;
@@ -45,7 +41,8 @@ interface NodeRow {
 interface OfferingRow {
   curriculum_id: string;
   category_id: string;
-  category_name: string;
+  subject_id: string;
+  subject_name: string;
 }
 
 export async function getOfferingTree(): Promise<OfferingTree> {
@@ -63,12 +60,13 @@ export async function getOfferingTree(): Promise<OfferingTree> {
         )
       ORDER BY c.depth, c.display_order, c.name, c.id`,
     prisma.$queryRaw<OfferingRow[]>`
-      SELECT cu.id AS curriculum_id, c.id AS category_id, c.name AS category_name
+      SELECT cu.id AS curriculum_id, c.id AS category_id, s.id AS subject_id, s.name AS subject_name
       FROM curricula cu
       JOIN categories c ON c.id = cu.category_id
-      WHERE cu.is_active AND cu.subject_id IS NULL AND cu.board_id IS NULL AND cu.level_id IS NULL
+      JOIN subjects s ON s.id = cu.subject_id
+      WHERE cu.is_active AND s.is_active AND cu.board_id IS NULL AND cu.level_id IS NULL
         AND ${selectableLeaf('c')}
-      ORDER BY c.depth, c.display_order, c.name, c.id`,
+      ORDER BY c.depth, c.display_order, c.name, c.id, s.sort_order, s.name`,
   ]);
   return {
     nodes: nodes.map((n) => ({
@@ -82,7 +80,7 @@ export async function getOfferingTree(): Promise<OfferingTree> {
       categoryId: o.category_id,
       board: null,
       level: null,
-      subject: { id: o.category_id, name: o.category_name },
+      subject: { id: o.subject_id, name: o.subject_name },
     })),
   };
 }
@@ -93,7 +91,7 @@ export interface OfferingLabel {
   categoryPath: string[];
   board: string | null;
   level: string | null;
-  /** The card title: the subject, or the leaf's name for a category curriculum. */
+  /** The card title: the subject. */
   subject: string;
   /** Everything above the title: "School › K-12 › CBSE › Physics". */
   pathLabel: string;
@@ -112,16 +110,16 @@ export async function describeOfferings(ids: readonly string[]): Promise<Offerin
       category_name: string;
       board: string | null;
       level: string | null;
-      subject: string | null;
+      subject: string;
       selectable: boolean;
     }[]
   >`
     SELECT cu.id, c.path, c.name AS category_name, b.name AS board, lv.name AS level, s.name AS subject,
-           (cu.is_active AND (s.id IS NULL OR s.is_active) AND (b.id IS NULL OR b.is_active)
+           (cu.is_active AND s.is_active AND (b.id IS NULL OR b.is_active)
              AND (lv.id IS NULL OR lv.is_active) AND c.is_bookable AND ${visibleTo('c')}) AS selectable
     FROM curricula cu
     JOIN categories c ON c.id = cu.category_id
-    LEFT JOIN subjects s ON s.id = cu.subject_id
+    JOIN subjects s ON s.id = cu.subject_id
     LEFT JOIN boards b ON b.id = cu.board_id
     LEFT JOIN levels lv ON lv.id = cu.level_id
     WHERE cu.id = ANY(${unique}::uuid[])`;
@@ -141,8 +139,6 @@ export async function describeOfferings(ids: readonly string[]): Promise<Offerin
         ...ancestorPaths(r.path).map((p) => names.get(p) ?? ''),
         r.category_name,
       ].filter(Boolean);
-      // A category curriculum is titled by its leaf; the path shows what is above it
-      const own = r.subject === null;
       return [
         r.id,
         {
@@ -150,8 +146,8 @@ export async function describeOfferings(ids: readonly string[]): Promise<Offerin
           categoryPath,
           board: r.board,
           level: r.level,
-          subject: r.subject ?? r.category_name,
-          pathLabel: [...(own ? categoryPath.slice(0, -1) : categoryPath), r.board, r.level]
+          subject: r.subject,
+          pathLabel: [...categoryPath, r.board, r.level]
             .filter(Boolean)
             .join(' › '),
           selectable: r.selectable,
