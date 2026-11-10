@@ -222,6 +222,104 @@ adminCategoryTreeRouter.post('/:categoryId/children', manage, Tree.createChild);
  */
 adminCategoryTreeRouter.put('/:categoryId/move', manage, Tree.move);
 
+
+/**
+ * @openapi
+ * /admin/category-tree/{categoryId}/subjects:
+ *   get:
+ *     summary: The subjects a leaf offers, with how many tutors, prices and learners use each
+ *     tags: [Category tree]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: categoryId, required: true, schema: { type: string, format: uuid } }
+ *     responses:
+ *       200: { description: "Array of { curriculumId, subjectId, name, isActive, subjectActive, tutors, prices, learners }" }
+ *       403: { description: Missing catalogue.read }
+ *       404: { description: CATEGORY_NOT_FOUND }
+ *   post:
+ *     summary: Offer a subject on a leaf (an existing one by subjectId, or a new one by name)
+ *     tags: [Category tree]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: categoryId, required: true, schema: { type: string, format: uuid } }
+ *       - { in: header, name: x-csrf-token, required: true, schema: { type: string } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             oneOf:
+ *               - { type: object, required: [subjectId], properties: { subjectId: { type: string, format: uuid } } }
+ *               - { type: object, required: [name], properties: { name: { type: string } } }
+ *     responses:
+ *       200: { description: Already offered (an inactive offering is switched back on) }
+ *       201: { description: "{ curriculumId, subjectId, created }" }
+ *       403: { description: Missing catalogue.manage or CSRF token }
+ *       404: { description: CATEGORY_NOT_FOUND }
+ *       422: { description: NOT_A_LEAF or UNKNOWN_SUBJECT }
+ */
+adminCategoryTreeRouter.get('/:categoryId/subjects', read, Tree.listSubjects);
+adminCategoryTreeRouter.post('/:categoryId/subjects', manage, Tree.attachSubject);
+
+/**
+ * @openapi
+ * /admin/category-tree/{categoryId}/subjects/{subjectId}:
+ *   patch:
+ *     summary: Switch a leaf's subject on or off (tutors and prices keep pointing at it)
+ *     tags: [Category tree]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: categoryId, required: true, schema: { type: string, format: uuid } }
+ *       - { in: path, name: subjectId, required: true, schema: { type: string, format: uuid } }
+ *       - { in: header, name: x-csrf-token, required: true, schema: { type: string } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { type: object, required: [isActive], properties: { isActive: { type: boolean } } }
+ *     responses:
+ *       200: { description: Updated }
+ *       403: { description: Missing catalogue.manage or CSRF token }
+ *       404: { description: OFFERING_NOT_FOUND }
+ *   delete:
+ *     summary: Remove a subject from a leaf (only while no tutor, price, learner or material uses it)
+ *     tags: [Category tree]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: categoryId, required: true, schema: { type: string, format: uuid } }
+ *       - { in: path, name: subjectId, required: true, schema: { type: string, format: uuid } }
+ *       - { in: header, name: x-csrf-token, required: true, schema: { type: string } }
+ *     responses:
+ *       204: { description: Removed }
+ *       403: { description: Missing catalogue.manage or CSRF token }
+ *       404: { description: OFFERING_NOT_FOUND }
+ *       409: { description: OFFERING_IN_USE (deactivate it instead) }
+ */
+adminCategoryTreeRouter.patch('/:categoryId/subjects/:subjectId', manage, Tree.setSubjectActive);
+adminCategoryTreeRouter.delete('/:categoryId/subjects/:subjectId', manage, Tree.detachSubject);
+
+/**
+ * @openapi
+ * /admin/category-tree/subjects/{subjectId}:
+ *   patch:
+ *     summary: Rename a subject, or switch it off for every leaf
+ *     tags: [Category tree]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: subjectId, required: true, schema: { type: string, format: uuid } }
+ *       - { in: header, name: x-csrf-token, required: true, schema: { type: string } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { type: object, properties: { name: { type: string }, isActive: { type: boolean } } }
+ *     responses:
+ *       200: { description: "{ id, name, isActive }" }
+ *       403: { description: Missing catalogue.manage or CSRF token }
+ *       422: { description: UNKNOWN_SUBJECT }
+ */
+adminCategoryTreeRouter.patch('/subjects/:subjectId', manage, Tree.updateSubject);
+
 // ── Learner: /catalogue/category-tree (public, behind the catalogue.category_tree flag) ──
 export const learnerCategoryTreeRouter = Router();
 learnerCategoryTreeRouter.use(Tree.requireLearnerFlag);

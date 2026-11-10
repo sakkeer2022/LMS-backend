@@ -209,7 +209,7 @@ export async function getLearnerLeaf(
       .sort(byOrder)
       .map(strip),
     subjects: subjectRows
-      .flatMap((r) => (r.subject ? [r.subject] : []))
+      .map((r) => r.subject)
       .sort(byOrder)
       .map(strip),
   };

@@ -139,11 +139,9 @@ describe('Catalogue schema', () => {
       expect(k12?.type).toBe('SUBSECTION');
       // The legacy sub-section node and the category-tree leaf share their id
       expect(tree.find((c) => c.path === 'academic/school/k-12')?.id).toBe(k12?.id);
-      // Leaves no longer carry allowed levels; each has one category curriculum instead
+      // Leaves no longer carry allowed levels, and no longer own a subjectless curriculum
       expect(await prisma.categoryLevel.count({ where: { categoryId: k12?.id } })).toBe(0);
-      expect(
-        await prisma.curriculum.count({ where: { categoryId: k12?.id, subjectId: null, boardId: null, levelId: null } })
-      ).toBe(1);
+      expect(await prisma.curriculum.count({ where: { categoryId: k12?.id } })).toBe(0);
 
       const schoolLevels = await prisma.level.findMany({ where: { categoryId: school.id }, orderBy: { sortOrder: 'asc' } });
       expect(schoolLevels).toHaveLength(12);

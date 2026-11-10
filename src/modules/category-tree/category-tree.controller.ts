@@ -4,6 +4,7 @@ import { logger } from '@core/logger/index';
 import { isFeatureEnabled } from '@modules/feature-flags/index';
 import {
   AdminTreeQueryDto,
+  AttachSubjectDto,
   CategoryIdParamsDto,
   CreateChildDto,
   CreateRootDto,
@@ -11,16 +12,21 @@ import {
   LearnerChildrenQueryDto,
   LearnerLeafQueryDto,
   LearnerLeavesQueryDto,
+  LeafSubjectParamsDto,
   MoveDto,
   ReorderDto,
   ResolveOfferingQueryDto,
+  SetOfferingActiveDto,
+  SubjectIdParamsDto,
   UpdateCategoryDto,
+  UpdateSubjectDto,
 } from './category-tree.dto.js';
 import { treeError } from './category-tree.errors.js';
 import { getAdminTree, getCategoryDetail, listAdminChildren } from './category-tree.reads.js';
 import { getOfferingTree } from './category-tree.picker.js';
 import * as Service from './category-tree.service.js';
 import * as Structure from './category-tree.structure.js';
+import * as Subjects from './category-tree.subjects.js';
 import * as Offerings from './category-tree.offerings.js';
 import * as Learner from './category-tree.learner.js';
 
@@ -106,6 +112,41 @@ export const remove = handler(async (req, res) => {
   const { version } = DeleteQueryDto.parse(req.query);
   await Structure.deleteCategory(categoryId, version, actorOf(req));
   res.status(204).end();
+});
+
+export const listSubjects = handler(async (req, res) => {
+  const { categoryId } = CategoryIdParamsDto.parse(req.params);
+  res.json(successResponse(await Subjects.listLeafSubjects(categoryId), 'Subjects retrieved'));
+});
+
+export const attachSubject = handler(async (req, res) => {
+  const { categoryId } = CategoryIdParamsDto.parse(req.params);
+  const body = AttachSubjectDto.parse(req.body);
+  const result = await Subjects.attachSubject(categoryId, body, actorOf(req));
+  res
+    .status(result.created ? 201 : 200)
+    .json(successResponse(result, result.created ? 'Subject added' : 'Subject already offered'));
+});
+
+export const setSubjectActive = handler(async (req, res) => {
+  const { categoryId, subjectId } = LeafSubjectParamsDto.parse(req.params);
+  const { isActive } = SetOfferingActiveDto.parse(req.body);
+  await Subjects.setOfferingActive(categoryId, subjectId, isActive, actorOf(req));
+  res.json(successResponse({ isActive }, 'Subject updated'));
+});
+
+export const detachSubject = handler(async (req, res) => {
+  const { categoryId, subjectId } = LeafSubjectParamsDto.parse(req.params);
+  await Subjects.detachSubject(categoryId, subjectId, actorOf(req));
+  res.status(204).end();
+});
+
+export const updateSubject = handler(async (req, res) => {
+  const { subjectId } = SubjectIdParamsDto.parse(req.params);
+  const body = UpdateSubjectDto.parse(req.body);
+  res.json(
+    successResponse(await Subjects.updateSubject(subjectId, body, actorOf(req)), 'Subject updated')
+  );
 });
 
 export const getPicker = handler(async (_req, res) => {
