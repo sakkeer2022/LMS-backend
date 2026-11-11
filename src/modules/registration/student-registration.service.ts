@@ -10,7 +10,7 @@ import { prisma } from '@infrastructure/database/index.js';
 import { ConflictError, ServiceUnavailableError, ValidationError } from '@core/errors/index';
 import { completedYears } from '@shared/dates';
 import { consumeRegistrationToken } from '@modules/email-otp/index.js';
-import { countryFromMobile, isValidMobile } from '@modules/regions/index.js';
+import { getCountry, isValidMobile } from '@modules/regions/index.js';
 import { resolveBookableOffering } from '@modules/category-tree/index.js';
 import { logAction } from '@modules/audit/index.js';
 import type { RegisterStudentInput } from './registration.dto.js';
@@ -133,8 +133,10 @@ export async function registerStudent(
   input: RegisterStudentInput,
   request: RequestDetails
 ): Promise<{ userId: string }> {
-  const country = await countryFromMobile(input.mobileNumber);
-  if (!country || !(await isValidMobile(input.mobileNumber, country.code))) {
+  const country = await getCountry(input.country);
+  if (!country) throw new ValidationError('Choose a country we serve.');
+  // The number may carry another served country's code (a student abroad); it still has to be a valid one
+  if (!(await isValidMobile(input.mobileNumber))) {
     throw new ValidationError('Enter a mobile number from a country we serve.');
   }
   if (input.guardian && !(await isValidMobile(input.guardian.mobileNumber))) {
@@ -179,7 +181,6 @@ export async function registerStudent(
       }
 
       if (
-        input.referral &&
         !(await tx.referralSource.findFirst({
           where: { code: input.referral.sourceCode, isActive: true },
           select: { code: true },
@@ -217,13 +218,14 @@ export async function registerStudent(
           userId: user.id,
           dateOfBirth: new Date(`${input.dateOfBirth}T00:00:00Z`),
           country: country.code,
+          city: input.city,
           teachingLanguageId: languageId,
-          referralSourceCode: input.referral?.sourceCode ?? null,
-          referralSourceOther: input.referral?.other ?? null,
-          educationLevel:
-            (input.education?.level?.toUpperCase() as EducationLevel | undefined) ?? null,
-          institutionName: input.education?.institutionName ?? null,
-          educationDetail: input.education?.detail ?? null,
+          referralSourceCode: input.referral.sourceCode,
+          referralSourceOther: input.referral.other ?? null,
+          educationLevel: input.education.level.toUpperCase() as EducationLevel,
+          institutionName: input.education.institutionName,
+          educationDetail: input.education.detail,
+          educationStream: input.education.stream ?? null,
           ...(guardian && {
             guardianName: guardian.fullName,
             guardianRelationship: guardian.relationship.toUpperCase() as GuardianRelationship,

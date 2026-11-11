@@ -55,7 +55,7 @@ const LearningProfileDto = z.strictObject({
   teachingLanguageId: z.uuid().nullable().optional(),
 });
 
-// Both optional answers come from the review step. A blank answer is left out, not sent empty.
+// How the student heard about Amentorz: asked on the review step and required.
 const ReferralDto = z
   .strictObject({
     sourceCode: z.string().regex(/^[a-z_]{1,30}$/),
@@ -66,15 +66,13 @@ const ReferralDto = z
     path: ['other'],
   });
 
-const EducationDto = z
-  .strictObject({
-    level: z.enum(['school', 'undergraduate', 'postgraduate', 'working', 'other']).optional(),
-    institutionName: z.string().trim().min(1).max(150).optional(),
-    detail: z.string().trim().min(1).max(100).optional(),
-  })
-  .refine((value) => Object.values(value).some((entry) => entry !== undefined), {
-    message: 'Leave education out when nothing is filled in',
-  });
+// Education is asked on the learning step and required; only the stream is optional.
+const EducationDto = z.strictObject({
+  level: z.enum(['school', 'undergraduate', 'postgraduate', 'working', 'other']),
+  institutionName: z.string().trim().min(1).max(150),
+  detail: z.string().trim().min(1).max(100),
+  stream: z.string().trim().min(1).max(100).optional(),
+});
 
 /** The four onboarding steps in one request. Unknown fields (role, isActive, permissions) are a 422. */
 export const RegisterStudentDto = z.strictObject({
@@ -88,6 +86,9 @@ export const RegisterStudentDto = z.strictObject({
       return years !== null && years >= 0 && years <= 120;
     }, 'Enter a valid date of birth'),
   mobileNumber: mobile,
+  // A country we serve (GET /regions/countries): decides the policies and the age that needs a guardian
+  country: z.string().regex(/^[A-Z]{2}$/, 'Choose a country'),
+  city: z.string().trim().min(1, 'Enter the city').max(100),
   // bcrypt reads only the first 72 bytes, so a longer password would be silently cut
   password: z
     .string()
@@ -97,8 +98,8 @@ export const RegisterStudentDto = z.strictObject({
   timezone: z.string().min(1).max(64).refine(isTimeZone, 'Enter an IANA time zone'),
   learningProfile: LearningProfileDto,
   guardian: GuardianDto.optional(),
-  referral: ReferralDto.optional(),
-  education: EducationDto.optional(),
+  referral: ReferralDto,
+  education: EducationDto,
   consentToken: z.string().min(1).max(512).optional(),
   acceptedPolicyIds: uuidList(2, 4),
 });
