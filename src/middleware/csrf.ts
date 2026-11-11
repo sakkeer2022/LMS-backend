@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { ForbiddenError } from '@core/errors/index';
+import { cookieName, requestPortal } from '@core/security/portal-cookies';
 
-const CSRF_COOKIE_NAME = '_csrf';
+export const CSRF_COOKIE_BASE = '_csrf';
 const CSRF_HEADER_NAME = 'x-csrf-token';
 
 export function verifyCsrfToken(req: Request, _res: Response, next: NextFunction): void {
@@ -10,7 +11,7 @@ export function verifyCsrfToken(req: Request, _res: Response, next: NextFunction
     return next();
   }
 
-  const cookieToken = req.signedCookies[CSRF_COOKIE_NAME];
+  const cookieToken = req.signedCookies[cookieName(CSRF_COOKIE_BASE, requestPortal(req))];
   const headerToken = req.headers[CSRF_HEADER_NAME];
 
   if (!cookieToken || !headerToken) {
