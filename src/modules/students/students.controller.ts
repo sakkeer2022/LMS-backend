@@ -16,6 +16,16 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
   }
 }
 
+export async function showOwn(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const profile = await StudentsService.getOwnProfile(req.user!.sub);
+    res.set('Cache-Control', 'private, no-store');
+    res.json(successResponse(profile, 'Profile retrieved'));
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function show(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const student = await StudentsService.getStudent(req.params['studentId'] as string);

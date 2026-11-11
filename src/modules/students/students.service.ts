@@ -56,6 +56,22 @@ export interface StudentDetailView extends StudentView {
   consent: ConsentSummary | null;
 }
 
+/** What a student sees of their own profile (GET /students/me): no admin fields, referral or consent record. */
+export interface OwnProfileView {
+  fullName: string;
+  email: string;
+  mobileNumber: string | null;
+  country: { code: string; name: string };
+  city: string | null;
+  dateOfBirth: string;
+  age: number;
+  isMinor: boolean;
+  education: StudentDetailView['education'];
+  guardian: GuardianView | null;
+  learningProfile: StudentDetailView['learningProfile'];
+  registeredAt: Date;
+}
+
 type ProfileWithUser = StudentProfile & { user: User; guardianConsents: { id: string }[] };
 
 /** The consent age of every country, read from the country table (never fixed in code). */
@@ -178,6 +194,31 @@ async function categoryNames(leafPaths: string[]): Promise<Map<string, string>> 
     select: { path: true, name: true },
   });
   return new Map(rows.map((row) => [row.path, row.name]));
+}
+
+/** The signed-in student's own profile, read through the same builder the admin's student sheet uses. */
+export async function getOwnProfile(userId: string): Promise<OwnProfileView> {
+  const own = await prisma.studentProfile.findUnique({ where: { userId }, select: { id: true } });
+  if (!own) throw new NotFoundError('Student profile');
+  const detail = await getStudent(own.id);
+  const country = await prisma.country.findUnique({
+    where: { code: detail.country },
+    select: { name: true },
+  });
+  return {
+    fullName: detail.fullName,
+    email: detail.email,
+    mobileNumber: detail.mobileNumber,
+    country: { code: detail.country, name: country?.name ?? detail.country },
+    city: detail.city,
+    dateOfBirth: detail.dateOfBirth,
+    age: detail.age,
+    isMinor: detail.isMinor,
+    education: detail.education,
+    guardian: detail.guardian,
+    learningProfile: detail.learningProfile,
+    registeredAt: detail.registeredAt,
+  };
 }
 
 export async function getStudent(studentId: string): Promise<StudentDetailView> {

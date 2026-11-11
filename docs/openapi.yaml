@@ -4974,6 +4974,88 @@
         ]
       }
     },
+    "/students/me": {
+      "get": {
+        "operationId": "getOwnStudentProfile",
+        "tags": [
+          "Consent"
+        ],
+        "summary": "Read the signed-in student's own profile",
+        "description": "Current active, email-verified student (self only) identity; server checks role, permission and resource ownership on every request. Shown on the student portal profile page: name, email, mobile number, country and city, date of birth and age, studies, guardian contact and what the student wants to learn. No student id is accepted. 403 for a non-student, 404 when the account has no student profile. Cache-Control: private, no-store.",
+        "x-required-role": "student (self only)",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Read the signed-in student's own profile.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getOwnStudentProfileResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "fullName": "Ananya Rao",
+                    "email": "learner@example.org",
+                    "country": {
+                      "code": "mathematics",
+                      "name": "Mathematics"
+                    },
+                    "dateOfBirth": "2012-05-15",
+                    "age": 0,
+                    "isMinor": true,
+                    "education": {
+                      "level": "school",
+                      "institutionName": "Example value",
+                      "detail": "Example value"
+                    },
+                    "guardian": {
+                      "fullName": "Ananya Rao",
+                      "relationship": "father",
+                      "mobileNumber": "+919876543210",
+                      "email": "learner@example.org",
+                      "receivesReportsAndReceipts": true
+                    },
+                    "learningProfile": {
+                      "teachingLanguage": "Example value",
+                      "interests": []
+                    },
+                    "registeredAt": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
     "/admin/policies": {
       "get": {
         "operationId": "listPoliciesAdmin",
@@ -13419,6 +13501,215 @@
           "learningProfile"
         ]
       },
+      "OwnStudentProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
+          },
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "format": "email",
+            "example": "learner@example.org",
+            "description": "Trim and lowercase before uniqueness and lookup. No provider-specific dot or plus rewriting."
+          },
+          "mobileNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "pattern": "^\\+[1-9][0-9]{7,14}$",
+            "example": "+919876543210",
+            "description": "E.164. The UI defaults to +91. Not OTP-verified in Phase 1. Not unique: siblings may share a parent number.",
+            "nullable": true
+          },
+          "country": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 2,
+                "pattern": "^[A-Z]{2}$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              }
+            },
+            "required": [
+              "code",
+              "name"
+            ]
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "nullable": true,
+            "description": "The city given at registration; null for students registered before it was asked."
+          },
+          "dateOfBirth": {
+            "type": "string",
+            "format": "date",
+            "example": "2012-05-15"
+          },
+          "age": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 150
+          },
+          "isMinor": {
+            "type": "boolean"
+          },
+          "education": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "level": {
+                    "type": "string",
+                    "enum": [
+                      "school",
+                      "undergraduate",
+                      "postgraduate",
+                      "working",
+                      "other"
+                    ],
+                    "nullable": true
+                  },
+                  "institutionName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 150,
+                    "nullable": true
+                  },
+                  "detail": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "nullable": true
+                  },
+                  "stream": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "level",
+                  "institutionName",
+                  "detail"
+                ]
+              },
+              {
+                "type": "object",
+                "nullable": true,
+                "enum": [
+                  null
+                ]
+              }
+            ]
+          },
+          "guardian": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GuardianContact"
+              },
+              {
+                "type": "object",
+                "nullable": true,
+                "enum": [
+                  null
+                ]
+              }
+            ]
+          },
+          "learningProfile": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "teachingLanguage": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "nullable": true
+              },
+              "interests": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "category": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300,
+                      "description": "Category names from the root, joined by \" \u203a \", for example \"Academic \u203a School \u203a K-12\"."
+                    },
+                    "board": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "nullable": true
+                    },
+                    "level": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "nullable": true
+                    },
+                    "subject": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "category",
+                    "board",
+                    "level",
+                    "subject"
+                  ]
+                },
+                "maxItems": 50,
+                "description": "One entry per chosen offering, in any mix of branches."
+              }
+            },
+            "required": [
+              "teachingLanguage",
+              "interests"
+            ]
+          },
+          "registeredAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          }
+        },
+        "required": [
+          "fullName",
+          "email",
+          "country",
+          "dateOfBirth",
+          "age",
+          "isMinor",
+          "education",
+          "guardian",
+          "learningProfile",
+          "registeredAt"
+        ]
+      },
       "AdminPolicy": {
         "type": "object",
         "additionalProperties": false,
@@ -19517,6 +19808,31 @@
           },
           "data": {
             "$ref": "#/components/schemas/AdminStudentDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getOwnStudentProfileResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/OwnStudentProfile"
           }
         },
         "required": [

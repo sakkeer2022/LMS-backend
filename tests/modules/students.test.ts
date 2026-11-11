@@ -11,6 +11,7 @@ import { getTestStorage } from '@infrastructure/storage/index.js';
 import { clearRegionCache } from '@modules/regions/index.js';
 import { seedRbac } from '../../prisma/seed-rbac.js';
 
+const ME = '/api/v1/students/me';
 const LIST = '/api/v1/admin/students';
 
 function dobFor(years: number, days = 0): string {
@@ -246,6 +247,42 @@ describe('admin students', () => {
     expect((await get(`${LIST}?minor=perhaps`)).status).toBe(422);
     expect((await get(`${LIST}?country=INDIA`)).status).toBe(422);
     expect((await get(`${LIST}?limit=1000`)).status).toBe(422);
+  });
+
+  it('lets a student read only their own profile', async () => {
+    const learner = await loginWithRole('student', 'self@example.org');
+    expect((await request(app).get(ME)).status).toBe(401);
+    expect((await get(ME, learner.token)).status).toBe(404);
+
+    await prisma.user.update({ where: { id: learner.userId }, data: { mobileNumber: '+919876543210' } });
+    await prisma.studentProfile.create({
+      data: {
+        userId: learner.userId,
+        country: 'IN',
+        city: 'Kochi',
+        dateOfBirth: new Date('2000-01-15T00:00:00Z'),
+        educationLevel: 'UNDERGRADUATE',
+        institutionName: 'IIT Madras',
+        educationDetail: 'B.Tech CSE',
+        educationStream: 'Computer Science',
+      },
+    });
+    const res = await get(ME, learner.token);
+    expect(res.status).toBe(200);
+    expectContractResponse(res, 'get', '/students/me');
+    expect(res.body.data).toMatchObject({
+      email: 'self@example.org',
+      mobileNumber: '+919876543210',
+      country: { code: 'IN' },
+      city: 'Kochi',
+      education: { level: 'undergraduate', stream: 'Computer Science' },
+      guardian: null,
+    });
+    expect(res.body.data.id).toBeUndefined();
+    expect(res.body.data.referral).toBeUndefined();
+
+    const faculty = await loginWithRole('faculty', 'teacher2@example.org');
+    expect((await get(ME, faculty.token)).status).toBe(403);
   });
 
   it('needs a session and the student.read permission', async () => {
