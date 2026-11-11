@@ -377,14 +377,18 @@ model StudentProfile {
   guardianReceivesReports Boolean               @default(false) @map("guardian_receives_reports")
   // Revenue reports group by country; derived from the mobile number's dialling code at registration
   country                 String                @db.VarChar(2)
-  // Optional, asked on the review step: how the student heard about Amentorz (a referral_sources code) and,
+  // Asked on the review step (required for new registrations): how the student heard about Amentorz (a referral_sources code) and,
   // for the "other" option, their own words
   referralSourceCode      String?               @map("referral_source") @db.VarChar(30)
   referralSourceOther     String?               @map("referral_source_other") @db.VarChar(100)
-  // Optional education detail: stage, school or college or organisation, and class or course or role
+  // Education answer (required for new registrations): stage, school or college or organisation, and class or course or role
   educationLevel          EducationLevel?       @map("education_level")
   institutionName         String?               @map("institution_name") @db.VarChar(150)
   educationDetail         String?               @map("education_detail") @db.VarChar(100)
+  // Stream or specialisation (Science, Commerce, Computer Science...), optional within the education answer
+  educationStream         String?               @map("education_stream") @db.VarChar(100)
+  // City the student lives in, asked on step 1; null for students registered before it was asked
+  city                    String?               @db.VarChar(100)
   createdAt               DateTime              @default(now()) @map("created_at")
   updatedAt               DateTime              @updatedAt @map("updated_at")
 

@@ -12,13 +12,16 @@ export async function listActiveCountries(
     res.set('Cache-Control', 'public, max-age=300');
     res.json(
       successResponse(
-        countries.map(({ code, name, dialCode, defaultTimezone, guardianConsentAge }) => ({
-          code,
-          name,
-          dialCode,
-          defaultTimezone,
-          guardianConsentAge,
-        })),
+        countries.map(
+          ({ code, name, dialCode, mobilePattern, defaultTimezone, guardianConsentAge }) => ({
+            code,
+            name,
+            dialCode,
+            mobilePattern,
+            defaultTimezone,
+            guardianConsentAge,
+          })
+        ),
         'Countries retrieved'
       )
     );
