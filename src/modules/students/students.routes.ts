@@ -1,8 +1,11 @@
 import { Router } from 'express';
-import { authenticate, requirePermission } from '@middleware/authenticate';
+import { authenticate, requirePermission, requireRole } from '@middleware/authenticate';
 import { validateRequest } from '@middleware/validate';
 import * as StudentsController from './students.controller.js';
 import { ListStudentsQueryDto, StudentParamsDto } from './students.dto.js';
+
+/** The signed-in student's own profile. */
+export const studentSelfRouter = Router();
 
 /** The admin's view of student records. */
 export const adminStudentsRouter = Router();
@@ -63,3 +66,23 @@ adminStudentsRouter.get(
   validateRequest({ params: StudentParamsDto }),
   StudentsController.show
 );
+
+/**
+ * @openapi
+ * /students/me:
+ *   get:
+ *     summary: Read the signed-in student's own profile
+ *     description: Name, email, mobile number, country and city, date of birth, studies, guardian contact and what the student wants to learn. Self only; no student id is accepted. Not cached.
+ *     tags: [Consent]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: The student's profile
+ *       401:
+ *         description: Not signed in
+ *       403:
+ *         description: Not a student
+ *       404:
+ *         description: The account has no student profile
+ */
+studentSelfRouter.get('/', authenticate, requireRole('student'), StudentsController.showOwn);
