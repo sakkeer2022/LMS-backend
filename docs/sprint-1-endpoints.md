@@ -43,6 +43,7 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 | GET | `/admin/students/{studentId}/guardian-consent` | `getStudentGuardianConsentAdmin` | admin; student.read | ready-for-review |
 | GET | `/admin/students` | `listStudentsAdmin` | admin; student.read | ready-for-review |
 | GET | `/admin/students/{studentId}` | `getStudentAdmin` | admin; student.read | ready-for-review |
+| GET | `/students/me` | `getOwnStudentProfile` | student (self only) | ready-for-review |
 | GET | `/admin/policies` | `listPoliciesAdmin` | admin; policy.read | ready-for-review |
 | POST | `/admin/policies` | `uploadPolicyAdmin` | admin; policy.create | ready-for-review |
 | GET | `/admin/policies/coverage` | `getPolicyCoverageAdmin` | admin; policy.read | ready-for-review |
