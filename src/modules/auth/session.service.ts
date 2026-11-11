@@ -51,7 +51,8 @@ type Rotation =
  */
 export async function refresh(
   rawRefreshToken: string,
-  context: SessionContext
+  context: SessionContext,
+  expectedPortal?: Portal
 ): Promise<RefreshResult> {
   let payload: ReturnType<typeof verifyRefreshToken>;
   try {
@@ -66,6 +67,9 @@ export async function refresh(
   const outcome = await prisma.$transaction(async (tx): Promise<Rotation> => {
     const stored = await tx.refreshToken.findFirst({ where: { userId: payload.sub, tokenHash } });
     if (!stored || stored.revokedAt) throw new UnauthorizedError('Refresh token has been revoked');
+    if (expectedPortal && stored.portal !== expectedPortal) {
+      throw new UnauthorizedError(REAUTH_REQUIRED_MESSAGE);
+    }
 
     if (stored.used) {
       return { kind: 'reused', userId: payload.sub, familyId: stored.familyId, jti: stored.jti };

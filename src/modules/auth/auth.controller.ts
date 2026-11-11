@@ -10,6 +10,8 @@ import { paginationQuerySchema, uuidParams } from '@shared/validation/index';
 import { successResponse } from '@core/response/index';
 import { UnauthorizedError, ValidationError } from '@core/errors/index';
 import { config } from '@config/index';
+import { cookieName, requestPortal } from '@core/security/portal-cookies';
+import { CSRF_COOKIE_BASE } from '@middleware/csrf';
 import { setTokenCookies, clearTokenCookies, getRequestContext } from './session-cookies.js';
 
 export async function refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -18,16 +20,19 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
     if (req.body?.refreshToken !== undefined) {
       throw new ValidationError('The refresh token is accepted only as a cookie');
     }
-    const refreshToken: unknown = req.cookies?.refreshToken;
+    const portal = requestPortal(req);
+    const refreshToken: unknown = req.cookies?.[cookieName('refreshToken', portal)];
     if (typeof refreshToken !== 'string' || refreshToken === '') {
       throw new UnauthorizedError('Refresh token is required');
     }
 
-    const result = await SessionService.refresh(refreshToken, getRequestContext(req));
-    setTokenCookies(res, result.tokens, {
-      persistent: result.remember,
-      expiresAt: result.sessionExpiresAt,
-    });
+    const result = await SessionService.refresh(refreshToken, getRequestContext(req), portal);
+    setTokenCookies(
+      res,
+      result.tokens,
+      { persistent: result.remember, expiresAt: result.sessionExpiresAt },
+      portal
+    );
 
     res.set('Cache-Control', 'no-store');
     res.json(
@@ -43,8 +48,10 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
 
 export async function logout(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
-    let accessToken = req.cookies?.accessToken;
+    const portal = requestPortal(req);
+    const refreshToken =
+      req.cookies?.[cookieName('refreshToken', portal)] || req.body?.refreshToken;
+    let accessToken = req.cookies?.[cookieName('accessToken', portal)];
     if (!accessToken) {
       const authHeader = req.headers.authorization;
       if (authHeader?.startsWith('Bearer ')) {
@@ -56,7 +63,7 @@ export async function logout(req: Request, res: Response, next: NextFunction): P
       await AuthService.logout(refreshToken, accessToken);
     }
 
-    clearTokenCookies(res);
+    clearTokenCookies(res, portal);
     res.json(successResponse(null, 'Logged out successfully'));
   } catch (err) {
     next(err);
@@ -77,11 +84,11 @@ export async function me(req: Request, res: Response, next: NextFunction): Promi
   }
 }
 
-export function getCsrfToken(_req: Request, res: Response, next: NextFunction): void {
+export function getCsrfToken(req: Request, res: Response, next: NextFunction): void {
   try {
     const csrfToken = crypto.randomUUID();
 
-    res.cookie('_csrf', csrfToken, {
+    res.cookie(cookieName(CSRF_COOKIE_BASE, requestPortal(req)), csrfToken, {
       httpOnly: true,
       secure: config.env === 'production',
       sameSite: 'strict',
@@ -117,7 +124,7 @@ export async function revokeSession(
     const { jti } = uuidParams('jti').parse(req.params);
     await SessionService.revokeSession(req.user.sub, jti, auditContextFrom(req));
     // Revoking the session in use signs this browser out
-    if (jti === req.user.sid) clearTokenCookies(res);
+    if (jti === req.user.sid) clearTokenCookies(res, requestPortal(req));
     res.json(successResponse(null, 'Session revoked'));
   } catch (err) {
     next(err);

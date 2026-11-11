@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { successResponse } from '@core/response/index';
 import { auditContextFrom } from '@middleware/audit.middleware';
+import { requestPortal } from '@core/security/portal-cookies';
 import { clearTokenCookies } from '@modules/auth/index.js';
 import * as RecoveryService from './account-recovery.service.js';
 import type {
@@ -48,7 +49,7 @@ export async function resetPassword(
 ): Promise<void> {
   try {
     await RecoveryService.resetPassword(req.body as PasswordReset, auditContextFrom(req));
-    clearTokenCookies(res);
+    clearTokenCookies(res, requestPortal(req));
     res.set('Cache-Control', 'no-store');
     res.json(successResponse(null, 'Password updated. Sign in with your new password.'));
   } catch (err) {
@@ -67,7 +68,7 @@ export async function changePassword(
       req.body as PasswordChange,
       auditContextFrom(req)
     );
-    clearTokenCookies(res);
+    clearTokenCookies(res, requestPortal(req));
     res.set('Cache-Control', 'no-store');
     res.json(successResponse(null, 'Password changed. Sign in again with your new password.'));
   } catch (err) {

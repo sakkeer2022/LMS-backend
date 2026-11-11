@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken, type TokenPayload } from '@core/security/jwt';
 import { UnauthorizedError, ForbiddenError } from '@core/errors/index';
+import { cookieName, requestPortal } from '@core/security/portal-cookies';
 import { redisClient } from '@infrastructure/redis/connection';
 import { evaluatePolicy, type PolicyRule } from '../core/security/policy.js';
 import { hasPermission } from '../core/security/rbac.js';
@@ -21,7 +22,8 @@ export async function authenticate(
   _res: Response,
   next: NextFunction
 ): Promise<void> {
-  let token = req.cookies?.accessToken;
+  const portal = requestPortal(req);
+  let token = req.cookies?.[cookieName('accessToken', portal)];
 
   if (!token) {
     const authHeader = req.headers.authorization;
@@ -46,6 +48,11 @@ export async function authenticate(
 
     if (payload.sid && (await isSessionRevoked(payload.sid))) {
       return next(new UnauthorizedError('Session has been revoked'));
+    }
+
+    // A token from another portal never signs this portal in, whatever cookie it arrived in
+    if (portal && payload.portal && payload.portal !== portal) {
+      return next(new UnauthorizedError('Access token is invalid or expired'));
     }
 
     req.user = payload;
