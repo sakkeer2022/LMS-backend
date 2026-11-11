@@ -46,7 +46,13 @@ export interface StudentDetailView extends StudentView {
   };
   /** The optional review-step answers; null when the student skipped them */
   referral: { code: string; name: string; other: string | null } | null;
-  education: { level: string | null; institutionName: string | null; detail: string | null } | null;
+  education: {
+    level: string | null;
+    institutionName: string | null;
+    detail: string | null;
+    stream: string | null;
+  } | null;
+  city: string | null;
   consent: ConsentSummary | null;
 }
 
@@ -225,8 +231,10 @@ export async function getStudent(studentId: string): Promise<StudentDetailView> 
             level: profile.educationLevel?.toLowerCase() ?? null,
             institutionName: profile.institutionName,
             detail: profile.educationDetail,
+            stream: profile.educationStream,
           }
         : null,
+    city: profile.city,
     consent: await findConsentSummary(studentId),
   };
 }

@@ -112,9 +112,13 @@ describe('POST /auth/register (student)', () => {
       fullName: 'Rahul Nair',
       dateOfBirth: dobFor(21),
       mobileNumber: '+919876543210',
+      country: 'IN',
+      city: 'Kochi',
       password: 'Password1',
       timezone: 'Asia/Kolkata',
       learningProfile: { curriculumIds: school.curriculumIds },
+      referral: { sourceCode: 'instagram' },
+      education: { level: 'school', institutionName: 'Govt HSS Kochi', detail: 'Class 10' },
       acceptedPolicyIds: [policies.TERMS_OF_USE.id, policies.PRIVACY_POLICY.id],
       ...overrides,
     };
@@ -265,37 +269,50 @@ describe('POST /auth/register (student)', () => {
       level: 'school',
       institutionName: 'Govt HSS Kochi',
       detail: 'Class 10',
+      stream: null,
     });
   });
 
-  it('registers without either answer and reads them back as null', async () => {
-    const res = await post(REGISTER, await payload());
+  it('stores the city and the optional education stream and shows them to the admin', async () => {
+    const res = await post(
+      REGISTER,
+      await payload({
+        city: '  Kochi ',
+        education: {
+          level: 'undergraduate',
+          institutionName: 'IIT Madras',
+          detail: 'B.Tech CSE',
+          stream: 'Computer Science',
+        },
+      })
+    );
     expect(res.status).toBe(201);
     const profile = await prisma.studentProfile.findUniqueOrThrow({
       where: { userId: res.body.data.userId },
     });
+    expect(profile.city).toBe('Kochi');
+    expect(profile.educationStream).toBe('Computer Science');
     const detail = await getStudent(profile.id);
-    expect(detail.referral).toBeNull();
-    expect(detail.education).toBeNull();
+    expect(detail.city).toBe('Kochi');
+    expect(detail.education.stream).toBe('Computer Science');
   });
 
-  it('accepts a referral source alone, and education with only one field', async () => {
-    const res = await post(
-      REGISTER,
-      await payload({
-        referral: { sourceCode: 'instagram' },
-        education: { institutionName: 'IIT Madras' },
-      })
-    );
-    expect(res.status).toBe(201);
+  it('refuses a missing country, city, referral or education, and an unserved country', async () => {
+    for (const missing of ['country', 'city', 'referral', 'education']) {
+      const body = await payload();
+      delete (body as Record<string, unknown>)[missing];
+      expect((await post(REGISTER, body)).status).toBe(422);
+    }
+    expect((await post(REGISTER, await payload({ country: 'FR' }))).status).toBe(422);
   });
 
-  it('refuses an unknown referral source, own words without Other, and empty education', async () => {
+  it('refuses an unknown referral source, own words without Other, and incomplete education', async () => {
     for (const overrides of [
       { referral: { sourceCode: 'billboard' } },
       { referral: { sourceCode: 'instagram', other: 'my cousin' } },
       { education: {} },
-      { education: { level: 'kindergarten' } },
+      { education: { level: 'school', institutionName: 'Govt HSS Kochi' } },
+      { education: { level: 'kindergarten', institutionName: 'X', detail: 'Y' } },
     ]) {
       const res = await post(REGISTER, await payload(overrides));
       expect(res.status).toBe(422);

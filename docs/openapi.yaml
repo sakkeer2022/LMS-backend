@@ -292,7 +292,7 @@
           "Identity"
         ],
         "summary": "Create student account from the four onboarding steps",
-        "description": "Public; no authenticated identity required. One transaction: consume emailVerificationToken; create the user with fullName, mobileNumber, timezone, verified email and the student role only; create the student profile, subjects and guardian contact; record policy acceptances with IP and user agent; link the guardian consent and copy the guardian name and relationship onto it; audit events. Under 18 is computed on the server from dateOfBirth (UTC date); the threshold is 18 for both India and the UAE (decided 2026-10-29). When under 18: guardian, consentToken and the Child Safety Policy acceptance are required; consent fullName and dateOfBirth must equal the submitted values, or 422 and the student re-signs. Adults: guardian is optional and stored when sent; consentToken is rejected with 422. Board required only when the category requires it. Every curriculum must match the selected category, board and level. Duplicate email returns 409. Unknown fields including role, isActive or permissions are rejected. DECISION REQUIRED: (1) Step 3 copy promises SMS; Phase 1 is email only. (2) After success: automatic login or redirect to the student login. (3) Final relationship list. (4) Whether adults see step 3 at all (UI says it is required for every student under 18). Decided 2026-10-29: password rule (8 characters with one number) and acceptance of project plan risk R4 (guardian identity not verified; written acceptance to be filed). Country is derived from the mobile number for now. See docs/PENDING_DECISIONS.md.",
+        "description": "Public; no authenticated identity required. One transaction: consume emailVerificationToken; create the user with fullName, mobileNumber, timezone, verified email and the student role only; create the student profile, subjects and guardian contact; record policy acceptances with IP and user agent; link the guardian consent and copy the guardian name and relationship onto it; audit events. Under 18 is computed on the server from dateOfBirth (UTC date); the threshold is 18 for both India and the UAE (decided 2026-10-29). When under 18: guardian, consentToken and the Child Safety Policy acceptance are required; consent fullName and dateOfBirth must equal the submitted values, or 422 and the student re-signs. Adults: guardian is optional and stored when sent; consentToken is rejected with 422. Board required only when the category requires it. Every curriculum must match the selected category, board and level. Duplicate email returns 409. Unknown fields including role, isActive or permissions are rejected. DECISION REQUIRED: (1) Step 3 copy promises SMS; Phase 1 is email only. (2) After success: automatic login or redirect to the student login. (3) Final relationship list. (4) Whether adults see step 3 at all (UI says it is required for every student under 18). Decided 2026-10-29: password rule (8 characters with one number) and acceptance of project plan risk R4 (guardian identity not verified; written acceptance to be filed). Country is chosen on step 1 (LMS-105); the mobile number may carry any served country code. See docs/PENDING_DECISIONS.md.",
         "x-required-role": "public",
         "x-review-status": "decision-required",
         "security": [],
@@ -12842,8 +12842,19 @@
             "minLength": 1,
             "maxLength": 100,
             "description": "Class, course or role, for example Class 10 or B.Tech CSE. Trimmed."
+          },
+          "stream": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Optional: stream or specialisation, for example Science or Computer Science. Trimmed."
           }
-        }
+        },
+        "required": [
+          "level",
+          "institutionName",
+          "detail"
+        ]
       },
       "RegisterRequest": {
         "type": "object",
@@ -12874,7 +12885,21 @@
             "maxLength": 16,
             "pattern": "^\\+[1-9][0-9]{7,14}$",
             "example": "+919876543210",
-            "description": "E.164. The UI defaults to +91. Not OTP-verified in Phase 1. Not unique: siblings may share a parent number."
+            "description": "E.164: the dialling code of a served country plus the national number, which must match that country's mobilePattern. It may belong to a different served country than `country`."
+          },
+          "country": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$",
+            "example": "IN",
+            "description": "Step 1: the student's country, a code from GET /regions/countries. Decides the policies and the age that needs a guardian."
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Step 1: the student's city. Trimmed."
           },
           "password": {
             "type": "string",
@@ -12901,11 +12926,11 @@
           },
           "referral": {
             "$ref": "#/components/schemas/ReferralAnswer",
-            "description": "Optional, asked on the review step: how the student heard about Amentorz. Leave it out when skipped."
+            "description": "Required, asked on the review step: how the student heard about Amentorz."
           },
           "education": {
             "$ref": "#/components/schemas/EducationAnswer",
-            "description": "Optional, asked on the review step. Leave it out when nothing is filled in; at least one field when present."
+            "description": "Required, asked on the learning step: level, institution and class, course or role; the stream is optional."
           },
           "consentToken": {
             "type": "string",
@@ -12932,9 +12957,13 @@
           "fullName",
           "dateOfBirth",
           "mobileNumber",
+          "country",
+          "city",
           "password",
           "timezone",
           "learningProfile",
+          "referral",
+          "education",
           "acceptedPolicyIds"
         ]
       },
@@ -13272,6 +13301,12 @@
                     "minLength": 1,
                     "maxLength": 100,
                     "nullable": true
+                  },
+                  "stream": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "nullable": true
                   }
                 },
                 "required": [
@@ -13288,6 +13323,13 @@
                 ]
               }
             ]
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "nullable": true,
+            "description": "The city given at registration; null for students registered before it was asked."
           },
           "learningProfile": {
             "type": "object",
@@ -13557,6 +13599,13 @@
             "pattern": "^\\+[0-9]{1,4}$",
             "example": "+91"
           },
+          "mobilePattern": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "^[6-9][0-9]{9}$",
+            "description": "Regular expression the national number (after the dialling code) must match. The form uses it to check a number before sending; the server checks it again."
+          },
           "defaultTimezone": {
             "type": "string",
             "minLength": 1,
@@ -13573,6 +13622,7 @@
           "code",
           "name",
           "dialCode",
+          "mobilePattern",
           "defaultTimezone",
           "guardianConsentAge"
         ]
