@@ -156,6 +156,10 @@ const envSchema = z
     FACULTY_INVITE_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(72),
     FACULTY_INVITE_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
     FACULTY_INVITE_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
+
+    // ── Faculty re-upload requests ──
+    // Lifetime of the "correct and re-upload your documents" link an admin sends (hours)
+    FACULTY_REUPLOAD_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(72),
   })
   .superRefine((env, ctx) => {
     if (env.STORAGE_DRIVER === 's3' && !env.STORAGE_S3_BUCKET) {
@@ -512,6 +516,10 @@ export const config = {
     ttlHours: env.FACULTY_INVITE_TTL_HOURS,
     rateLimitWindowMs: env.FACULTY_INVITE_RATE_LIMIT_WINDOW_MS,
     rateLimitMax: env.FACULTY_INVITE_RATE_LIMIT_MAX,
+  },
+
+  facultyReupload: {
+    ttlHours: env.FACULTY_REUPLOAD_TTL_HOURS,
   },
 } as const;
 

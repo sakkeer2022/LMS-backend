@@ -8,7 +8,7 @@ import {
   assertTestDatabaseUrl,
 } from '@infrastructure/database/index';
 import { config } from '@config/index';
-import { seedCountries } from './helpers/regions';
+import { seedCountries, seedTeachingModes } from './helpers/regions';
 
 const MIGRATIONS_DIR = path.resolve(__dirname, '../prisma/migrations');
 
@@ -100,6 +100,7 @@ async function truncateAllTables(): Promise<void> {
       // The countries rows are reference data from their migration, and boards and
       // student profiles reference them, so every test starts with them in place.
       await seedCountries();
+      await seedTeachingModes();
       return;
     } catch (err) {
       const isDeadlock = err instanceof Error && err.message.includes(DEADLOCK_SQLSTATE);

@@ -1,5 +1,16 @@
 # Findings & Decisions
 
+## 2026-11-11 — Re-upload requests, teaching mode, signed consent
+
+| Finding / Decision | Detail |
+|---|---|
+| Re-upload uses `CHANGES_REQUESTED` | The existing approval state; the roster row status stays `pending`, and the new `verification` field shows `reupload_requested`. A re-submission sets PENDING again and marks every document unverified |
+| One open link per tutor | Partial unique index on `faculty_reupload_requests (faculty_id) WHERE status = 'PENDING'`; any new decision supersedes an open link |
+| Kept documents | A required document left out of the re-upload keeps the one on file; replaced and removed files are deleted from storage after the transaction commits |
+| Expiry wording | `formatExpiry` states the date and time in the recipient's account time zone; an invitee has no account yet, so invitations state UTC (no zone assumed from a country) |
+| Teaching mode as reference data | `teaching_modes` rows (code PK) like `referral_sources`; `offers_offline_classes` is kept in step for discovery |
+| Prisma XOR inputs | Nested `user: { update }` in `facultyProfile.update` needs the relation form `mode: { connect }`, not the scalar `teachingMode` |
+
 ## 2026-11-04 — Faculty onboarding and price consent
 
 | Finding / Decision | Detail |

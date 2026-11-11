@@ -70,6 +70,8 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 | GET | `/faculty/terms` | `getFacultyTerms` | faculty or admin | decision-required |
 | POST | `/faculty/me/terms-acceptance` | `acceptFacultyTerms` | faculty (self only) | decision-required |
 | PUT | `/admin/faculty/{facultyId}/review` | `reviewFaculty` | admin; faculty.approve | ready-for-review |
+| PUT | `/admin/faculty/{facultyId}/active` | `setFacultyActive` | admin; faculty.approve | ready-for-review |
+| GET | `/admin/faculty/{facultyId}/price-consent/signature` | `getFacultyConsentSignature` | admin; faculty.documents | ready-for-review |
 | PUT | `/admin/faculty/{facultyId}/documents/{documentId}/verification` | `setFacultyDocumentVerification` | admin; faculty.approve | ready-for-review |
 | PUT | `/admin/faculty/{facultyId}/publication` | `setFacultyPublication` | admin; faculty.publish | ready-for-review |
 | PUT | `/admin/faculty/{facultyId}/status` | `setFacultyActiveStatus` | admin; faculty.update | ready-for-review |
@@ -89,6 +91,9 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 |---|---|---|---|---|
 | POST | `/faculty/onboarding/session` | `startFacultyOnboarding` | public | ready-for-review |
 | GET | `/faculty/onboarding/catalogue` | `getFacultyOnboardingCatalogue` | public | ready-for-review |
+| GET | `/faculty/onboarding/teaching-modes` | `getFacultyTeachingModes` | public | ready-for-review |
+| POST | `/faculty/onboarding/reupload/session` | `startFacultyReupload` | public | ready-for-review |
+| POST | `/faculty/onboarding/reupload` | `submitFacultyReupload` | public | ready-for-review |
 | POST | `/faculty/onboarding/applications` | `submitFacultyApplication` | public | ready-for-review |
 
 ## Catalogue

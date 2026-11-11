@@ -75,6 +75,7 @@ describe('OnboardingApplicationDto', () => {
     mobileNumber: '+919876543210',
     highestQualification: 'M.Sc. Physics',
     teachingExperience: '5-10',
+    teachingMode: 'online',
     curriculumIds: JSON.stringify(['8c121988-8afa-4fb7-b6eb-9b0dcb94f730', '8c121988-8afa-4fb7-b6eb-9b0dcb94f730']),
     declarationAccepted: 'true',
   };
@@ -84,7 +85,7 @@ describe('OnboardingApplicationDto', () => {
       fullName: 'Anil Verma',
       city: null,
       studiedAt: null,
-      offersOfflineClasses: false,
+      teachingMode: 'online',
       curriculumIds: ['8c121988-8afa-4fb7-b6eb-9b0dcb94f730'],
     });
   });
@@ -101,6 +102,7 @@ describe('OnboardingApplicationDto', () => {
     [{ curriculumIds: JSON.stringify(Array.from({ length: 31 }, (_, i) => `8c121988-8afa-4fb7-b6eb-${String(i).padStart(12, '0')}`)) }, 'curriculumIds'],
     [{ declarationAccepted: 'false' }, 'declarationAccepted'],
     [{ offersOfflineClasses: 'yes' }, 'offersOfflineClasses'],
+    [{ teachingMode: '' }, 'teachingMode'],
     [{ token: 'short' }, 'token'],
   ])('rejects %j', (override, field) => {
     const result = OnboardingApplicationDto.safeParse({ ...base, ...override });

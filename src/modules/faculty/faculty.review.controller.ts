@@ -4,12 +4,17 @@ import { auditContextFrom } from '@middleware/audit.middleware';
 import * as Review from './faculty.review.js';
 import * as Consent from './faculty.consent.js';
 import * as Onboarding from './faculty.onboarding.js';
+import * as Reupload from './faculty.reupload.js';
 import type {
   DocumentVerificationInput,
+  FacultyActiveInput,
   PriceConsentDecisionInput,
   ReviewFacultyInput,
 } from './faculty.review.dto.js';
-import type { OnboardingApplicationInput } from './faculty.onboarding.dto.js';
+import type {
+  OnboardingApplicationInput,
+  ReuploadApplicationInput,
+} from './faculty.onboarding.dto.js';
 
 // Params and bodies are validated by validateRequest in the routes files
 
@@ -69,9 +74,36 @@ export const reviewFaculty = handle(async (req, res) => {
   res.json(
     successResponse(
       detail,
-      input.decision === 'approve' ? 'Tutor approved' : 'Application rejected'
+      input.decision === 'approve'
+        ? 'Tutor approved'
+        : input.decision === 'reject'
+          ? 'Application rejected'
+          : 'Re-upload requested'
     )
   );
+});
+
+export const setFacultyActive = handle(async (req, res) => {
+  const input = req.body as FacultyActiveInput;
+  const detail = await Review.setFacultyActive(
+    param(req, 'facultyId'),
+    input,
+    auditContextFrom(req)
+  );
+  res.json(successResponse(detail, input.isActive ? 'Tutor activated' : 'Tutor deactivated'));
+});
+
+export const getConsentSignature = handle(async (req, res) => {
+  const body = await Review.getConsentSignature(param(req, 'facultyId'), auditContextFrom(req));
+  res.set({
+    'Content-Type': 'image/png',
+    'Content-Length': String(body.length),
+    'Content-Disposition': 'inline; filename="signature.png"',
+    'Cache-Control': 'private, no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'Content-Security-Policy': "sandbox; default-src 'none'",
+  });
+  res.end(body);
 });
 
 // ── Onboarding (public, invitation token) ──
@@ -84,6 +116,25 @@ export const startOnboarding = handle(async (req, res) => {
 export const onboardingCatalogue = handle(async (_req, res) => {
   res.set('Cache-Control', 'public, max-age=60');
   res.json(successResponse(await Onboarding.onboardingCatalogue(), 'Catalogue retrieved'));
+});
+
+export const onboardingTeachingModes = handle(async (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.json(successResponse(await Onboarding.onboardingTeachingModes(), 'Teaching modes retrieved'));
+});
+
+export const startReupload = handle(async (req, res) => {
+  const session = await Reupload.startReupload((req.body as { token: string }).token);
+  res.json(successResponse(session, 'Link is valid'));
+});
+
+export const submitReupload = handle(async (req, res) => {
+  const result = await Reupload.submitReupload(
+    req.body as ReuploadApplicationInput,
+    (req.files ?? {}) as Onboarding.UploadedFiles,
+    auditContextFrom(req)
+  );
+  res.json(successResponse(result, 'Application updated'));
 });
 
 export const submitApplication = handle(async (req, res) => {
@@ -108,7 +159,8 @@ export const decidePriceConsent = handle(async (req, res) => {
   const view = await Consent.decidePriceConsent(
     req.user?.sub as string,
     input,
-    auditContextFrom(req)
+    auditContextFrom(req),
+    req.file?.buffer
   );
   res.json(
     successResponse(view, input.decision === 'accept' ? 'Prices accepted' : 'Prices declined')

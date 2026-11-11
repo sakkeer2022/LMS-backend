@@ -14,13 +14,20 @@ import {
 } from '@modules/category-tree/index';
 import { hashInviteToken } from './faculty.tokens.js';
 import {
+  ADDITIONAL_DOCUMENTS,
   ONBOARDING_DOCUMENTS,
   checkDocument,
   documentStorageKey,
+  type AdditionalDocumentField,
   type OnboardingDocumentField,
 } from './faculty.documents.js';
 import type { OnboardingApplicationInput } from './faculty.onboarding.dto.js';
 import { applicationReceivedEmail } from './faculty.emails.js';
+import {
+  listTeachingModes,
+  requireTeachingMode,
+  type TeachingModeOption,
+} from './faculty.teaching-modes.js';
 
 /**
  * Faculty onboarding from the invitation link (LMS-39, screens 43b-43e). The page validates
@@ -72,7 +79,78 @@ export function onboardingCatalogue(): Promise<OfferingTree> {
   return getOfferingTree();
 }
 
-export type UploadedFiles = Partial<Record<OnboardingDocumentField, Express.Multer.File[]>>;
+/** GET /faculty/onboarding/teaching-modes: the "Preferred mode of teaching" options. */
+export function onboardingTeachingModes(): Promise<TeachingModeOption[]> {
+  return listTeachingModes();
+}
+
+export type UploadedFiles = Partial<
+  Record<OnboardingDocumentField | AdditionalDocumentField, Express.Multer.File[]>
+>;
+
+/** A checked upload, ready to store. */
+export interface CheckedDocument {
+  field: OnboardingDocumentField | AdditionalDocumentField;
+  type: (typeof ONBOARDING_DOCUMENTS)[number]['type'] | typeof ADDITIONAL_DOCUMENTS.type;
+  file: Express.Multer.File;
+  mime: string;
+  fileName: string;
+}
+
+/**
+ * Checks the uploaded files: each required document (unless `keep` says one is already on file) and up to
+ * ADDITIONAL_DOCUMENTS.max optional extra documents. Throws one DOCUMENT_INVALID error naming every bad
+ * field, so the page can mark them all at once.
+ */
+export async function checkUploadedDocuments(
+  files: UploadedFiles,
+  keep: ReadonlySet<string> = new Set()
+): Promise<CheckedDocument[]> {
+  const documents: CheckedDocument[] = [];
+  const fileErrors: Record<string, string[]> = {};
+  for (const spec of ONBOARDING_DOCUMENTS) {
+    const uploaded = files[spec.field]?.[0];
+    if (!uploaded) {
+      if (!keep.has(spec.type))
+        fileErrors[spec.field] = [`Upload your ${spec.label.toLowerCase()}`];
+      continue;
+    }
+    const check = await checkDocument(uploaded);
+    if (!check.ok) fileErrors[spec.field] = [check.reason];
+    else
+      documents.push({
+        field: spec.field,
+        type: spec.type,
+        file: uploaded,
+        mime: check.mime,
+        fileName: check.fileName,
+      });
+  }
+  const extras = files[ADDITIONAL_DOCUMENTS.field] ?? [];
+  for (const [index, uploaded] of extras.entries()) {
+    const check = await checkDocument(uploaded);
+    if (!check.ok) {
+      (fileErrors[`${ADDITIONAL_DOCUMENTS.field}.${index}`] ??= []).push(
+        `${uploaded.originalname || 'Additional document'}: ${check.reason}`
+      );
+    } else {
+      documents.push({
+        field: ADDITIONAL_DOCUMENTS.field,
+        type: ADDITIONAL_DOCUMENTS.type,
+        file: uploaded,
+        mime: check.mime,
+        fileName: check.fileName,
+      });
+    }
+  }
+  if (Object.keys(fileErrors).length) {
+    throw new ValidationError('Check the highlighted documents', {
+      code: 'DOCUMENT_INVALID',
+      fieldErrors: fileErrors,
+    });
+  }
+  return documents;
+}
 
 export interface ApplicationResult {
   applicationReference: string;
@@ -106,37 +184,8 @@ export async function submitApplication(
     );
   }
 
-  const documents: {
-    field: OnboardingDocumentField;
-    type: (typeof ONBOARDING_DOCUMENTS)[number]['type'];
-    file: Express.Multer.File;
-    mime: string;
-    fileName: string;
-  }[] = [];
-  const fileErrors: Record<string, string[]> = {};
-  for (const spec of ONBOARDING_DOCUMENTS) {
-    const uploaded = files[spec.field]?.[0];
-    if (!uploaded) {
-      fileErrors[spec.field] = [`Upload your ${spec.label.toLowerCase()}`];
-      continue;
-    }
-    const check = await checkDocument(uploaded);
-    if (!check.ok) fileErrors[spec.field] = [check.reason];
-    else
-      documents.push({
-        field: spec.field,
-        type: spec.type,
-        file: uploaded,
-        mime: check.mime,
-        fileName: check.fileName,
-      });
-  }
-  if (Object.keys(fileErrors).length) {
-    throw new ValidationError('Check the highlighted documents', {
-      code: 'DOCUMENT_INVALID',
-      fieldErrors: fileErrors,
-    });
-  }
+  const mode = await requireTeachingMode(dto.teachingMode);
+  const documents = await checkUploadedDocuments(files);
 
   const facultyRole = await prisma.role.findUnique({
     where: { name: 'faculty' },
@@ -202,7 +251,8 @@ export async function submitApplication(
           highestQualification: dto.highestQualification,
           studiedAt: dto.studiedAt,
           teachingExperience: dto.teachingExperience,
-          offersOfflineClasses: dto.offersOfflineClasses,
+          teachingMode: mode.code,
+          offersOfflineClasses: mode.offersOffline,
           applicationReference,
           submittedAt: now,
           declarationAcceptedAt: now,

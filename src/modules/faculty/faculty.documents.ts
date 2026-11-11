@@ -17,6 +17,30 @@ export const ONBOARDING_DOCUMENTS = [
 
 export type OnboardingDocumentField = (typeof ONBOARDING_DOCUMENTS)[number]['field'];
 
+/**
+ * Optional extra documents (certificates, experience letters…) the tutor may add on the same step. They
+ * are stored as OTHER and never count towards the required documents.
+ */
+export const ADDITIONAL_DOCUMENTS = {
+  field: 'additionalDocuments',
+  type: 'OTHER',
+  label: 'Additional document',
+  max: 5,
+} as const;
+
+export type AdditionalDocumentField = typeof ADDITIONAL_DOCUMENTS.field;
+
+/** Every multipart file field the onboarding and re-upload forms accept, with its count. */
+export const DOCUMENT_UPLOAD_FIELDS = [
+  ...ONBOARDING_DOCUMENTS.map((d) => ({ name: d.field as string, maxCount: 1 })),
+  { name: ADDITIONAL_DOCUMENTS.field as string, maxCount: ADDITIONAL_DOCUMENTS.max },
+];
+
+export const MAX_UPLOAD_FILES = ONBOARDING_DOCUMENTS.length + ADDITIONAL_DOCUMENTS.max;
+
+/** Document types that count towards "documents uploaded" (the required ones). */
+export const REQUIRED_DOCUMENT_TYPES = ONBOARDING_DOCUMENTS.map((d) => d.type);
+
 interface AllowedType {
   mime: string;
   /** File-name extensions that may carry this signature. */

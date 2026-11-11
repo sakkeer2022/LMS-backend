@@ -5,6 +5,8 @@ export interface InvitationEmailInput {
   inviteUrl: string;
   expiresAt: Date;
   ttlHours: number;
+  /** IANA zone to state the expiry in; UTC when the recipient's zone is not known yet. */
+  timeZone?: string | null;
 }
 
 const ESCAPES: Record<string, string> = {
@@ -29,12 +31,41 @@ export function describeValidity(ttlHours: number): string {
 }
 
 /**
+ * The exact moment a link stops working, for an email: "Saturday, 14 November 2026, 10:30 AM UTC".
+ * The zone is the recipient's when known (a tutor's account time zone); an invitee has no account yet,
+ * so their invitation states UTC. No zone is assumed from a country here (see src/docs/REGIONS.md).
+ */
+export function formatExpiry(date: Date, timeZone?: string | null): string {
+  const zone = timeZone || 'UTC';
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: zone,
+      timeZoneName: 'short',
+    })
+      .format(date)
+      .replace(' at ', ', ')
+      .replace(/\b(am|pm)\b/, (m) => m.toUpperCase());
+  } catch {
+    // An unknown zone name: fall back to UTC rather than fail the email
+    return formatExpiry(date, 'UTC');
+  }
+}
+
+/**
  * Invitation email with one onboarding call to action. Inline styles and a table
  * layout so it renders in common mail clients. The link is the only personalised
  * content; nothing the admin types is placed in the body.
  */
 export function buildInvitationEmail(input: InvitationEmailInput): EmailMessage {
   const validity = describeValidity(input.ttlHours);
+  const expires = formatExpiry(input.expiresAt, input.timeZone);
   const href = escapeHtml(input.inviteUrl);
   const subject = 'You are invited to teach on Amentorz';
 
@@ -46,7 +77,7 @@ export function buildInvitationEmail(input: InvitationEmailInput): EmailMessage 
     '',
     input.inviteUrl,
     '',
-    `This link works once and expires in ${validity} (${input.expiresAt.toISOString()}).`,
+    `This link works once and expires on ${expires} (${validity} after it was sent).`,
     'If you were not expecting this invitation, you can ignore this email.',
     '',
     'The Amentorz team',
@@ -80,8 +111,11 @@ export function buildInvitationEmail(input: InvitationEmailInput): EmailMessage 
 <p style="margin:0 0 8px;font-size:12px;line-height:18px;color:#6b6478;">Or copy this link into your browser:</p>
 <p style="margin:0;font-size:12px;line-height:18px;word-break:break-all;"><a href="${href}" style="color:#8b3a96;">${href}</a></p>
 </td></tr>
-<tr><td style="padding:20px 32px 28px;">
-<p style="margin:0;font-size:12px;line-height:18px;color:#6b6478;">This link works once and expires in ${escapeHtml(validity)}. If you were not expecting this invitation, you can ignore this email.</p>
+<tr><td style="padding:20px 32px 0;">
+<p style="margin:0;padding:10px 12px;border-radius:8px;background:#fff7ed;font-size:13px;line-height:20px;color:#9a3412;"><strong>Link expires on ${escapeHtml(expires)}</strong><br>It works once and is valid for ${escapeHtml(validity)} after it was sent.</p>
+</td></tr>
+<tr><td style="padding:16px 32px 28px;">
+<p style="margin:0;font-size:12px;line-height:18px;color:#6b6478;">If you were not expecting this invitation, you can ignore this email.</p>
 </td></tr>
 </table>
 </td></tr>
