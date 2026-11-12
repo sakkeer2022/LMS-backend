@@ -189,9 +189,10 @@ describe('invitation email', () => {
     expect(email.subject).toBe('You are invited to teach on Amentorz');
     expect(email.html).toContain('Complete your profile');
     expect(email.html).toContain('href="https://app.amentorz.com/faculty/onboarding?token=abc&amp;x=1"');
-    expect(email.html).toContain('expires in 3 days');
+    expect(email.html).toContain('Link expires on Friday, 6 November 2026, 12:00 AM UTC');
+    expect(email.html).toContain('valid for 3 days');
     expect(email.text).toContain('https://app.amentorz.com/faculty/onboarding?token=abc&x=1');
-    expect(email.text).toContain('expires in 3 days (2026-11-06T00:00:00.000Z)');
+    expect(email.text).toContain('expires on Friday, 6 November 2026, 12:00 AM UTC (3 days after it was sent)');
   });
 
   it('escapes HTML', () => {

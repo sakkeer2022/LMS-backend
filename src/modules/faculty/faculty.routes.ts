@@ -8,6 +8,7 @@ import { FacultyCountsQueryDto, InviteFacultyDto, ListFacultyQueryDto } from './
 import * as ReviewController from './faculty.review.controller.js';
 import {
   DocumentVerificationDto,
+  FacultyActiveDto,
   FacultyDocumentParamsDto,
   FacultyIdParamsDto,
   ReviewFacultyDto,
@@ -227,10 +228,13 @@ adminFacultyRouter.put(
  * @openapi
  * /admin/faculty/{facultyId}/review:
  *   put:
- *     summary: Approve ("Verify & publish") or reject a tutor application
+ *     summary: Approve ("Verify & publish"), request a re-upload, or reject a tutor application
  *     description: >
- *       Only pending applications can be decided (409 INVALID_TRANSITION). Approve verifies the
- *       remaining documents and sets isPublished to publish; reject needs a reason and unpublishes.
+ *       Only pending applications (or ones awaiting a re-upload) can be decided (409 INVALID_TRANSITION).
+ *       Approve verifies the remaining documents and sets isPublished to publish; reject needs a reason
+ *       and unpublishes. request_reupload (a temporary rejection) needs a reason, unpublishes, and emails
+ *       the tutor a single-use link to the pre-filled form that expires after FACULTY_REUPLOAD_TTL_HOURS;
+ *       any earlier link stops working.
  *       expectedRevision must match (409 STALE_REVISION). The tutor is emailed. Approval alone does
  *       not allow sign-in: every subject needs a tutor price first. Requires faculty.approve and CSRF.
  *     tags: [Faculty]
@@ -246,7 +250,7 @@ adminFacultyRouter.put(
  *             additionalProperties: false
  *             required: [decision, expectedRevision]
  *             properties:
- *               decision: { type: string, enum: [approve, reject] }
+ *               decision: { type: string, enum: [approve, reject, request_reupload] }
  *               reason: { type: string, maxLength: 1000 }
  *               publish: { type: boolean, default: false }
  *               expectedRevision: { type: integer, minimum: 1 }
@@ -263,4 +267,59 @@ adminFacultyRouter.put(
   requirePermission('faculty.approve'),
   validateRequest({ params: FacultyIdParamsDto, body: ReviewFacultyDto }),
   ReviewController.reviewFaculty
+);
+
+/**
+ * @openapi
+ * /admin/faculty/{facultyId}/active:
+ *   put:
+ *     summary: Activate or deactivate a tutor
+ *     description: >
+ *       Operational control, separate from verification. An inactive tutor cannot sign in and is hidden
+ *       from discovery (row status "suspended"); activating restores what their verification and prices
+ *       allow. Idempotent. Requires faculty.approve and CSRF.
+ *     tags: [Faculty]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: facultyId, required: true, schema: { type: string, format: uuid } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { type: object, additionalProperties: false, required: [isActive], properties: { isActive: { type: boolean } } }
+ *     responses:
+ *       200: { description: The updated application }
+ *       401: { description: Missing or invalid token }
+ *       403: { description: Requires faculty.approve, or CSRF token missing }
+ *       404: { description: Unknown faculty profile }
+ *       422: { description: Invalid body }
+ */
+adminFacultyRouter.put(
+  '/:facultyId/active',
+  requirePermission('faculty.approve'),
+  validateRequest({ params: FacultyIdParamsDto, body: FacultyActiveDto }),
+  ReviewController.setFacultyActive
+);
+
+/**
+ * @openapi
+ * /admin/faculty/{facultyId}/price-consent/signature:
+ *   get:
+ *     summary: The signature the tutor drew when accepting their prices
+ *     description: The latest accepted consent's signature as a PNG (CSP sandbox, nosniff, no-store). Audited. Requires faculty.documents.
+ *     tags: [Faculty]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: facultyId, required: true, schema: { type: string, format: uuid } }
+ *     responses:
+ *       200: { description: image/png }
+ *       401: { description: Missing or invalid token }
+ *       403: { description: Requires faculty.documents }
+ *       404: { description: No signed acceptance }
+ */
+adminFacultyRouter.get(
+  '/:facultyId/price-consent/signature',
+  requirePermission('faculty.documents'),
+  validateRequest({ params: FacultyIdParamsDto }),
+  ReviewController.getConsentSignature
 );

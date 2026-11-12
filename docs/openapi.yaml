@@ -2289,6 +2289,7 @@
                     "appliedAt": "2026-10-21T09:00:00Z",
                     "submittedAt": "2026-10-21T09:00:00Z",
                     "status": "invited",
+                    "verification": "new",
                     "approvalStatus": "pending",
                     "isPublished": false,
                     "isActive": true,
@@ -2302,12 +2303,23 @@
                         "code": "0-1",
                         "label": "Example value"
                       },
-                      "offersOfflineClasses": true
+                      "offersOfflineClasses": true,
+                      "teachingMode": {
+                        "code": "hybrid",
+                        "label": "Example value"
+                      }
+                    },
+                    "reupload": {
+                      "reason": "Profile documents reviewed.",
+                      "requestedAt": "2026-10-21T09:00:00Z",
+                      "expiresAt": "2026-10-21T09:00:00Z",
+                      "expired": true
                     },
                     "documents": [],
                     "subjects": [],
                     "pricing": "none",
-                    "consentDecidedAt": "2026-10-21T09:00:00Z"
+                    "consentDecidedAt": "2026-10-21T09:00:00Z",
+                    "consentSigned": true
                   }
                 }
               }
@@ -2806,8 +2818,8 @@
         "tags": [
           "Faculty"
         ],
-        "summary": "Approve (\"Verify & publish\") or reject a tutor application",
-        "description": "Current active, email-verified admin; faculty.approve identity; server checks role, permission and resource ownership on every request. Screen 27b, LMS-39. Only pending applications (409 INVALID_TRANSITION). Approve verifies the remaining documents, records the approver and sets isPublished to publish; reject needs a reason and unpublishes. expectedRevision must match (409 STALE_REVISION). The tutor is emailed. Approval alone does not allow sign-in: every subject needs a tutor price (GET /admin/prices/awaiting).",
+        "summary": "Approve (\"Verify & publish\"), request a re-upload, or reject a tutor application",
+        "description": "Current active, email-verified admin; faculty.approve identity; server checks role, permission and resource ownership on every request. Screen 27b, LMS-39. Only pending applications or ones awaiting a re-upload (409 INVALID_TRANSITION). Approve verifies the remaining documents, records the approver and sets isPublished to publish; reject needs a reason and unpublishes; request_reupload needs a reason, unpublishes and emails a single-use link to the pre-filled form that expires after FACULTY_REUPLOAD_TTL_HOURS (the email states the exact expiry); an earlier open link stops working. expectedRevision must match (409 STALE_REVISION). The tutor is emailed. Approval alone does not allow sign-in: every subject needs a tutor price (GET /admin/prices/awaiting).",
         "x-required-role": "admin; faculty.approve",
         "x-review-status": "ready-for-review",
         "security": [
@@ -2817,7 +2829,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Approve (\"Verify & publish\") or reject a tutor application.",
+            "description": "Approve (\"Verify & publish\"), request a re-upload, or reject a tutor application.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2836,6 +2848,7 @@
                     "appliedAt": "2026-10-21T09:00:00Z",
                     "submittedAt": "2026-10-21T09:00:00Z",
                     "status": "invited",
+                    "verification": "new",
                     "approvalStatus": "pending",
                     "isPublished": false,
                     "isActive": true,
@@ -2849,12 +2862,23 @@
                         "code": "0-1",
                         "label": "Example value"
                       },
-                      "offersOfflineClasses": true
+                      "offersOfflineClasses": true,
+                      "teachingMode": {
+                        "code": "hybrid",
+                        "label": "Example value"
+                      }
+                    },
+                    "reupload": {
+                      "reason": "Profile documents reviewed.",
+                      "requestedAt": "2026-10-21T09:00:00Z",
+                      "expiresAt": "2026-10-21T09:00:00Z",
+                      "expired": true
                     },
                     "documents": [],
                     "subjects": [],
                     "pricing": "none",
-                    "consentDecidedAt": "2026-10-21T09:00:00Z"
+                    "consentDecidedAt": "2026-10-21T09:00:00Z",
+                    "consentSigned": true
                   }
                 }
               }
@@ -2918,6 +2942,206 @@
         }
       }
     },
+    "/admin/faculty/{facultyId}/active": {
+      "put": {
+        "operationId": "setFacultyActive",
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Activate or deactivate a tutor",
+        "description": "Current active, email-verified admin; faculty.approve identity; server checks role, permission and resource ownership on every request. Operational control, separate from verification. An inactive tutor cannot sign in and is hidden from discovery (row status suspended). Idempotent. Audited.",
+        "x-required-role": "admin; faculty.approve",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Activate or deactivate a tutor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/setFacultyActiveResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                    "fullName": "Ananya Rao",
+                    "email": "learner@example.org",
+                    "mobileNumber": "+919876543210",
+                    "city": "Example value",
+                    "applicationReference": "Example value",
+                    "appliedAt": "2026-10-21T09:00:00Z",
+                    "submittedAt": "2026-10-21T09:00:00Z",
+                    "status": "invited",
+                    "verification": "new",
+                    "approvalStatus": "pending",
+                    "isPublished": false,
+                    "isActive": true,
+                    "revision": 1,
+                    "rejectionReason": "Example value",
+                    "approvedAt": "2026-10-21T09:00:00Z",
+                    "screening": {
+                      "highestQualification": "Example value",
+                      "studiedAt": "Example value",
+                      "teachingExperience": {
+                        "code": "0-1",
+                        "label": "Example value"
+                      },
+                      "offersOfflineClasses": true,
+                      "teachingMode": {
+                        "code": "hybrid",
+                        "label": "Example value"
+                      }
+                    },
+                    "reupload": {
+                      "reason": "Profile documents reviewed.",
+                      "requestedAt": "2026-10-21T09:00:00Z",
+                      "expiresAt": "2026-10-21T09:00:00Z",
+                      "expired": true
+                    },
+                    "documents": [],
+                    "subjects": [],
+                    "pricing": "none",
+                    "consentDecidedAt": "2026-10-21T09:00:00Z",
+                    "consentSigned": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "facultyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FacultyActive"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/faculty/{facultyId}/price-consent/signature": {
+      "get": {
+        "operationId": "getFacultyConsentSignature",
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Open the signature of the latest price acceptance",
+        "description": "Current active, email-verified admin; faculty.documents identity; server checks role, permission and resource ownership on every request. image/png body (not JSON), CSP sandbox, nosniff, no-store. 404 when the tutor has no signed acceptance. Audited.",
+        "x-required-role": "admin; faculty.documents",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Open the signature of the latest price acceptance.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getFacultyConsentSignatureResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "facultyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      }
+    },
     "/admin/faculty/{facultyId}/documents/{documentId}/verification": {
       "put": {
         "operationId": "setFacultyDocumentVerification",
@@ -2954,6 +3178,7 @@
                     "appliedAt": "2026-10-21T09:00:00Z",
                     "submittedAt": "2026-10-21T09:00:00Z",
                     "status": "invited",
+                    "verification": "new",
                     "approvalStatus": "pending",
                     "isPublished": false,
                     "isActive": true,
@@ -2967,12 +3192,23 @@
                         "code": "0-1",
                         "label": "Example value"
                       },
-                      "offersOfflineClasses": true
+                      "offersOfflineClasses": true,
+                      "teachingMode": {
+                        "code": "hybrid",
+                        "label": "Example value"
+                      }
+                    },
+                    "reupload": {
+                      "reason": "Profile documents reviewed.",
+                      "requestedAt": "2026-10-21T09:00:00Z",
+                      "expiresAt": "2026-10-21T09:00:00Z",
+                      "expired": true
                     },
                     "documents": [],
                     "subjects": [],
                     "pricing": "none",
-                    "consentDecidedAt": "2026-10-21T09:00:00Z"
+                    "consentDecidedAt": "2026-10-21T09:00:00Z",
+                    "consentSigned": true
                   }
                 }
               }
@@ -4082,6 +4318,213 @@
         }
       }
     },
+    "/faculty/onboarding/teaching-modes": {
+      "get": {
+        "operationId": "getFacultyTeachingModes",
+        "tags": [
+          "Faculty onboarding"
+        ],
+        "summary": "Preferred mode of teaching options",
+        "description": "Public; no authenticated identity required. Screen 43b dropdown. Active rows of teaching_modes in display order: online, offline, hybrid.",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Preferred mode of teaching options.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getFacultyTeachingModesResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
+    "/faculty/onboarding/reupload/session": {
+      "post": {
+        "operationId": "startFacultyReupload",
+        "tags": [
+          "Faculty onboarding"
+        ],
+        "summary": "Check a re-upload link and read the application on file",
+        "description": "Public; no authenticated identity required. The link from an admin's \"Request re-upload\". Returns the admin's reason, the expiry and the answers, subjects and documents on file to pre-fill the form. Every unusable link (unknown, used, superseded, expired) returns the same 422 REUPLOAD_LINK_INVALID. Rate-limited per IP.",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Check a re-upload link and read the application on file.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/startFacultyReuploadResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "email": "learner@example.org",
+                    "expiresAt": "2026-10-21T09:00:00Z",
+                    "reason": "Profile documents reviewed.",
+                    "applicationReference": "Example value",
+                    "values": {
+                      "fullName": "Ananya Rao",
+                      "mobileNumber": "+919876543210",
+                      "city": "Example value",
+                      "highestQualification": "Example value",
+                      "teachingExperience": "0-1",
+                      "teachingMode": "hybrid",
+                      "studiedAt": "Example value"
+                    },
+                    "curriculumIds": [],
+                    "documents": []
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardingSessionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/faculty/onboarding/reupload": {
+      "post": {
+        "operationId": "submitFacultyReupload",
+        "tags": [
+          "Faculty onboarding"
+        ],
+        "summary": "Submit a corrected application",
+        "description": "Public; no authenticated identity required. Consumes the re-upload link, updates the profile, subjects and documents in one transaction, and puts the application back to PENDING (verification new). A required document left out keeps the one on file; every document is marked unverified again. 422 field errors, DOCUMENT_INVALID or REUPLOAD_LINK_INVALID. Rate-limited per IP.",
+        "x-required-role": "public",
+        "x-review-status": "ready-for-review",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Submit a corrected application.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/submitFacultyReuploadResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "applicationReference": "AMZ-T-1001",
+                    "fullName": "Ananya Rao",
+                    "email": "learner@example.org",
+                    "submittedAt": "2026-10-21T09:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "415": {
+            "$ref": "#/components/responses/E415"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ReuploadApplication"
+              }
+            }
+          }
+        }
+      }
+    },
     "/faculty/onboarding/applications": {
       "post": {
         "operationId": "submitFacultyApplication",
@@ -4224,7 +4667,7 @@
           "Faculty"
         ],
         "summary": "Accept or decline own session prices",
-        "description": "Current active, email-verified faculty (self only); faculty.update_self identity; server checks role, permission and resource ownership on every request. For the exact prices shown (snapshotHash); 409 PRICES_CHANGED otherwise. Declining keeps the portal blocked and emails the approving admin; a later price change asks again. The consent screen design is not final.",
+        "description": "Current active, email-verified faculty (self only); faculty.update_self identity; server checks role, permission and resource ownership on every request. For the exact prices shown (snapshotHash); 409 PRICES_CHANGED otherwise. Accepting is a signed agreement: multipart with the drawn signature PNG (422 SIGNATURE_REQUIRED without it), stored privately with the consent. Declining keeps the portal blocked and emails the approving admin; a later price change asks again. The consent screen design is not final.",
         "x-required-role": "faculty (self only); faculty.update_self",
         "x-review-status": "ready-for-review",
         "security": [
@@ -4268,6 +4711,9 @@
           "413": {
             "$ref": "#/components/responses/E413"
           },
+          "415": {
+            "$ref": "#/components/responses/E415"
+          },
           "422": {
             "$ref": "#/components/responses/E422"
           },
@@ -4289,7 +4735,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
                 "$ref": "#/components/schemas/PriceConsentDecision"
               }
@@ -14661,6 +15107,23 @@
             "nullable": true,
             "description": "Most recent qualification: degree \u00b7 institution."
           },
+          "verification": {
+            "type": "string",
+            "enum": [
+              "new",
+              "approved",
+              "rejected",
+              "reupload_requested",
+              null
+            ],
+            "nullable": true,
+            "description": "Verification state of a profile: new (submitted or re-submitted, awaiting a decision), approved, rejected (final), reupload_requested (sent back to the tutor with a reason and a re-upload link). Null for invitations."
+          },
+          "isActive": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Operational switch (activate/deactivate), separate from verification. Null for invitations."
+          },
           "documents": {
             "type": "object",
             "additionalProperties": false,
@@ -14674,14 +15137,20 @@
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 2147483647
+              },
+              "additional": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
               }
             },
             "required": [
               "uploaded",
-              "required"
+              "required",
+              "additional"
             ],
             "nullable": true,
-            "description": "Verification documents uploaded and expected. Null for invitations. The required checklist is a pending decision."
+            "description": "Required verification documents on file of those expected, and how many optional additional documents were added. Null for invitations."
           },
           "pricing": {
             "type": "string",
@@ -14737,6 +15206,8 @@
           "fullName",
           "email",
           "status",
+          "verification",
+          "isActive",
           "subjects",
           "qualification",
           "documents",
@@ -15143,6 +15614,14 @@
             "minLength": 1,
             "maxLength": 200
           },
+          "teachingMode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "pattern": "^[a-z_]{2,20}$",
+            "example": "hybrid",
+            "description": "A code from GET /faculty/onboarding/teaching-modes (online, offline, hybrid)."
+          },
           "curriculumIds": {
             "type": "string",
             "minLength": 1,
@@ -15154,7 +15633,9 @@
             "enum": [
               "true",
               "false"
-            ]
+            ],
+            "deprecated": true,
+            "description": "Replaced by teachingMode, from which it is derived. Accepted and ignored."
           },
           "declarationAccepted": {
             "type": "string",
@@ -15176,6 +15657,16 @@
             "type": "string",
             "format": "binary",
             "description": "PDF, DOC, DOCX, PPT, PPTX, JPG or PNG, checked by signature; at most UPLOAD_MAX_BYTES (10 MiB)."
+          },
+          "additionalDocuments": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "binary",
+              "description": "PDF, DOC, DOCX, PPT, PPTX, JPG or PNG, checked by signature; at most UPLOAD_MAX_BYTES (10 MiB)."
+            },
+            "maxItems": 5,
+            "description": "Optional extra documents (certificates, experience letters), up to 5. Stored as OTHER; never counted as required."
           }
         },
         "required": [
@@ -15186,11 +15677,331 @@
           "mobileNumber",
           "highestQualification",
           "teachingExperience",
+          "teachingMode",
           "curriculumIds",
           "declarationAccepted",
           "photoId",
           "degreeCertificate",
           "panCard"
+        ]
+      },
+      "TeachingMode": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "pattern": "^[a-z_]{2,20}$",
+            "example": "hybrid",
+            "description": "A code from GET /faculty/onboarding/teaching-modes (online, offline, hybrid)."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "Hybrid (Both Online & Offline)"
+          },
+          "offersOffline": {
+            "type": "boolean",
+            "description": "Whether the mode includes in-person classes (kept in faculty_profiles.offers_offline_classes)."
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "offersOffline"
+        ]
+      },
+      "ReuploadSession": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "format": "email",
+            "example": "learner@example.org",
+            "description": "Trim and lowercase before uniqueness and lookup. No provider-specific dot or plus rewriting."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "applicationReference": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "nullable": true
+          },
+          "values": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "fullName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 150,
+                "example": "Ananya Rao",
+                "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
+              },
+              "mobileNumber": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16,
+                "pattern": "^\\+[1-9][0-9]{7,14}$",
+                "example": "+919876543210",
+                "description": "E.164. The UI defaults to +91. Not OTP-verified in Phase 1. Not unique: siblings may share a parent number.",
+                "nullable": true
+              },
+              "city": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "nullable": true
+              },
+              "highestQualification": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 150,
+                "nullable": true
+              },
+              "teachingExperience": {
+                "type": "string",
+                "enum": [
+                  "0-1",
+                  "1-3",
+                  "3-5",
+                  "5-10",
+                  "10+"
+                ],
+                "nullable": true
+              },
+              "teachingMode": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20,
+                "pattern": "^[a-z_]{2,20}$",
+                "example": "hybrid",
+                "description": "A code from GET /faculty/onboarding/teaching-modes (online, offline, hybrid).",
+                "nullable": true
+              },
+              "studiedAt": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "nullable": true
+              }
+            },
+            "required": [
+              "fullName",
+              "mobileNumber",
+              "city",
+              "highestQualification",
+              "teachingExperience",
+              "teachingMode",
+              "studiedAt"
+            ]
+          },
+          "curriculumIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            },
+            "maxItems": 30
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "GOVERNMENT_ID",
+                    "DEGREE_CERTIFICATE",
+                    "PAN_CARD",
+                    "EXPERIENCE_LETTER",
+                    "BACKGROUND_CHECK",
+                    "OTHER"
+                  ]
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "fileName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "fileSize": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "uploadedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "example": "2026-10-21T09:00:00Z"
+                },
+                "required": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "type",
+                "label",
+                "fileName",
+                "fileSize",
+                "uploadedAt",
+                "required"
+              ]
+            },
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "email",
+          "expiresAt",
+          "reason",
+          "applicationReference",
+          "values",
+          "curriculumIds",
+          "documents"
+        ]
+      },
+      "ReuploadApplication": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 43,
+            "maxLength": 43,
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "writeOnly": true,
+            "description": "From the re-upload link. Never log."
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150,
+            "example": "Ananya Rao",
+            "description": "Single full-name field (student onboarding step 1). Replaces firstName/lastName for every role."
+          },
+          "mobileNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "pattern": "^\\+[1-9][0-9]{7,14}$",
+            "example": "+919876543210",
+            "description": "E.164. The UI defaults to +91. Not OTP-verified in Phase 1. Not unique: siblings may share a parent number."
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "highestQualification": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "teachingExperience": {
+            "type": "string",
+            "enum": [
+              "0-1",
+              "1-3",
+              "3-5",
+              "5-10",
+              "10+"
+            ]
+          },
+          "studiedAt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "teachingMode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "pattern": "^[a-z_]{2,20}$",
+            "example": "hybrid",
+            "description": "A code from GET /faculty/onboarding/teaching-modes (online, offline, hybrid)."
+          },
+          "curriculumIds": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000,
+            "description": "JSON array of 1-30 curriculum ids."
+          },
+          "declarationAccepted": {
+            "type": "string",
+            "enum": [
+              "true"
+            ]
+          },
+          "removeDocumentIds": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "JSON array of additional document ids to remove."
+          },
+          "photoId": {
+            "type": "string",
+            "format": "binary",
+            "description": "Optional: replaces the Photo ID on file."
+          },
+          "degreeCertificate": {
+            "type": "string",
+            "format": "binary",
+            "description": "Optional: replaces the degree certificate on file."
+          },
+          "panCard": {
+            "type": "string",
+            "format": "binary",
+            "description": "Optional: replaces the PAN card on file."
+          },
+          "additionalDocuments": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "binary",
+              "description": "PDF, DOC, DOCX, PPT, PPTX, JPG or PNG, checked by signature; at most UPLOAD_MAX_BYTES (10 MiB)."
+            },
+            "maxItems": 5,
+            "description": "New additional documents; at most 5 kept in total."
+          }
+        },
+        "required": [
+          "token",
+          "fullName",
+          "mobileNumber",
+          "highestQualification",
+          "teachingExperience",
+          "teachingMode",
+          "curriculumIds",
+          "declarationAccepted"
         ]
       },
       "FacultyApplicationResult": {
@@ -15299,6 +16110,15 @@
               "suspended"
             ]
           },
+          "verification": {
+            "type": "string",
+            "enum": [
+              "new",
+              "approved",
+              "rejected",
+              "reupload_requested"
+            ]
+          },
           "approvalStatus": {
             "type": "string",
             "enum": [
@@ -15375,14 +16195,71 @@
               },
               "offersOfflineClasses": {
                 "type": "boolean"
+              },
+              "teachingMode": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20,
+                    "pattern": "^[a-z_]{2,20}$",
+                    "example": "hybrid",
+                    "description": "A code from GET /faculty/onboarding/teaching-modes (online, offline, hybrid)."
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  }
+                },
+                "required": [
+                  "code",
+                  "label"
+                ],
+                "nullable": true
               }
             },
             "required": [
               "highestQualification",
               "studiedAt",
               "teachingExperience",
-              "offersOfflineClasses"
+              "offersOfflineClasses",
+              "teachingMode"
             ]
+          },
+          "reupload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "requestedAt": {
+                "type": "string",
+                "format": "date-time",
+                "example": "2026-10-21T09:00:00Z"
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time",
+                "example": "2026-10-21T09:00:00Z"
+              },
+              "expired": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "reason",
+              "requestedAt",
+              "expiresAt",
+              "expired"
+            ],
+            "nullable": true,
+            "description": "The open re-upload request while the application is sent back to the tutor."
           },
           "documents": {
             "type": "array",
@@ -15452,6 +16329,10 @@
                 "previewable": {
                   "type": "boolean",
                   "description": "PDF and images can be shown inline; Word and PowerPoint are download only."
+                },
+                "required": {
+                  "type": "boolean",
+                  "description": "One of the required documents; false for additional documents."
                 }
               },
               "required": [
@@ -15465,7 +16346,8 @@
                 "isVerified",
                 "verifiedAt",
                 "scanStatus",
-                "previewable"
+                "previewable",
+                "required"
               ]
             },
             "maxItems": 20
@@ -15535,6 +16417,10 @@
             "format": "date-time",
             "example": "2026-10-21T09:00:00Z",
             "nullable": true
+          },
+          "consentSigned": {
+            "type": "boolean",
+            "description": "The latest acceptance has a drawn signature (GET /admin/faculty/{facultyId}/price-consent/signature)."
           }
         },
         "required": [
@@ -15547,6 +16433,7 @@
           "appliedAt",
           "submittedAt",
           "status",
+          "verification",
           "approvalStatus",
           "isPublished",
           "isActive",
@@ -15554,10 +16441,24 @@
           "rejectionReason",
           "approvedAt",
           "screening",
+          "reupload",
           "documents",
           "subjects",
           "pricing",
-          "consentDecidedAt"
+          "consentDecidedAt",
+          "consentSigned"
+        ]
+      },
+      "FacultyActive": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "isActive"
         ]
       },
       "DocumentVerification": {
@@ -15580,14 +16481,16 @@
             "type": "string",
             "enum": [
               "approve",
-              "reject"
-            ]
+              "reject",
+              "request_reupload"
+            ],
+            "description": "request_reupload is a temporary rejection: the tutor is emailed the reason and a re-upload link."
           },
           "reason": {
             "type": "string",
             "minLength": 1,
             "maxLength": 1000,
-            "description": "Required to reject."
+            "description": "Required to reject or request a re-upload; included in the email."
           },
           "publish": {
             "type": "boolean",
@@ -17155,6 +18058,11 @@
             "minLength": 1,
             "maxLength": 64,
             "pattern": "^[0-9a-f]{64}$"
+          },
+          "signature": {
+            "type": "string",
+            "format": "binary",
+            "description": "Required to accept: the drawn signature as a PNG, at most CONSENT_SIGNATURE_MAX_BYTES. Not sent with reject."
           }
         },
         "required": [
@@ -19156,6 +20064,60 @@
           "data"
         ]
       },
+      "setFacultyActiveResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/FacultyDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getFacultyConsentSignatureResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "object",
+            "nullable": true,
+            "enum": [
+              null
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
       "setFacultyDocumentVerificationResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -19480,6 +20442,85 @@
           },
           "data": {
             "$ref": "#/components/schemas/OfferingTree"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "getFacultyTeachingModesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeachingMode"
+            },
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "startFacultyReuploadResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/ReuploadSession"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "submitFacultyReuploadResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/FacultyApplicationResult"
           }
         },
         "required": [

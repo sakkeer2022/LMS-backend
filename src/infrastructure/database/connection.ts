@@ -64,12 +64,29 @@ export async function connectDatabase(): Promise<void> {
   }
 }
 
+/**
+ * Waits until no pool client is checked out, or `timeoutMs` passes. Work started after a response
+ * was sent (the audit middleware) can still be running; disconnecting Prisma in the middle of its
+ * transaction leaves that client checked out for good, and `pool.end()` then never resolves.
+ */
+export async function waitForIdlePool(timeoutMs = 5_000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (pool.totalCount - pool.idleCount > 0 || pool.waitingCount > 0) {
+    if (Date.now() >= deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  return true;
+}
+
 export async function disconnectDatabase(): Promise<void> {
   if (poolMetricsInterval) {
     clearInterval(poolMetricsInterval);
     poolMetricsInterval = null;
   }
 
+  if (!(await waitForIdlePool())) {
+    logger.warn(getPoolStats(), 'Closing the database pool with queries still running');
+  }
   await prisma.$disconnect();
   await pool.end();
   logger.info('Database connection closed');

@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@infrastructure/database/index';
 import { ValidationError } from '@core/errors/index';
 import { buildPaginationMeta, type PaginatedResult } from '@shared/types/pagination';
-import { ONBOARDING_DOCUMENTS } from './faculty.documents.js';
+import { ONBOARDING_DOCUMENTS, REQUIRED_DOCUMENT_TYPES } from './faculty.documents.js';
 import {
   consentStatuses,
   decideAccess,
@@ -43,6 +43,29 @@ export type FacultyRowStatus =
 
 export type FacultyRowKind = 'invitation' | 'profile';
 
+/**
+ * Verification state shown in the admin roster and drawer, separate from the operational state
+ * (active / inactive):
+ *   new                 submitted (or re-submitted), waiting for a decision
+ *   approved            verified
+ *   rejected            final rejection
+ *   reupload_requested  sent back to the tutor to correct and re-upload
+ */
+export type VerificationStatus = 'new' | 'approved' | 'rejected' | 'reupload_requested';
+
+export function verificationStatus(approvalStatus: string): VerificationStatus {
+  switch (approvalStatus) {
+    case 'APPROVED':
+      return 'approved';
+    case 'REJECTED':
+      return 'rejected';
+    case 'CHANGES_REQUESTED':
+      return 'reupload_requested';
+    default:
+      return 'new';
+  }
+}
+
 /** Statuses shown under each tab. */
 export const TAB_STATUSES: Record<Exclude<FacultyTab, 'all'>, readonly FacultyRowStatus[]> = {
   pending: ['invited', 'pending'],
@@ -63,11 +86,16 @@ export interface FacultyListItem {
   fullName: string | null;
   email: string;
   status: FacultyRowStatus;
+  /** Verification state of a profile (null for invitations): new, approved, rejected, reupload_requested */
+  verification: VerificationStatus | null;
+  /** Operational switch of a profile (null for invitations) */
+  isActive: boolean | null;
   /** Distinct subject names from active catalogue assignments. */
   subjects: string[];
   /** Most recent qualification, e.g. "Ph.D. · IIT Bombay". */
   qualification: string | null;
-  documents: { uploaded: number; required: number } | null;
+  /** Required documents on file of those required, and how many additional documents were added */
+  documents: { uploaded: number; required: number; additional: number } | null;
   /** Pricing after approval (screen 29); `none` for invitations and unapproved tutors. */
   pricing: PricingStatus;
   /** Profile creation, or invitation creation for invitation rows. */
@@ -176,6 +204,21 @@ export function countsByTab(
   };
 }
 
+/** Required documents on file (each type once) and additional documents. */
+export function countDocuments(documents: readonly { documentType: string }[]): {
+  uploaded: number;
+  required: number;
+  additional: number;
+} {
+  const required = REQUIRED_DOCUMENT_TYPES as readonly string[];
+  const types = new Set(documents.map((d) => d.documentType));
+  return {
+    uploaded: required.filter((t) => types.has(t)).length,
+    required: REQUIRED_VERIFICATION_DOCUMENTS,
+    additional: documents.filter((d) => !required.includes(d.documentType)).length,
+  };
+}
+
 /** "Ph.D. · IIT Bombay". */
 export function formatQualification(q: { degree: string; institution: string }): string {
   return `${q.degree.trim()} · ${q.institution.trim()}`;
@@ -227,7 +270,7 @@ export async function listFaculty(
             orderBy: [{ yearOfPassing: 'desc' }, { createdAt: 'desc' }],
             take: 1,
           },
-          _count: { select: { documents: true } },
+          documents: { select: { documentType: true } },
           assignments: {
             where: { isActive: true },
             select: {
@@ -269,6 +312,8 @@ export async function listFaculty(
         fullName: null,
         email: row.email,
         status: row.status,
+        verification: null,
+        isActive: null,
         subjects: [],
         qualification: null,
         documents: null,
@@ -301,12 +346,11 @@ export async function listFaculty(
       fullName: row.full_name,
       email: row.email,
       status: row.status,
+      verification: detail ? verificationStatus(detail.approvalStatus) : 'new',
+      isActive: detail?.isActive ?? true,
       subjects,
       qualification: onboarding ?? (recorded ? formatQualification(recorded) : null),
-      documents: {
-        uploaded: detail?._count.documents ?? 0,
-        required: REQUIRED_VERIFICATION_DOCUMENTS,
-      },
+      documents: countDocuments(detail?.documents ?? []),
       pricing: pricingOf(row.id),
       appliedAt: row.applied_at,
       invitation: null,

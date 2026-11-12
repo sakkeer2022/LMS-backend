@@ -5,6 +5,7 @@ export {
   REQUIRED_VERIFICATION_DOCUMENTS,
   type FacultyListItem,
   type FacultyRowStatus,
+  type VerificationStatus,
 } from './faculty.list.js';
 export { isValidEmail, EMAIL_PATTERN } from './faculty.dto.js';
 export {

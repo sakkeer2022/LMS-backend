@@ -89,7 +89,8 @@ export async function createRosterProfile(
     await prisma.facultyDocument.create({
       data: {
         facultyId: profile.id,
-        documentType: 'OTHER',
+        // The three required documents first, then additional ones
+        documentType: (['GOVERNMENT_ID', 'DEGREE_CERTIFICATE', 'PAN_CARD'] as const)[i] ?? 'OTHER',
         originalFileName: `doc-${i}.pdf`,
         fileSize: 1024,
         mimeType: 'application/pdf',

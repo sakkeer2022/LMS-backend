@@ -48,6 +48,12 @@ enum FacultyDocumentType {
   PAN_CARD
 }
 
+enum FacultyReuploadStatus {
+  PENDING
+  COMPLETED
+  SUPERSEDED
+}
+
 enum FacultyPriceConsentDecision {
   ACCEPTED
   REJECTED
@@ -162,6 +168,7 @@ model User {
   libraryReviews           LibraryReview[]      @relation("LibraryReviewer")
   policyAcceptances        PolicyAcceptance[]
   facultyInvitationsSent   FacultyInvitation[]  @relation("FacultyInviter")
+  facultyReuploadRequests  FacultyReuploadRequest[] @relation("FacultyReuploadRequester")
 
   @@map("users")
 }
@@ -526,7 +533,10 @@ model FacultyProfile {
   studiedAt             String?   @map("studied_at") @db.VarChar(200)
   // Range code from the "Years of teaching" select: 0-1, 1-3, 3-5, 5-10, 10+
   teachingExperience    String?   @map("teaching_experience") @db.VarChar(10)
+  // Kept for discovery filters; derived from teachingMode (offline or hybrid)
   offersOfflineClasses  Boolean   @default(false) @map("offers_offline_classes")
+  // "Preferred mode of teaching" (teaching_modes.code): online, offline, hybrid
+  teachingMode          String?   @map("teaching_mode") @db.VarChar(20)
   // "AMZ-T-4471", shown on the submitted screen
   applicationReference  String?   @unique @map("application_reference") @db.VarChar(20)
   submittedAt           DateTime? @map("submitted_at")
@@ -541,7 +551,9 @@ model FacultyProfile {
   user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   approver   User?              @relation("FacultyApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
   invitation FacultyInvitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+  mode       TeachingMode?      @relation(fields: [teachingMode], references: [code], onDelete: Restrict)
   priceConsents FacultyPriceConsent[]
+  reuploadRequests FacultyReuploadRequest[]
 
   qualifications   FacultyQualification[]
   experiences      FacultyExperience[]
@@ -592,12 +604,51 @@ model FacultyPriceConsent {
   priceSnapshot Json                        @map("price_snapshot")
   ipAddress     String?                     @map("ip_address") @db.VarChar(45)
   userAgent     String?                     @map("user_agent") @db.Text
+  // The drawn signature (PNG) given with an acceptance, in private storage
+  signatureStorageKey String?               @unique @map("signature_storage_key") @db.VarChar(255)
   decidedAt     DateTime                    @default(now()) @map("decided_at")
 
   faculty FacultyProfile @relation(fields: [facultyId], references: [id], onDelete: Cascade)
 
   @@index([facultyId, decidedAt])
   @@map("faculty_price_consents")
+}
+
+// "Preferred mode of teaching" options (onboarding step 1). Seeded by the migration.
+model TeachingMode {
+  code          String   @id @db.VarChar(20)
+  name          String   @db.VarChar(100)
+  offersOffline Boolean  @default(false) @map("offers_offline")
+  isActive      Boolean  @default(true) @map("is_active")
+  displayOrder  Int      @default(0) @map("display_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  faculty FacultyProfile[]
+
+  @@map("teaching_modes")
+}
+
+// An admin's request that the tutor corrects and re-uploads their application. The link carries a
+// single-use token; only its SHA-256 hash is stored. Hand-written in the migration: the partial unique
+// index allowing one PENDING request per tutor.
+model FacultyReuploadRequest {
+  id            String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facultyId     String                @map("faculty_id") @db.Uuid
+  tokenHash     String                @unique @map("token_hash") @db.VarChar(64)
+  reason        String                @db.Text
+  status        FacultyReuploadStatus @default(PENDING)
+  expiresAt     DateTime              @map("expires_at")
+  requestedById String?               @map("requested_by_id") @db.Uuid
+  completedAt   DateTime?             @map("completed_at")
+  createdAt     DateTime              @default(now()) @map("created_at")
+  updatedAt     DateTime              @updatedAt @map("updated_at")
+
+  faculty     FacultyProfile @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  requestedBy User?          @relation("FacultyReuploadRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+
+  @@index([facultyId, status])
+  @@map("faculty_reupload_requests")
 }
 
 model FacultyQualification {

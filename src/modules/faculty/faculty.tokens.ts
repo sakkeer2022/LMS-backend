@@ -18,6 +18,13 @@ export function buildInviteUrl(appBaseUrl: string, token: string): string {
   return url.toString();
 }
 
+/** Re-upload link for a token: the faculty app's pre-filled onboarding page. */
+export function buildReuploadUrl(appBaseUrl: string, token: string): string {
+  const url = new URL('/onboarding/reupload', `${appBaseUrl.replace(/\/+$/, '')}/`);
+  url.searchParams.set('token', token);
+  return url.toString();
+}
+
 /** Expiry for an invitation created at `now`. */
 export function inviteExpiry(now: Date, ttlHours: number): Date {
   return new Date(now.getTime() + ttlHours * 60 * 60 * 1000);
