@@ -10,9 +10,11 @@ import { toPriceAmounts, type PriceAmounts } from '@modules/pricing/index';
 import { accountReadyEmail } from './faculty.emails.js';
 
 /**
- * Whether a tutor may use the faculty portal (decided 2026-11-04):
+ * Whether a tutor may use the faculty portal (decided 2026-11-04, cards 2026-11-12):
  * 1. an admin approved the application (screen 27b), and
- * 2. every subject the tutor chose at onboarding has an active tutor price (screen 29).
+ * 2. every APPROVED subject card has an active tutor price (screen 29). Cards the tutor
+ *    requests later from the profile stay PENDING until the admin prices and approves them, so a
+ *    request never locks the tutor out; once approved, the new price is part of the consent.
  * Until then the faculty login refuses with a code saying why. After signing in, the tutor
  * accepts or declines the prices (consent screen); a price change asks again.
  */
@@ -35,9 +37,16 @@ export type PricingStatus =
   | 'accepted'
   | 'declined';
 
+export type SubjectCardState = 'pending' | 'approved' | 'rejected';
+
 export interface PricedSubject {
   assignmentId: string;
   curriculumId: string;
+  status: SubjectCardState;
+  source: 'onboarding' | 'profile';
+  requestedAt: Date;
+  decidedAt: Date | null;
+  decisionReason: string | null;
   subject: string;
   /** "Academic › School › K-12 › CBSE › Class 11" */
   pathLabel: string;
@@ -52,7 +61,10 @@ const ACTIVE_RULE_AT = (now: Date): Prisma.PriceRuleWhereInput => ({
   OR: [{ effectiveTo: null }, { effectiveTo: { gt: now } }],
 });
 
-/** Each active subject of the tutors with its current tutor price (or null). */
+/**
+ * Each active subject card of the tutors (any approval state) with its current tutor price (or
+ * null). Callers that gate access or build the consent use only the approved ones.
+ */
 export async function pricedSubjects(
   facultyIds: readonly string[],
   db: Db = prisma
@@ -63,8 +75,17 @@ export async function pricedSubjects(
   const [assignments, rules] = await Promise.all([
     db.facultyAssignment.findMany({
       where: { facultyId: { in: [...facultyIds] }, isActive: true },
-      select: { id: true, facultyId: true, curriculumId: true },
-      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        facultyId: true,
+        curriculumId: true,
+        status: true,
+        source: true,
+        requestedAt: true,
+        decidedAt: true,
+        decisionReason: true,
+      },
+      orderBy: [{ requestedAt: 'asc' }, { createdAt: 'asc' }],
     }),
     db.priceRule.findMany({
       where: { facultyId: { in: [...facultyIds] }, ...ACTIVE_RULE_AT(now) },
@@ -85,6 +106,11 @@ export async function pricedSubjects(
     result.get(a.facultyId)?.push({
       assignmentId: a.id,
       curriculumId: a.curriculumId,
+      status: a.status.toLowerCase() as SubjectCardState,
+      source: a.source === 'PROFILE' ? 'profile' : 'onboarding',
+      requestedAt: a.requestedAt,
+      decidedAt: a.decidedAt,
+      decisionReason: a.decisionReason,
       subject: label?.subject ?? 'Unknown subject',
       pathLabel: label?.pathLabel ?? '',
       price: rule ? { ...toPriceAmounts(rule), ruleId: rule.id, revision: rule.revision } : null,
@@ -163,7 +189,10 @@ export async function consentStatuses(
 export interface FacultyAccess {
   state: FacultyAccessState;
   facultyId: string | null;
+  /** Approved cards: the ones the gate, the consent and the library use */
   subjects: PricedSubject[];
+  /** Every active card, including pending and rejected requests */
+  cards: PricedSubject[];
   snapshotHash: string | null;
   consent: ConsentStatus | null;
   consentDecidedAt: Date | null;
@@ -187,18 +216,21 @@ export async function getFacultyAccess(
       state: 'NO_PROFILE',
       facultyId: null,
       subjects: [],
+      cards: [],
       snapshotHash: null,
       consent: null,
       consentDecidedAt: null,
     };
   }
-  const subjects = (await pricedSubjects([profile.id], db)).get(profile.id) ?? [];
+  const cards = (await pricedSubjects([profile.id], db)).get(profile.id) ?? [];
+  const subjects = cards.filter((c) => c.status === 'approved');
   const state = decideAccess(profile, subjects);
   if (state !== 'READY') {
     return {
       state,
       facultyId: profile.id,
       subjects,
+      cards,
       snapshotHash: null,
       consent: null,
       consentDecidedAt: null,
@@ -212,6 +244,7 @@ export async function getFacultyAccess(
     state,
     facultyId: profile.id,
     subjects,
+    cards,
     snapshotHash: hash,
     consent: consent?.status ?? 'required',
     consentDecidedAt: consent?.decidedAt ?? null,

@@ -85,6 +85,31 @@ enum CatalogueNodeStatus {
 enum LibraryMaterialKind {
   DOCUMENT
   LINK
+  // A tutor's written note (title + plain-text body), no file
+  NOTE
+}
+
+// One submission (create or edit) of a library material, reviewed by an admin.
+// SUPERSEDED: replaced by a newer submission before review; WITHDRAWN: the tutor withdrew it.
+enum LibraryRevisionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUPERSEDED
+  WITHDRAWN
+}
+
+// Approval state of a tutor's subject card (faculty_assignments). Onboarding cards are approved
+// with the application; cards added later from the profile are approved one by one (pricing page).
+enum SubjectCardStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SubjectCardSource {
+  ONBOARDING
+  PROFILE
 }
 
 enum LibraryMaterialAudience {
@@ -561,6 +586,7 @@ model FacultyProfile {
   termsAcceptances FacultyTermsAcceptance[]
   assignments      FacultyAssignment[]
   priceRules       PriceRule[]
+  libraryMaterials LibraryMaterial[]
 
   @@index([approvalStatus, isPublished, isActive])
   @@map("faculty_profiles")
@@ -962,18 +988,30 @@ model CatalogueNode {
   @@map("catalogue_nodes")
 }
 
+// A tutor's subject card: one offering (leaf + subject) they teach. isActive = still chosen
+// (re-upload can switch a card off); status = the admin's approval. Only APPROVED, active cards
+// count for the sign-in gate, the price consent and the library. At most MAX_SUBJECT_CARDS
+// (faculty module) PENDING or APPROVED active cards per tutor.
 model FacultyAssignment {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  facultyId    String   @map("faculty_id") @db.Uuid
-  curriculumId String   @map("curriculum_id") @db.Uuid
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facultyId      String            @map("faculty_id") @db.Uuid
+  curriculumId   String            @map("curriculum_id") @db.Uuid
+  isActive       Boolean           @default(true) @map("is_active")
+  status         SubjectCardStatus @default(PENDING)
+  source         SubjectCardSource @default(ONBOARDING)
+  requestedAt    DateTime          @default(now()) @map("requested_at")
+  decidedAt      DateTime?         @map("decided_at")
+  // Admin user id, kept without a FK like price_rules' actor ids
+  decidedById    String?           @map("decided_by_id") @db.Uuid
+  decisionReason String?           @map("decision_reason") @db.Text
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
 
   faculty    FacultyProfile @relation(fields: [facultyId], references: [id], onDelete: Cascade)
   curriculum Curriculum     @relation(fields: [curriculumId], references: [id], onDelete: Restrict)
 
   @@unique([facultyId, curriculumId], name: "uk_faculty_curriculum_assignment")
+  @@index([status, source])
   @@map("faculty_assignments")
 }
 
@@ -1011,31 +1049,75 @@ model PriceRule {
   @@map("price_rules")
 }
 
+// A library resource. The content columns hold the live version: for an APPROVED material, the
+// last approved revision (an edit waits in library_material_revisions and students keep seeing
+// this); before the first approval, the latest submission. facultyId is set for tutor resources,
+// which belong to one of the tutor's subject cards (facultyId + curriculumId).
 model LibraryMaterial {
-  id           String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title        String                  @db.VarChar(255)
-  description  String?                 @db.Text
-  kind         LibraryMaterialKind
-  audience     LibraryMaterialAudience @default(STUDENT)
-  status       LibraryModerationStatus @default(PENDING)
-  curriculumId String?                 @map("curriculum_id") @db.Uuid
-  storageKey   String?                 @map("storage_key") @db.VarChar(255)
-  fileSize     Int?                    @map("file_size")
-  mimeType     String?                 @map("mime_type") @db.VarChar(100)
-  externalUrl  String?                 @map("external_url") @db.Text
-  scanStatus   DocumentScanStatus      @default(PENDING) @map("scan_status")
-  uploadedBy   String                  @map("uploaded_by") @db.Uuid
-  revision     Int                     @default(1)
-  createdAt    DateTime                @default(now()) @map("created_at")
-  updatedAt    DateTime                @updatedAt @map("updated_at")
+  id               String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title            String                  @db.VarChar(255)
+  description      String?                 @db.Text
+  kind             LibraryMaterialKind
+  audience         LibraryMaterialAudience @default(STUDENT)
+  status           LibraryModerationStatus @default(PENDING)
+  curriculumId     String?                 @map("curriculum_id") @db.Uuid
+  facultyId        String?                 @map("faculty_id") @db.Uuid
+  // NOTE body (plain text)
+  body             String?                 @db.Text
+  storageKey       String?                 @map("storage_key") @db.VarChar(255)
+  originalFileName String?                 @map("original_file_name") @db.VarChar(255)
+  fileSize         Int?                    @map("file_size")
+  mimeType         String?                 @map("mime_type") @db.VarChar(100)
+  externalUrl      String?                 @map("external_url") @db.Text
+  scanStatus       DocumentScanStatus      @default(PENDING) @map("scan_status")
+  uploadedBy       String                  @map("uploaded_by") @db.Uuid
+  // Number of the revision the content columns hold
+  revision         Int                     @default(1)
+  createdAt        DateTime                @default(now()) @map("created_at")
+  updatedAt        DateTime                @updatedAt @map("updated_at")
 
-  uploader   User            @relation("LibraryUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
-  curriculum Curriculum?     @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
+  uploader   User                      @relation("LibraryUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+  curriculum Curriculum?               @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
+  faculty    FacultyProfile?           @relation(fields: [facultyId], references: [id], onDelete: Restrict)
   reviews    LibraryReview[]
+  revisions  LibraryMaterialRevision[]
 
   @@index([status, audience])
   @@index([curriculumId])
+  @@index([facultyId, curriculumId, status])
   @@map("library_materials")
+}
+
+// Every submission of a material (the first one and each edit) with its review. At most one
+// PENDING revision per material (partial unique index in the migration). Files of earlier
+// revisions are kept for the audit trail.
+model LibraryMaterialRevision {
+  id               String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  materialId       String                @map("material_id") @db.Uuid
+  revision         Int
+  status           LibraryRevisionStatus @default(PENDING)
+  title            String                @db.VarChar(255)
+  description      String?               @db.Text
+  kind             LibraryMaterialKind
+  body             String?               @db.Text
+  storageKey       String?               @map("storage_key") @db.VarChar(255)
+  originalFileName String?               @map("original_file_name") @db.VarChar(255)
+  fileSize         Int?                  @map("file_size")
+  mimeType         String?               @map("mime_type") @db.VarChar(100)
+  submittedById    String                @map("submitted_by_id") @db.Uuid
+  submittedAt      DateTime              @default(now()) @map("submitted_at")
+  reviewedById     String?               @map("reviewed_by_id") @db.Uuid
+  reviewedAt       DateTime?             @map("reviewed_at")
+  reviewNotes      String?               @map("review_notes") @db.Text
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  material LibraryMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  reviews  LibraryReview[]
+
+  @@unique([materialId, revision])
+  @@index([status, submittedAt])
+  @@map("library_material_revisions")
 }
 
 model LibraryReview {
@@ -1044,10 +1126,13 @@ model LibraryReview {
   reviewerId String                  @map("reviewer_id") @db.Uuid
   decision   LibraryModerationStatus
   notes      String?                 @db.Text
+  // The submission decided (null for reviews recorded before revisions existed)
+  revisionId String?                 @map("revision_id") @db.Uuid
   createdAt  DateTime                @default(now()) @map("created_at")
 
-  material LibraryMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
-  reviewer User            @relation("LibraryReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  material LibraryMaterial          @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  reviewer User                     @relation("LibraryReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  revisionRef LibraryMaterialRevision? @relation(fields: [revisionId], references: [id], onDelete: SetNull)
 
   @@index([materialId])
   @@map("library_reviews")

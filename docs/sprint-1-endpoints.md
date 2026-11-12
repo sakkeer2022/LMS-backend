@@ -85,6 +85,10 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 | GET | `/faculty/{facultyId}` | `getPublishedFaculty` | public | ready-for-review |
 | GET | `/faculty/me/price-consent` | `getFacultyPriceConsent` | faculty (self only); faculty.read_self | ready-for-review |
 | POST | `/faculty/me/price-consent` | `decideFacultyPriceConsent` | faculty (self only); faculty.update_self | ready-for-review |
+| GET | `/faculty/me/subject-cards` | `listOwnSubjectCards` | faculty (self only); faculty.read_self | ready-for-review |
+| POST | `/faculty/me/subject-cards` | `requestSubjectCard` | faculty (self only); faculty.update_self | ready-for-review |
+| DELETE | `/faculty/me/subject-cards/{cardId}` | `cancelSubjectCardRequest` | faculty (self only); faculty.update_self | ready-for-review |
+| PUT | `/admin/faculty/{facultyId}/subject-cards/{cardId}/review` | `reviewSubjectCard` | admin; faculty.approve | ready-for-review |
 
 ## Faculty onboarding
 
@@ -179,13 +183,25 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 |---|---|---|---|---|
 | POST | `/admin/library/files` | `uploadLibraryMaterial` | admin; library.upload | decision-required |
 | POST | `/admin/library/links` | `submitLibraryLink` | admin; library.upload | decision-required |
-| GET | `/admin/library` | `listLibraryModerationQueue` | admin; library.moderate | decision-required |
-| GET | `/admin/library/{materialId}` | `getLibraryModerationRecord` | admin; library.moderate | decision-required |
-| PUT | `/admin/library/{materialId}/review` | `reviewLibraryMaterial` | admin; library.moderate | decision-required |
+| GET | `/admin/library` | `listLibraryModerationQueue` | admin; library.moderate | ready-for-review |
+| GET | `/admin/library/counts` | `countLibrarySubmissions` | admin; library.moderate | ready-for-review |
+| GET | `/admin/library/{submissionId}` | `getLibraryModerationRecord` | admin; library.moderate | ready-for-review |
+| PUT | `/admin/library/{submissionId}/review` | `reviewLibraryMaterial` | admin; library.moderate | ready-for-review |
+| GET | `/admin/library/{submissionId}/content` | `getLibraryContentAdmin` | admin; library.moderate | ready-for-review |
 | GET | `/library` | `listApprovedLibrary` | student | decision-required |
 | GET | `/library/{materialId}` | `getApprovedLibraryResource` | student | decision-required |
 | GET | `/library/{materialId}/content` | `getLibraryContentStudent` | student | decision-required |
-| GET | `/admin/library/{materialId}/content` | `getLibraryContentAdmin` | admin; library.moderate | decision-required |
+
+## Faculty library
+
+| Method | Path | Operation ID | Access | Review status |
+|---|---|---|---|---|
+| GET | `/faculty/me/library` | `getOwnLibrary` | faculty (self only); library.manage_self | ready-for-review |
+| GET | `/faculty/me/library/resources` | `listOwnLibraryResources` | faculty (self only); library.manage_self | ready-for-review |
+| POST | `/faculty/me/library/resources` | `createOwnLibraryResource` | faculty (self only); library.manage_self | ready-for-review |
+| PUT | `/faculty/me/library/resources/{resourceId}` | `updateOwnLibraryResource` | faculty (self only); library.manage_self | ready-for-review |
+| DELETE | `/faculty/me/library/resources/{resourceId}` | `withdrawOwnLibraryResource` | faculty (self only); library.manage_self | ready-for-review |
+| GET | `/faculty/me/library/resources/{resourceId}/file` | `getOwnLibraryResourceFile` | faculty (self only); library.manage_self | ready-for-review |
 
 ## Configuration
 

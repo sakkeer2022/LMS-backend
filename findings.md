@@ -1,5 +1,18 @@
 # Findings & Decisions
 
+## 2026-11-12 — Subject cards after onboarding and the faculty library
+
+| Finding / Decision | Detail |
+|---|---|
+| A subject card is a `faculty_assignments` row | No new table: the status and source columns extend it, so prices, consent and the library keep pointing at the same curriculum |
+| Limit enforced three times | DTO (onboarding, re-upload), service (`FOR NO KEY UPDATE` on the profile row, then count) and the `faculty_assignments_limit` AFTER trigger. NO KEY UPDATE, not FOR UPDATE: the insert's foreign key takes KEY SHARE on the same row, and FOR UPDATE would deadlock two concurrent requests |
+| Gate counts approved cards only | `getFacultyAccess` returns `subjects` (approved, for gate/hash/consent) and `cards` (all active, for the drawer and profile). A pending request never blocks sign-in |
+| Edits never bypass review | Content of a live material changes only in `reviewSubmission` (approve). Faculty writes create `library_material_revisions` rows; before the first approval the material mirrors the latest submission and stays PENDING |
+| One pending submission per material | Partial unique index; a newer edit marks the waiting one SUPERSEDED (reviewing it returns 409) |
+| Library permissions follow the earlier draft | `library.moderate` (draft contract name) for the admin queue and decisions; `library.manage_self` for tutors. Review body uses the draft's `status`/`reason` |
+| `NOTE` enum value | Added with `ADD VALUE IF NOT EXISTS` and compared as `kind::text` in the CHECK, so the migration also runs inside one transaction and after a rollback |
+| Prisma engines in the sandbox | binaries.prisma.sh is blocked there: `PRISMA_SCHEMA_ENGINE_BINARY=/bin/true npx prisma generate` generates the client; migrations were applied with psql and recorded in `_prisma_migrations`. Run `npx prisma migrate deploy` normally on a developer machine |
+
 ## 2026-11-11 — Re-upload requests, teaching mode, signed consent
 
 | Finding / Decision | Detail |

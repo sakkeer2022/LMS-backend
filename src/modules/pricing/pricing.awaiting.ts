@@ -1,11 +1,14 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@infrastructure/database/index';
 import { describeOfferings } from '@modules/category-tree/index';
 import { toPriceAmounts, type PriceAmounts } from './pricing.engine.js';
 
 /**
- * Screen 29, LMS-40: approved tutors' subjects that still need a tutor price. Each entry is one
- * subject card from the tutor's onboarding; setting its price (POST /admin/prices with the
- * tutor's facultyId) removes it here. The tutor can sign in once all their entries are priced.
+ * Screen 29, LMS-40: approved tutors' subject cards that still need a tutor price: the cards from
+ * onboarding (approved with the application) and cards the tutor requested later from the profile
+ * (cardStatus "pending": the admin prices them, then approves them from the row menu). Setting the
+ * price (POST /admin/prices with the tutor's facultyId) removes the entry here. Rejected cards are
+ * left out. The tutor can sign in once every approved card is priced.
  */
 
 export interface AwaitingPrice {
@@ -13,6 +16,9 @@ export interface AwaitingPrice {
   facultyName: string;
   facultyEmail: string;
   approvedAt: Date | null;
+  /** The subject card (faculty_assignments id) and its approval state */
+  cardId: string;
+  cardStatus: 'pending' | 'approved';
   curriculumId: string;
   subject: string;
   /** "Academic › School › K-12 › CBSE › Class 11" */
@@ -24,7 +30,7 @@ export interface AwaitingPrice {
   defaultPrice: PriceAmounts | null;
 }
 
-const activeAt = (now: Date) => ({
+const activeAt = (now: Date): Prisma.PriceRuleWhereInput => ({
   isActive: true,
   effectiveFrom: { lte: now },
   OR: [{ effectiveTo: null }, { effectiveTo: { gt: now } }],
@@ -35,6 +41,7 @@ export async function listAwaitingPrices(): Promise<AwaitingPrice[]> {
   const assignments = await prisma.facultyAssignment.findMany({
     where: {
       isActive: true,
+      status: { in: ['PENDING', 'APPROVED'] },
       faculty: {
         approvalStatus: 'APPROVED',
         isActive: true,
@@ -42,6 +49,8 @@ export async function listAwaitingPrices(): Promise<AwaitingPrice[]> {
       },
     },
     select: {
+      id: true,
+      status: true,
       facultyId: true,
       curriculumId: true,
       faculty: { select: { approvedAt: true, user: { select: { fullName: true, email: true } } } },
@@ -76,6 +85,8 @@ export async function listAwaitingPrices(): Promise<AwaitingPrice[]> {
         facultyName: a.faculty.user.fullName,
         facultyEmail: a.faculty.user.email,
         approvedAt: a.faculty.approvedAt,
+        cardId: a.id,
+        cardStatus: a.status === 'PENDING' ? 'pending' : 'approved',
         curriculumId: a.curriculumId,
         subject: label?.subject ?? 'Unknown subject',
         pathLabel: label?.pathLabel ?? '',

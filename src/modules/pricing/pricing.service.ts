@@ -49,6 +49,13 @@ export interface PriceRuleView {
   levelName: string | null;
   /** Everything above the subject (or leaf): "Academic › School › K-12 › CBSE › Physics" */
   pathLabel: string;
+  /**
+   * The tutor's subject card this tutor price belongs to, with its approval state (null for a
+   * default price, or a tutor price whose card was removed). A pending card is approved from the
+   * row menu once priced.
+   */
+  cardId: string | null;
+  cardStatus: 'pending' | 'approved' | 'rejected' | null;
   amounts: PriceAmounts;
   effectiveFrom: Date;
   effectiveTo: Date | null;
@@ -120,9 +127,21 @@ async function toViews(rules: PriceRule[]): Promise<PriceRuleView[]> {
     select: { id: true, user: { select: { fullName: true } } },
   });
   const facultyNames = new Map(faculty.map((f) => [f.id, f.user.fullName]));
+  const cards = facultyIds.length
+    ? await prisma.facultyAssignment.findMany({
+        where: {
+          facultyId: { in: facultyIds },
+          curriculumId: { in: curriculumIds },
+          isActive: true,
+        },
+        select: { id: true, facultyId: true, curriculumId: true, status: true },
+      })
+    : [];
+  const cardOf = new Map(cards.map((c) => [`${c.facultyId}:${c.curriculumId}`, c]));
 
   return rules.map((rule) => {
     const offering = offerings.get(rule.curriculumId) as OfferingSummary;
+    const card = rule.facultyId ? cardOf.get(`${rule.facultyId}:${rule.curriculumId}`) : undefined;
     return {
       id: rule.id,
       curriculumId: rule.curriculumId,
@@ -133,6 +152,8 @@ async function toViews(rules: PriceRule[]): Promise<PriceRuleView[]> {
       subjectName: offering.subjectName,
       levelName: offering.levelName,
       pathLabel: pathLabels.get(rule.curriculumId) ?? offering.categoryName,
+      cardId: card?.id ?? null,
+      cardStatus: card ? (card.status.toLowerCase() as PriceRuleView['cardStatus']) : null,
       amounts: toPriceAmounts(rule),
       effectiveFrom: rule.effectiveFrom,
       effectiveTo: rule.effectiveTo,

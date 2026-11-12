@@ -176,3 +176,39 @@ export function priceDeclinedEmail(input: {
     }
   );
 }
+
+export function subjectCardApprovedEmail(input: {
+  to: string;
+  fullName: string;
+  subject: string;
+  pathLabel: string;
+  loginUrl: string;
+}): EmailMessage {
+  return message(input.to, 'Your new subject card is approved', 'faculty-subject-card-approved', {
+    heading: 'Your subject card is approved',
+    paragraphs: [
+      `Hi ${input.fullName},`,
+      `Your subject card ${input.subject} (${input.pathLabel}) is approved and priced.`,
+      'Sign in to accept the session price. The card then appears in your library.',
+    ],
+    action: { label: 'Sign in', url: input.loginUrl },
+  });
+}
+
+export function subjectCardRejectedEmail(input: {
+  to: string;
+  fullName: string;
+  subject: string;
+  pathLabel: string;
+  reason: string;
+}): EmailMessage {
+  return message(input.to, 'Your subject card request', 'faculty-subject-card-rejected', {
+    heading: 'Your subject card was not approved',
+    paragraphs: [
+      `Hi ${input.fullName},`,
+      `We could not approve your request to teach ${input.subject} (${input.pathLabel}).`,
+      'The card no longer counts towards your limit; you can request another subject from your profile.',
+    ],
+    note: { title: 'Reason', text: input.reason },
+  });
+}

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { passwordSchema } from '@shared/validation/index';
+import { MAX_SUBJECT_CARDS, SUBJECT_CARD_LIMIT_MESSAGE } from './faculty.subject-cards.rules.js';
 
 /** "Years of teaching" options (screen 43b). Codes are stored; labels are the UI's. */
 export const TEACHING_EXPERIENCE = ['0-1', '1-3', '3-5', '5-10', '10+'] as const;
@@ -13,7 +14,8 @@ export const TEACHING_EXPERIENCE_LABELS: Record<TeachingExperience, string> = {
   '10+': 'More than 10 years',
 };
 
-export const MAX_ONBOARDING_SUBJECTS = 30;
+/** Onboarding (and re-upload) may pick at most the subject card limit. */
+export const MAX_ONBOARDING_SUBJECTS = MAX_SUBJECT_CARDS;
 
 /** Invitation token from the email link: 43 base64url characters. */
 export const inviteTokenSchema = z
@@ -47,8 +49,11 @@ const curriculumIds = z
     z
       .array(z.uuid('Unknown subject'))
       .min(1, 'Pick at least one subject')
-      .max(MAX_ONBOARDING_SUBJECTS, `Pick at most ${MAX_ONBOARDING_SUBJECTS} subjects`)
+      // Duplicates are ignored before the limit is checked
       .transform((ids) => [...new Set(ids)])
+      .refine((ids) => ids.length <= MAX_ONBOARDING_SUBJECTS, {
+        message: `${SUBJECT_CARD_LIMIT_MESSAGE}. Pick at most ${MAX_ONBOARDING_SUBJECTS} subjects`,
+      })
   );
 
 /** Teaching mode code ("Preferred mode of teaching"); checked against teaching_modes by the service. */
