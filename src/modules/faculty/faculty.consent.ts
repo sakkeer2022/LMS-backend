@@ -46,11 +46,29 @@ export function checkConsentSignature(
   }
 }
 
+type ConsentSubject = Pick<
+  PricedSubject,
+  'assignmentId' | 'curriculumId' | 'subject' | 'pathLabel'
+> & {
+  price: NonNullable<PricedSubject['price']>;
+};
+
 export interface PriceConsentView {
   status: ConsentStatus;
   decidedAt: Date | null;
   snapshotHash: string;
-  subjects: (Omit<PricedSubject, 'price'> & { price: NonNullable<PricedSubject['price']> })[];
+  /** The approved subject cards; their prices are what the tutor accepts */
+  subjects: ConsentSubject[];
+}
+
+function consentSubject(s: PricedSubject): ConsentSubject {
+  return {
+    assignmentId: s.assignmentId,
+    curriculumId: s.curriculumId,
+    subject: s.subject,
+    pathLabel: s.pathLabel,
+    price: s.price as NonNullable<PricedSubject['price']>,
+  };
 }
 
 async function readyAccess(userId: string) {
@@ -68,10 +86,7 @@ export async function getPriceConsent(userId: string): Promise<PriceConsentView>
     status: access.consent ?? 'required',
     decidedAt: access.consentDecidedAt,
     snapshotHash: access.snapshotHash,
-    subjects: access.subjects.map((s) => ({
-      ...s,
-      price: s.price as NonNullable<PricedSubject['price']>,
-    })),
+    subjects: access.subjects.map(consentSubject),
   };
 }
 
@@ -145,10 +160,7 @@ export async function decidePriceConsent(
     status: decision === 'ACCEPTED' ? 'accepted' : 'rejected',
     decidedAt: row.decidedAt,
     snapshotHash: access.snapshotHash,
-    subjects: access.subjects.map((s) => ({
-      ...s,
-      price: s.price as NonNullable<PricedSubject['price']>,
-    })),
+    subjects: access.subjects.map(consentSubject),
   };
 }
 

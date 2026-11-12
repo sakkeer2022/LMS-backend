@@ -293,7 +293,8 @@ export async function listFaculty(
   const readyHashes = new Map<string, string>();
   const stateById = new Map<string, ReturnType<typeof decideAccess>>();
   for (const d of details.filter((x) => x.approvalStatus === 'APPROVED')) {
-    const subjects = subjectsById.get(d.id) ?? [];
+    // Only approved cards count; a pending request never changes the roster's pricing state
+    const subjects = (subjectsById.get(d.id) ?? []).filter((c) => c.status === 'approved');
     const state = decideAccess(d, subjects);
     stateById.set(d.id, state);
     if (state === 'READY') readyHashes.set(d.id, priceSnapshotHash(subjects));

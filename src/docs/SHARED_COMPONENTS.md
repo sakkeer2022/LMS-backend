@@ -31,6 +31,9 @@ Building blocks that more than one module uses. **Check this list before writing
 | Email one-time codes              | `src/modules/email-otp/index.ts` (`issueEmailOtp`, `verifyEmailOtp`, `consumeRegistrationToken`) | Registration, recovery and email verification; keyed hash, attempts, cooldown, single-use token |
 | Password rule                     | `src/shared/validation/password.ts` (`passwordSchema`)    | The one password policy: 8 characters with a number, at most 72 bytes                          |
 | Ending all sessions               | `src/modules/auth/index.ts` (`revokeAllSessions`)         | After a password reset or change                                                               |
+| Subject card checks               | `src/modules/faculty/index.ts` (`requireActiveSubjectCard`, `listMySubjectCards`, `MAX_SUBJECT_CARDS`) | Anything a tutor does under one of their subject cards (library, later bookings): approved, active, priced, offered |
+| Document file checks              | `src/modules/faculty/index.ts` (`checkDocument`, `isPreviewableMime`) | Signature (magic-byte) and size check of an uploaded PDF, image, Word or PowerPoint file |
+| Subject card test fixtures        | `tests/helpers/subject-cards.ts` (`createOfferings`, `signedInTutor`, `priceTutorCard`) | A signed-in tutor with approved, priced cards in integration tests |
 
 ## Planned
 

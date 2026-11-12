@@ -19,6 +19,7 @@ import {
   onTutorPricesChanged,
   pricingStatusOf,
   type PricingStatus,
+  type SubjectCardState,
 } from './faculty.access.js';
 import {
   applicationApprovedEmail,
@@ -109,11 +110,14 @@ export interface FacultyDetail {
     /** One of the required documents (false for additional documents) */
     required: boolean;
   }[];
+  /** Every active subject card: onboarding cards and later requests, with their approval state */
   subjects: {
     assignmentId: string;
     curriculumId: string;
     subject: string;
     pathLabel: string;
+    status: SubjectCardState;
+    source: 'onboarding' | 'profile';
     sessionPricePaise: number | null;
     studentPaysPaise: number | null;
   }[];
@@ -208,11 +212,13 @@ export async function getFacultyDetail(facultyId: string): Promise<FacultyDetail
       previewable: isPreviewableMime(d.mimeType),
       required: (REQUIRED_DOCUMENT_TYPES as readonly string[]).includes(d.documentType),
     })),
-    subjects: access.subjects.map((s) => ({
+    subjects: access.cards.map((s) => ({
       assignmentId: s.assignmentId,
       curriculumId: s.curriculumId,
       subject: s.subject,
       pathLabel: s.pathLabel,
+      status: s.status,
+      source: s.source,
       sessionPricePaise: s.price?.sessionPricePaise ?? null,
       studentPaysPaise: s.price?.studentPaysPaise ?? null,
     })),
@@ -382,6 +388,12 @@ export async function reviewFaculty(
       });
     }
     if (input.decision === 'approve') {
+      // The cards chosen at onboarding are approved with the application; cards requested later
+      // from the profile are approved one by one (pricing page)
+      await tx.facultyAssignment.updateMany({
+        where: { facultyId, source: 'ONBOARDING', status: 'PENDING' },
+        data: { status: 'APPROVED', decidedAt: now, decidedById: audit.actorId ?? null },
+      });
       await tx.facultyDocument.updateMany({
         where: { facultyId, isVerified: false },
         data: { isVerified: true, verifiedAt: now, verifiedBy: audit.actorId ?? null },

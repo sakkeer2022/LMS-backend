@@ -156,6 +156,9 @@ const envSchema = z
     FACULTY_INVITE_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(72),
     FACULTY_INVITE_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
     FACULTY_INVITE_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
+    // Library uploads and edits by one tutor (per window)
+    LIBRARY_UPLOAD_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+    LIBRARY_UPLOAD_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
 
     // ── Faculty re-upload requests ──
     // Lifetime of the "correct and re-upload your documents" link an admin sends (hours)
@@ -516,6 +519,11 @@ export const config = {
     ttlHours: env.FACULTY_INVITE_TTL_HOURS,
     rateLimitWindowMs: env.FACULTY_INVITE_RATE_LIMIT_WINDOW_MS,
     rateLimitMax: env.FACULTY_INVITE_RATE_LIMIT_MAX,
+  },
+
+  library: {
+    uploadRateLimitWindowMs: env.LIBRARY_UPLOAD_RATE_LIMIT_WINDOW_MS,
+    uploadRateLimitMax: env.LIBRARY_UPLOAD_RATE_LIMIT_MAX,
   },
 
   facultyReupload: {

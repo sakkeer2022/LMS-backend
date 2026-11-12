@@ -34,11 +34,16 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   permission('faculty.approve', 'Verify documents and approve or reject tutor applications'),
   permission('faculty.documents', 'Open tutor verification documents'),
   permission('faculty.read_self', 'Faculty: read their own profile and prices'),
-  permission('faculty.update_self', 'Faculty: accept or decline their own prices'),
+  permission(
+    'faculty.update_self',
+    'Faculty: accept or decline their own prices and request subject cards'
+  ),
   permission('feature_flags.create', 'Create feature flags'),
   permission('feature_flags.read', 'Read feature flags'),
   permission('feature_flags.update', 'Update feature flags'),
   permission('feature_flags.delete', 'Delete feature flags'),
+  permission('library.moderate', 'Review, approve and reject library resources from tutors'),
+  permission('library.manage_self', 'Faculty: add, edit and withdraw their own library resources'),
   permission('notifications.create', 'Create notifications'),
   permission('notifications.read', 'Read notifications'),
   permission('notifications.update', 'Update notifications'),
@@ -104,7 +109,7 @@ export const SYSTEM_ROLES: readonly RoleDefinition[] = [
   {
     name: 'faculty',
     description: 'Faculty portal',
-    permissions: ['faculty.read_self', 'faculty.update_self'],
+    permissions: ['faculty.read_self', 'faculty.update_self', 'library.manage_self'],
   },
   {
     name: 'student',

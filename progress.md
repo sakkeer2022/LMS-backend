@@ -1,5 +1,14 @@
 # Progress Log
 
+## 2026-11-12 — Subject card limit, cards after onboarding, faculty library and its review (not committed)
+
+- Migration `20261112090000_subject_card_status_library_revisions` (rollback in `prisma/rollbacks`): `faculty_assignments.status/source/requested_at/decided_*` (backfill: approved tutors' cards APPROVED) and the `faculty_assignments_limit` trigger (at most 5 pending or approved active cards); `library_materials.faculty_id/body/original_file_name`, kind `NOTE`; `library_material_revisions` (one PENDING per material); `library_reviews.revision_id`.
+- Onboarding and re-upload accept at most 5 subjects (was 30).
+- Subject cards: `GET/POST /faculty/me/subject-cards`, `DELETE /faculty/me/subject-cards/:cardId`, `PUT /admin/faculty/:facultyId/subject-cards/:cardId/review`. Approving an application approves its onboarding cards. Sign-in gate, consent and roster pricing use approved cards only. `GET /admin/prices/awaiting` and `GET /admin/prices` carry `cardId`/`cardStatus`. The admin drawer's subjects carry `status`/`source`.
+- Library module (`src/modules/library`): faculty `GET /faculty/me/library`, `GET/POST /faculty/me/library/resources`, `PUT/DELETE /faculty/me/library/resources/:id`, `GET …/:id/file`; admin `GET /admin/library`, `/admin/library/counts`, `/admin/library/:submissionId`, `PUT …/review`, `GET …/content`. Permissions `library.moderate` (admin) and `library.manage_self` (faculty role): run `npx prisma db seed` after pulling.
+- `LIBRARY_UPLOAD_RATE_LIMIT_WINDOW_MS` / `LIBRARY_UPLOAD_RATE_LIMIT_MAX` (optional, defaults 15 min / 60).
+- Contract regenerated (134 paths, 155 operations); the old decision-required admin library moderation drafts are replaced by the implemented routes.
+
 ## 2026-11-11 — Client feedback on faculty onboarding (branch feature/LMS-0-faculty-client-feedback, all four repos)
 
 - Migration `20261111090000_faculty_reupload_mode_signature` (rollback in `prisma/rollbacks`): `teaching_modes` (online, offline, hybrid, seeded) with `faculty_profiles.teaching_mode`; `faculty_reupload_requests` (hashed single-use token, one PENDING per tutor); `faculty_price_consents.signature_storage_key`.
