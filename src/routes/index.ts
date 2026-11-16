@@ -18,7 +18,11 @@ import {
   facultySelfRouter,
   facultySubjectCardsRouter,
 } from '@modules/faculty/index.js';
-import { adminLibraryRouter, facultyLibraryRouter } from '@modules/library/index.js';
+import {
+  adminLibraryRouter,
+  facultyLibraryRouter,
+  studentLibraryRouter,
+} from '@modules/library/index.js';
 import { registrationRouter, studentRegisterRouter } from '@modules/registration/index.js';
 import { adminPoliciesRouter, policiesRouter } from '@modules/policies/index.js';
 import { adminStudentsRouter, studentSelfRouter } from '@modules/students/index.js';
@@ -80,6 +84,7 @@ export const featureRouters: ReadonlyArray<readonly [path: string, router: Route
   ['/admin/faculty', adminSubjectCardsRouter],
   ['/admin/faculty', adminFacultyRouter],
   ['/admin/library', adminLibraryRouter],
+  ['/library', studentLibraryRouter],
   ['/admin/me', adminProfileRouter],
   ['/admin', adminRouter],
   ['/uploads', uploadsRouter],

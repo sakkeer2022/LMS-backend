@@ -190,7 +190,9 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 | PUT | `/admin/library/{submissionId}/review` | `reviewLibraryMaterial` | admin; library.moderate | ready-for-review |
 | GET | `/admin/library/{submissionId}/content` | `getLibraryContentAdmin` | admin; library.moderate | ready-for-review |
 | GET | `/library` | `listApprovedLibrary` | student | decision-required |
-| GET | `/library/{materialId}` | `getApprovedLibraryResource` | student | decision-required |
+| GET | `/library/subjects` | `listLibrarySubjects` | student | ready-for-review |
+| GET | `/library/{resourceId}` | `getApprovedLibraryResource` | student | ready-for-review |
+| GET | `/library/{resourceId}/file` | `downloadLibraryResourceFile` | student | ready-for-review |
 | GET | `/library/{materialId}/content` | `getLibraryContentStudent` | student | decision-required |
 
 ## Faculty library

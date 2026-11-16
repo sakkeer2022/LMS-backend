@@ -47,7 +47,8 @@ function unguarded(): string[] {
 describe('route guards', () => {
   it('every route is public by design, self-only, or behind a permission guard', () => {
     // faculty and student self routes are checked by their own permission or role guards (see their tests)
-    const allowed = [/^\/faculty\/me/, /^\/admin\/me\//];
+    // /library is the student library, behind requireRole('student') (tests/modules/library-student.test.ts)
+    const allowed = [/^\/faculty\/me/, /^\/admin\/me\//, /^\/library/];
     const offenders = unguarded().filter((r) => !allowed.some((re) => re.test(r.split(' ')[1]!)));
     expect(offenders).toEqual([]);
   });

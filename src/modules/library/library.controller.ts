@@ -4,10 +4,13 @@ import { auditContextFrom } from '@middleware/audit.middleware';
 import { isPreviewableMime } from '@modules/faculty/index';
 import * as Faculty from './library.faculty.js';
 import * as Admin from './library.admin.js';
+import * as Student from './library.student.js';
 import {
   ListResourcesQueryDto,
   ListSubmissionsQueryDto,
   ResourceFileQueryDto,
+  ResourceParamsDto,
+  StudentLibraryQueryDto,
   SubmissionFileQueryDto,
   type CreateResourceInput,
   type ReviewSubmissionInput,
@@ -128,4 +131,25 @@ export const submissionFile = handle(async (req, res) => {
     res,
     await Admin.getSubmissionFile(param(req, 'submissionId'), version, auditContextFrom(req))
   );
+});
+
+// ── Student ──
+
+export const studentList = handle(async (req, res) => {
+  const result = await Student.listResources(StudentLibraryQueryDto.parse(req.query));
+  res.json(successResponse(result.items, 'Library retrieved', result.meta));
+});
+
+export const studentSubjects = handle(async (_req, res) => {
+  res.json(successResponse(await Student.listSubjects(), 'Subjects retrieved'));
+});
+
+export const studentShow = handle(async (req, res) => {
+  const { resourceId } = ResourceParamsDto.parse(req.params);
+  res.json(successResponse(await Student.getResource(resourceId), 'Resource retrieved'));
+});
+
+export const studentFile = handle(async (req, res) => {
+  const { resourceId } = ResourceParamsDto.parse(req.params);
+  sendFile(res, await Student.getResourceFile(resourceId));
 });
