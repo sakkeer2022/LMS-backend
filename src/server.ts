@@ -7,12 +7,14 @@ import { config } from '@config/index';
 import { logger } from '@core/logger/index';
 import { connectDatabase, disconnectDatabase } from '@infrastructure/database/index';
 import { scheduleConsentPurge } from '@infrastructure/queue/index';
+import { syncPermissionRegistry } from '@core/security/sync-permissions';
 import { redisClient } from '@infrastructure/redis/connection';
 
 async function bootstrap(): Promise<void> {
   const app = createApp();
 
   await connectDatabase();
+  await syncPermissionRegistry();
 
   if (redisClient) {
     try {

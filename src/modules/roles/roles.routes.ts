@@ -24,6 +24,10 @@ rolesRouter.use(authenticate);
  *       - in: query
  *         name: search
  *         schema: { type: string }
+ *       - in: query
+ *         name: audience
+ *         description: admin leaves out the student and faculty portal roles
+ *         schema: { type: string, enum: [admin] }
  */
 rolesRouter.get('/', requirePermission('role.read'), RolesController.listRoles);
 

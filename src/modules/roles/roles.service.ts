@@ -5,9 +5,12 @@ import type {
   CreateRoleInput,
   UpdateRoleInput,
   AssignPermissionsInput,
-  PaginationQueryInput,
+  RoleListQueryInput,
 } from './roles.dto.js';
 import type { Prisma } from '@prisma/client';
+import { PORTAL_ONLY_ROLES } from '@core/security/rbac.js';
+import { logAction } from '@modules/audit/audit.service.js';
+import { logger } from '@core/logger/index';
 import type { PolicyRule } from '../../core/security/policy.js';
 import {
   includesAdminRole,
@@ -15,6 +18,74 @@ import {
   requireSuperAdmin,
   type Actor,
 } from './system-role-guard.js';
+
+/** The seeded super_admin role always holds every permission, so it can never be edited, deactivated or deleted. */
+function assertEditable(role: { name: string; isSystem: boolean }): void {
+  if (role.isSystem && role.name === 'super_admin')
+    throw new ForbiddenError('The super_admin role cannot be changed');
+}
+
+/** RBAC changes are security-relevant: record who changed what, after the commit. */
+async function recordRoleAudit(
+  actor: Actor,
+  action: string,
+  roleId: string,
+  previousValue: Record<string, unknown> | null,
+  newValue: Record<string, unknown> | null
+): Promise<void> {
+  try {
+    await logAction({
+      ...actor.audit,
+      severity: 'SECURITY',
+      entity: 'role',
+      action,
+      resourceId: roleId,
+      previousValue,
+      newValue,
+    });
+  } catch (err) {
+    logger.error({ err, roleId, action }, 'Failed to write role audit log');
+  }
+}
+
+const roleFields = (r: {
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  parentId: string | null;
+}) => ({
+  name: r.name,
+  description: r.description,
+  isActive: r.isActive,
+  parentId: r.parentId,
+});
+
+async function permissionNames(roleId: string): Promise<string[]> {
+  const rows = await prisma.rolePermission.findMany({
+    where: { roleId },
+    select: { permission: { select: { name: true } } },
+  });
+  return rows.map((r) => r.permission.name).sort();
+}
+
+/** Runs a permission change and audits the before and after permission names. */
+async function auditedPermissions(
+  actor: Actor,
+  action: string,
+  roleId: string,
+  run: () => Promise<RoleDetail>
+): Promise<RoleDetail> {
+  const before = await permissionNames(roleId);
+  const result = await run();
+  await recordRoleAudit(
+    actor,
+    action,
+    roleId,
+    { permissions: before },
+    { permissions: result.permissions.map((p) => p.name).sort() }
+  );
+  return result;
+}
 
 // ── Shapes returned to controllers ───────────────────────────────
 export interface RoleSummary {
@@ -25,10 +96,11 @@ export interface RoleSummary {
   isActive: boolean;
   parentId: string | null;
   permissionCount: number;
+  userCount: number;
   createdAt: Date;
 }
 
-export interface RoleDetail extends Omit<RoleSummary, 'permissionCount'> {
+export interface RoleDetail extends Omit<RoleSummary, 'permissionCount' | 'userCount'> {
   permissions: Array<{
     id: string;
     name: string;
@@ -61,14 +133,15 @@ async function checkCycle(roleId: string, parentId: string): Promise<boolean> {
 }
 
 // ── List ─────────────────────────────────────────────────────────
-export async function listRoles(
-  query: PaginationQueryInput
-): Promise<PaginatedResult<RoleSummary>> {
-  const { page, limit, search } = query;
+export async function listRoles(query: RoleListQueryInput): Promise<PaginatedResult<RoleSummary>> {
+  const { page, limit, search, audience } = query;
   const offset = (page - 1) * limit;
 
   const where: Prisma.RoleWhereInput = {
     deletedAt: null,
+    ...(audience === 'admin' && {
+      NOT: { isSystem: true, name: { in: [...PORTAL_ONLY_ROLES] } },
+    }),
   };
 
   if (search) {
@@ -88,6 +161,7 @@ export async function listRoles(
             permissionId: true,
           },
         },
+        _count: { select: { users: true } },
       },
     }),
   ]);
@@ -100,6 +174,7 @@ export async function listRoles(
     isActive: r.isActive,
     parentId: r.parentId,
     permissionCount: r.permissions.length,
+    userCount: r._count.users,
     createdAt: r.createdAt,
   }));
 
@@ -177,7 +252,9 @@ export async function createRole(dto: CreateRoleInput, actor: Actor): Promise<Ro
     },
   });
 
-  return getRoleById(role.id);
+  const created = await getRoleById(role.id);
+  await recordRoleAudit(actor, 'role.create', role.id, null, roleFields(created));
+  return created;
 }
 
 // ── Update ────────────────────────────────────────────────────────
@@ -190,6 +267,7 @@ export async function updateRole(
     where: { id, deletedAt: null },
   });
   if (!role) throw new NotFoundError('Role');
+  assertEditable(role);
   if (role.isSystem)
     await requireSuperAdmin(actor, {
       entity: 'role',
@@ -247,25 +325,42 @@ export async function updateRole(
     },
   });
 
-  return getRoleById(role.id);
+  const updated = await getRoleById(role.id);
+  await recordRoleAudit(actor, 'role.update', id, roleFields(role), roleFields(updated));
+  return updated;
 }
 
 // ── Delete ────────────────────────────────────────────────────────
-export async function deleteRole(id: string): Promise<void> {
+export async function deleteRole(id: string, actor: Actor): Promise<void> {
   const role = await prisma.role.findFirst({
     where: { id, deletedAt: null },
   });
   if (!role) throw new NotFoundError('Role');
   if (role.isSystem) throw new ForbiddenError('Cannot delete a system role');
+  const users = await prisma.userRole.count({ where: { roleId: id } });
+  if (users > 0)
+    throw new ConflictError(
+      `This role is assigned to ${users} user${users === 1 ? '' : 's'}. Remove it from them before deleting it.`
+    );
 
   await prisma.role.update({
     where: { id },
     data: { deletedAt: new Date() },
   });
+  await recordRoleAudit(actor, 'role.delete', id, roleFields(role), null);
 }
 
 // ── Assign permissions (additive) ─────────────────────────────────
-export async function assignPermissions(
+export const assignPermissions = (
+  roleId: string,
+  dto: AssignPermissionsInput,
+  actor: Actor
+): Promise<RoleDetail> =>
+  auditedPermissions(actor, 'role.permissions_added', roleId, () =>
+    assignPermissionsTx(roleId, dto, actor)
+  );
+
+async function assignPermissionsTx(
   roleId: string,
   dto: AssignPermissionsInput,
   actor: Actor
@@ -275,6 +370,7 @@ export async function assignPermissions(
       where: { id: roleId, deletedAt: null },
     });
     if (!role) throw new NotFoundError('Role');
+    assertEditable(role);
     if (role.isSystem)
       await requireSuperAdmin(actor, {
         entity: 'role',
@@ -339,7 +435,16 @@ export async function assignPermissions(
 }
 
 // ── Remove permissions ────────────────────────────────────────────
-export async function removePermissions(
+export const removePermissions = (
+  roleId: string,
+  dto: AssignPermissionsInput,
+  actor: Actor
+): Promise<RoleDetail> =>
+  auditedPermissions(actor, 'role.permissions_removed', roleId, () =>
+    removePermissionsTx(roleId, dto, actor)
+  );
+
+async function removePermissionsTx(
   roleId: string,
   dto: AssignPermissionsInput,
   actor: Actor
@@ -349,6 +454,7 @@ export async function removePermissions(
       where: { id: roleId, deletedAt: null },
     });
     if (!role) throw new NotFoundError('Role');
+    assertEditable(role);
     if (role.isSystem)
       await requireSuperAdmin(actor, {
         entity: 'role',
@@ -396,7 +502,16 @@ export async function removePermissions(
 }
 
 // ── Set permissions (replace all) ─────────────────────────────────
-export async function setPermissions(
+export const setPermissions = (
+  roleId: string,
+  dto: AssignPermissionsInput,
+  actor: Actor
+): Promise<RoleDetail> =>
+  auditedPermissions(actor, 'role.permissions_set', roleId, () =>
+    setPermissionsTx(roleId, dto, actor)
+  );
+
+async function setPermissionsTx(
   roleId: string,
   dto: AssignPermissionsInput,
   actor: Actor
@@ -406,6 +521,7 @@ export async function setPermissions(
       where: { id: roleId, deletedAt: null },
     });
     if (!role) throw new NotFoundError('Role');
+    assertEditable(role);
     if (role.isSystem)
       await requireSuperAdmin(actor, {
         entity: 'role',

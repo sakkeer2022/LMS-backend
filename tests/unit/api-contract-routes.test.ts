@@ -39,6 +39,7 @@ const KNOWN_UNDOCUMENTED: Record<string, string> = {
   'PATCH /users/{}': 'Template user administration',
   'DELETE /users/{}': 'Template user administration',
   'POST /users/{}/roles': 'Template user administration',
+  'POST /users/{}/reset-password': 'Template user administration',
   'PUT /users/{}/roles': 'Template user administration',
   'DELETE /users/{}/roles': 'Template user administration',
 

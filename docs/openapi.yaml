@@ -1762,6 +1762,65 @@
         ]
       }
     },
+    "/admin/me/permissions": {
+      "get": {
+        "operationId": "getOwnAdminAccess",
+        "tags": [
+          "Identity"
+        ],
+        "summary": "Read own role names and effective permissions",
+        "description": "Current active, email-verified admin portal account (self only) identity; server checks role, permission and resource ownership on every request. Read from the database on every call (never from the token), so the admin UI shows what the API will enforce. Roles that are inactive or deleted contribute nothing; a wildcard grant appears as the literal * or resource.manage. The UI only hides or disables controls from this list: the API denies by default and is the real enforcement.",
+        "x-required-role": "admin portal account (self only)",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Read own role names and effective permissions.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getOwnAdminAccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": {
+                    "roles": [],
+                    "permissions": [],
+                    "mustChangePassword": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
     "/auth/sessions/{jti}": {
       "delete": {
         "operationId": "revokeOwnSession",
@@ -13668,6 +13727,19 @@
             }
           },
           {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "description": "activity (default): named actions plus security and server failures; requests: the raw API request entries",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "activity",
+                "requests"
+              ]
+            }
+          },
+          {
             "name": "from",
             "in": "query",
             "required": false,
@@ -14148,6 +14220,39 @@
           "fullName",
           "mobileNumber",
           "timezone"
+        ]
+      },
+      "AdminAccess": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "maxItems": 100
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 150
+            },
+            "maxItems": 100
+          },
+          "mustChangePassword": {
+            "type": "boolean",
+            "description": "True while the account still has the password an admin set; until it is changed only the sign-in, password and this route work."
+          }
+        },
+        "required": [
+          "roles",
+          "permissions",
+          "mustChangePassword"
         ]
       },
       "SecurityEvent": {
@@ -21952,6 +22057,31 @@
           "message",
           "data",
           "meta"
+        ]
+      },
+      "getOwnAdminAccessResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "$ref": "#/components/schemas/AdminAccess"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
         ]
       },
       "revokeOwnSessionResponse": {

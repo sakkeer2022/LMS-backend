@@ -29,6 +29,7 @@ Review draft only. All paths are relative to `/api/v1`. `ready-for-review` is a 
 | DELETE | `/auth/sessions` | `revokeOtherSessions` | student, faculty or admin (self only) | ready-for-review |
 | PUT | `/admin/me/profile` | `updateOwnAdminProfile` | admin (self only) | ready-for-review |
 | GET | `/admin/me/activity` | `listOwnSecurityActivity` | admin (self only) | ready-for-review |
+| GET | `/admin/me/permissions` | `getOwnAdminAccess` | admin portal account (self only) | ready-for-review |
 | DELETE | `/auth/sessions/{jti}` | `revokeOwnSession` | student, faculty or admin (self only) | ready-for-review |
 
 ## Consent

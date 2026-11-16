@@ -2,6 +2,7 @@ import { prisma } from '@infrastructure/database/index';
 import { redisClient } from '@infrastructure/redis/connection';
 import { NotFoundError } from '@core/errors/index';
 import { logAction } from '@modules/audit/audit.service';
+import { requireNotLastSuperAdmin } from '@modules/roles/system-role-guard.js';
 
 export interface AdminStats {
   users: {
@@ -153,6 +154,8 @@ export async function toggleUserActiveState(
   if (!user) {
     throw new NotFoundError('User');
   }
+
+  if (!isActive) await requireNotLastSuperAdmin(prisma, userId);
 
   await prisma.user.update({
     where: { id: userId },

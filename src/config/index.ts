@@ -57,6 +57,11 @@ const envSchema = z
     OTP_VERIFY_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
     OTP_VERIFY_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(30),
 
+    // Admin portal only: resolve permissions from the database on every request instead of trusting
+    // the token's claims, so revocations apply at once. Student and faculty tokens are never affected.
+    RBAC_LIVE_ADMIN: z
+      .preprocess((val) => val === 'true' || val === true, z.boolean())
+      .default(false),
     // Password confirmation for sensitive actions (POST /auth/reauthenticate)
     REAUTH_WINDOW_MINUTES: z.coerce.number().int().positive().default(5),
     REAUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
@@ -474,6 +479,7 @@ export const config = {
     maxFailedLogins: env.MAX_FAILED_LOGINS,
     lockoutDurationMinutes: env.LOCKOUT_DURATION_MINUTES,
     reauthWindowMinutes: env.REAUTH_WINDOW_MINUTES,
+    rbacLiveAdmin: env.RBAC_LIVE_ADMIN,
     cookieSecret: env.COOKIE_SECRET,
     allowedOrigins: resolveAllowedOrigins(env.ALLOWED_ORIGINS, env.NODE_ENV),
   },

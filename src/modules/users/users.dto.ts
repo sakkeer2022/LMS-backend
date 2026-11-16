@@ -11,6 +11,7 @@ export const CreateUserDto = z.object({
     .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
   fullName: z.string().min(1).max(150).trim(),
   isActive: z.boolean().optional(),
+  roleIds: z.array(z.string().uuid()).max(20).optional(),
 });
 
 export const UpdateUserDto = z.object({
@@ -22,9 +23,15 @@ export const AssignRolesDto = z.object({
   roleIds: z.array(z.string().uuid()).min(1, 'At least one role ID is required'),
 });
 
+export const UserListQueryDto = PaginationQueryDto.extend({
+  audience: z.enum(['admin']).optional(),
+  roleId: z.string().uuid().optional(),
+});
+
 // Re-export pagination
 export { PaginationQueryDto };
 
+export type UserListQueryInput = z.infer<typeof UserListQueryDto>;
 export type CreateUserInput = z.infer<typeof CreateUserDto>;
 export type UpdateUserInput = z.infer<typeof UpdateUserDto>;
 export type AssignRolesInput = z.infer<typeof AssignRolesDto>;

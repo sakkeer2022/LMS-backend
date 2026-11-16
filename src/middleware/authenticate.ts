@@ -4,8 +4,10 @@ import { UnauthorizedError, ForbiddenError } from '@core/errors/index';
 import { cookieName, requestPortal } from '@core/security/portal-cookies';
 import { redisClient } from '@infrastructure/redis/connection';
 import { evaluatePolicy, type PolicyRule } from '../core/security/policy.js';
-import { hasPermission } from '../core/security/rbac.js';
+import { hasPermission, roleInPortal } from '../core/security/rbac.js';
 import { isSessionRevoked } from '../core/security/session-revocation.js';
+import { loadLiveAccess } from '../core/security/live-access.js';
+import { config } from '@config/index';
 
 // Extend Express Request with the decoded JWT payload
 declare global {
@@ -55,6 +57,23 @@ export async function authenticate(
       return next(new UnauthorizedError('Access token is invalid or expired'));
     }
 
+    // Admin portal only: roles and permissions come from the database, never from the token, so a
+    // deactivated user or a revoked permission blocks the very next request. Other portals are untouched.
+    if (config.security.rbacLiveAdmin && payload.portal === 'admin') {
+      const access = await loadLiveAccess(payload.sub);
+      if (!access) return next(new UnauthorizedError('Account is not active'));
+      payload.roles = access.roles;
+      payload.permissions = access.permissions;
+      payload.policies = access.policies;
+      // A password an admin set is for the first sign-in only: until it is replaced, only the account's own
+      // sign-in, password and profile (/admin/me) routes work
+      if (access.mustChangePassword) {
+        const path = req.originalUrl.split('?')[0] ?? '';
+        if (!path.includes('/auth/') && !path.includes('/admin/me/'))
+          return next(new ForbiddenError('Change your password to continue'));
+      }
+    }
+
     req.user = payload;
     next();
   } catch {
@@ -79,6 +98,17 @@ export function requireRole(...roles: string[]) {
 }
 
 /**
+ * Require an admin-portal account: any role other than student or faculty (custom roles included).
+ * For self-service admin routes that act only on the signed-in account and need no specific permission.
+ */
+export function requireAdminPortalUser(req: Request, _res: Response, next: NextFunction): void {
+  const roles = req.user?.roles ?? [];
+  if (!roles.some((r) => roleInPortal('admin', r)))
+    return next(new ForbiddenError('Access denied'));
+  next();
+}
+
+/**
  * Require a permission on the authenticated user.
  * Supports exact matches, wildcard matches (e.g. `user.*`), and ABAC policy conditions.
  * Usage: router.get('/users', authenticate, requirePermission('user.read'), handler)
@@ -87,7 +117,7 @@ export function requirePermission(
   requiredPerm: string,
   resourceLoader?: (req: Request) => Record<string, unknown> | Promise<Record<string, unknown>>
 ) {
-  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+  const guard = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     const user = req.user;
     if (!user) {
       return next(new ForbiddenError('Access denied'));
@@ -133,4 +163,6 @@ export function requirePermission(
 
     next();
   };
+  // Lets tests/unit/route-guards.test.ts see which routes carry a permission guard
+  return Object.assign(guard, { permissionKey: requiredPerm });
 }

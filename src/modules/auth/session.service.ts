@@ -4,7 +4,7 @@ import { redisClient } from '@infrastructure/redis/connection';
 import { NotFoundError, UnauthorizedError } from '@core/errors/index';
 import { logger } from '@core/logger/index';
 import { verifyRefreshToken, getAccessTokenTtlSeconds } from '@core/security/jwt';
-import { PORTALS, PORTAL_ROLES, type Portal } from '@core/security/rbac';
+import { PORTALS, roleInPortal, type Portal } from '@core/security/rbac';
 import { markSessionRevoked } from '@core/security/session-revocation';
 import { buildPaginationMeta } from '@shared/types/pagination';
 import type { PaginationQuery } from '@shared/validation/index';
@@ -95,7 +95,7 @@ export async function refresh(
       user.status === 'INACTIVE' ||
       user.status === 'SUSPENDED' ||
       !isPortal(stored.portal) ||
-      !user.roles.some((ur) => PORTAL_ROLES[stored.portal as Portal].includes(ur.role.name))
+      !user.roles.some((ur) => roleInPortal(stored.portal as Portal, ur.role.name))
     ) {
       throw new UnauthorizedError(REAUTH_REQUIRED_MESSAGE);
     }
