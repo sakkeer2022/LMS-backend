@@ -1,4 +1,4 @@
-import { PORTAL_ONLY_ROLES } from '@core/security/rbac.js';
+import { ADMIN_AUDIENCE } from '@core/security/rbac.js';
 import bcrypt from 'bcrypt';
 import { randomInt } from 'node:crypto';
 import { revokeAllSessions } from '@modules/auth/index.js';
@@ -61,13 +61,7 @@ export async function listUsers(
       ],
     });
   // Student and faculty accounts have their own sections; someone with no role yet still shows
-  if (audience === 'admin')
-    and.push({
-      OR: [
-        { roles: { none: {} } },
-        { roles: { some: { role: { name: { notIn: [...PORTAL_ONLY_ROLES] } } } } },
-      ],
-    });
+  if (audience === 'admin') and.push(ADMIN_AUDIENCE);
   if (roleId) and.push({ roles: { some: { roleId } } });
   if (and.length) where.AND = and;
 
