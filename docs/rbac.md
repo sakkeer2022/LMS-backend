@@ -10,7 +10,7 @@ deny rules. The API denies by default; the UI only hides or disables what the AP
 ## Register a permission
 
 1. Add one line to `PERMISSIONS` in `src/core/security/rbac.ts`, named `resource.action` (lower case, underscores):
-   `permission('payout.approve', 'Approve a tutor payout')`. The description is what admins read in the role editor, so write it
+   `permission('payout.approve', 'Approve a faculty payout')`. The description is what admins read in the role editor, so write it
    in plain words.
 2. Guard the route with it. That is all: the key is upserted into `permissions` when the server starts (`syncPermissionRegistry`),
    `super_admin` holds `*` so it has the new key at once, and the role editor lists it under its module (`payout`).
@@ -89,7 +89,7 @@ has `ON DELETE SET NULL`, which would need the owner role if a user row were eve
 ## Activity log noise
 
 The request-level audit middleware no longer records successful reads (browsing), and it skips 401 (an expired session). Reads of the audit log itself are still recorded, as the contract requires; 403 and 5xx on any request are still recorded.
-`GET /audit` takes `view`: `activity` (default) lists named actions (`entity.verb`) and any SECURITY or CRITICAL entry; `requests` lists the raw API request entries. An explicit `action` filter ignores `view`. A record's own history (for example a tutor's approval) is `GET /audit?entity=faculty_profile&resourceId=<id>`; the tutor review drawer shows it to anyone with `audit.read`.
+`GET /audit` takes `view`: `activity` (default) lists named actions (`entity.verb`) and any SECURITY or CRITICAL entry; `requests` lists the raw API request entries. An explicit `action` filter ignores `view`. A record's own history (for example a faculty approval) is `GET /audit?entity=faculty_profile&resourceId=<id>`; the faculty review drawer shows it to anyone with `audit.read`.
 Old raw entries stay (the log is append-only); they now sit under "API requests".
 
 ## Users list

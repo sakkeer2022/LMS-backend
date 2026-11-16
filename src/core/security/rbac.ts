@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 /**
  * Single source of truth for permission names and the seeded system roles.
  *
@@ -29,10 +30,10 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   permission('catalogue.manage', 'Create, edit and publish catalogue nodes'),
   permission('configuration.read', 'Read platform settings'),
   permission('configuration.manage', 'Change platform settings'),
-  permission('faculty.create', 'Invite tutors and create faculty accounts'),
+  permission('faculty.create', 'Invite faculty and create faculty accounts'),
   permission('faculty.read', 'Read private faculty profiles and invitations'),
-  permission('faculty.approve', 'Verify documents and approve or reject tutor applications'),
-  permission('faculty.documents', 'Open tutor verification documents'),
+  permission('faculty.approve', 'Verify documents and approve or reject faculty applications'),
+  permission('faculty.documents', 'Open faculty verification documents'),
   permission('faculty.read_self', 'Faculty: read their own profile and prices'),
   permission(
     'faculty.update_self',
@@ -42,7 +43,7 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   permission('feature_flags.read', 'Read feature flags'),
   permission('feature_flags.update', 'Update feature flags'),
   permission('feature_flags.delete', 'Delete feature flags'),
-  permission('library.moderate', 'Review, approve and reject library resources from tutors'),
+  permission('library.moderate', 'Review, approve and reject library resources from faculty'),
   permission('library.manage_self', 'Faculty: add, edit and withdraw their own library resources'),
   permission('notifications.create', 'Create notifications'),
   permission('notifications.read', 'Read notifications'),
@@ -88,6 +89,14 @@ export const PORTAL_ROLES: Record<Portal, readonly string[]> = {
  */
 /** The system roles that belong to the student and faculty portals, never to the admin portal. */
 export const PORTAL_ONLY_ROLES = ['student', 'faculty'] as const;
+
+/** Users who belong in the admin area: staff, plus accounts with no role yet. Students and faculty are excluded. */
+export const ADMIN_AUDIENCE = {
+  OR: [
+    { roles: { none: {} } },
+    { roles: { some: { role: { name: { notIn: [...PORTAL_ONLY_ROLES] } } } } },
+  ],
+} satisfies Prisma.UserWhereInput;
 
 export function roleInPortal(portal: Portal, roleName: string): boolean {
   if (portal === 'admin') return !(PORTAL_ONLY_ROLES as readonly string[]).includes(roleName);

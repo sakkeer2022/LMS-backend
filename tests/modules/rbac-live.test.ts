@@ -272,6 +272,28 @@ describe('activity log views', () => {
     expect(await actions('')).toEqual(['faculty.approved', 'update']);
     expect(await actions('&view=requests')).toEqual(['read']);
   });
+
+  it('leaves out entries by student and faculty accounts, but keeps staff and actorless ones', async () => {
+    const faculty = await prisma.role.create({ data: { name: 'faculty', isSystem: true } });
+    const role = await roleWith('auditor2', ['audit.read']);
+    const staff = await makeUser([role.id]);
+    const teacher = await makeUser([faculty.id]);
+    const token = tokenFor(staff.id, 'admin');
+    const entity = `e-${randomUUID()}`;
+    const row = (actorId: string | null) =>
+      prisma.auditLog.create({
+        data: {
+          traceId: 't', correlationId: 'c', ipAddress: '1.1.1.1', userAgent: 'x', severity: 'INFO',
+          entity, action: 'thing.done', actorId, hash: randomUUID().replace(/-/g, '').padEnd(64, '0'),
+          previousHash: '0'.repeat(64),
+        },
+      });
+    await Promise.all([row(staff.id), row(teacher.id), row(null)]);
+    const res = await get(`/audit?entity=${entity}&limit=50`, token);
+    expect(res.body.data.map((e: { actorId: string | null }) => e.actorId).sort()).toEqual(
+      [staff.id, null].sort(),
+    );
+  });
 });
 
 describe('creating a user', () => {
