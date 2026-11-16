@@ -45,7 +45,8 @@ export function formatExpiry(date: Date, timeZone?: string | null): string {
       year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true,
+      // hourCycle, not hour12: with en-GB, hour12 can resolve to h11 and print midnight as 0:00
+      hourCycle: 'h12',
       timeZone: zone,
       timeZoneName: 'short',
     })
