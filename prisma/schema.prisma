@@ -236,6 +236,9 @@ model UserRole {
   roleId     String   @map("role_id") @db.Uuid
   assignedBy String?  @map("assigned_by") @db.Uuid
   createdAt  DateTime @default(now()) @map("created_at")
+  // Reserved, not implemented: nothing reads, validates or writes these two columns (see docs/rbac.md).
+  expiresAt  DateTime? @map("expires_at")
+  scope      String?  @db.VarChar(100)
 
   user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   role     Role  @relation(fields: [roleId], references: [id], onDelete: Cascade)

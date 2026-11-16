@@ -155,17 +155,22 @@ export async function logAction(params: LogActionParams): Promise<void> {
 export async function listAuditLogs(
   query: AuditLogQueryInput
 ): Promise<PaginatedResult<AuditEvent>> {
-  const { page, limit, actorId, action, entity, resourceId } = query;
+  const { page, limit, actorId, action, entity, resourceId, view } = query;
   // A window with one bound still spans at most MAX_WINDOW_DAYS
   const span = MAX_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   const from = query.from ?? (query.to && new Date(query.to.getTime() - span));
   const to = query.to ?? (query.from && new Date(query.from.getTime() + span));
 
+  // Named actions (`entity.verb`) and security or server failures are activity; the rest are raw API requests.
+  const isActivity: Prisma.AuditLogWhereInput = {
+    OR: [{ action: { contains: '.' } }, { severity: { in: ['SECURITY', 'CRITICAL'] } }],
+  };
   const where: Prisma.AuditLogWhereInput = {
     actorId,
     action,
     entity,
     resourceId,
+    ...(action ? {} : view === 'activity' ? isActivity : { NOT: isActivity }),
     createdAt: from && to ? { gte: from, lt: to } : undefined,
   };
 

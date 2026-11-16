@@ -84,6 +84,14 @@ export function auditLog(options: AuditOptions) {
  */
 export function auditLogMiddleware(req: Request, res: Response, next: NextFunction): void {
   res.on('finish', () => {
+    // Browsing is not activity: reads are skipped unless they fail or read the audit log itself (the contract
+    // requires privileged audit reads to be audited). 401 is an expired session, not an event
+    // (failed sign-ins are logged by the login service).
+    const isRead =
+      (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') &&
+      !req.originalUrl.split('?')[0].includes('/audit');
+    if (res.statusCode === 401 || (isRead && res.statusCode < 403)) return;
+
     // Guess resource from URL (e.g. /api/v1/users/123 -> users)
     const pathParts = req.originalUrl.split('?')[0].split('/').filter(Boolean);
     const resource = pathParts.length > 2 ? pathParts[2] : 'unknown';

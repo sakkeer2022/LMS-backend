@@ -14,6 +14,15 @@ usersRouter.use(authenticate);
  *     summary: List all users (paginated)
  *     tags: [Users]
  *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: audience
+ *         description: admin leaves out accounts that only hold the student or faculty role
+ *         schema: { type: string, enum: [admin] }
+ *       - in: query
+ *         name: roleId
+ *         description: only users holding this role
+ *         schema: { type: string, format: uuid }
  */
 usersRouter.get('/', requirePermission('user.read'), UsersController.listUsers);
 
@@ -36,6 +45,21 @@ usersRouter.get('/:id', requirePermission('user.read'), UsersController.getUserB
  *     security: [{ bearerAuth: [] }]
  */
 usersRouter.post('/', requirePermission('user.create'), UsersController.createUser);
+
+/**
+ * @openapi
+ * /users/{id}/reset-password:
+ *   post:
+ *     summary: Set a random password, email it to the user and end their sessions
+ *     tags: [Users]
+ *     security: [{ bearerAuth: [] }]
+ *     description: The password is never returned. The user must replace it at next sign-in. An admin account needs a Super Admin.
+ */
+usersRouter.post(
+  '/:id/reset-password',
+  requirePermission('user.update'),
+  UsersController.resetPassword
+);
 
 /**
  * @openapi

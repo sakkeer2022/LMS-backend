@@ -1,6 +1,6 @@
 import type { Request } from 'express';
 import type { Prisma } from '@prisma/client';
-import { ForbiddenError } from '@core/errors/index';
+import { ConflictError, ForbiddenError } from '@core/errors/index';
 import { hasPermission } from '@core/security/rbac.js';
 import { logger } from '@core/logger/index';
 import { auditContextFrom } from '@middleware/audit.middleware';
@@ -62,4 +62,33 @@ export async function requireHeld(
   if (actor.roles.includes('super_admin')) return;
   if (permissions.some((name) => !hasPermission(actor.permissions, name)))
     await deny(actor, attempt, 'You cannot grant permissions you do not hold');
+}
+
+/** Nobody changes their own roles, so access can only be widened or narrowed by someone else. */
+export function requireNotSelf(actor: Actor, userId: string): void {
+  if (actor.audit.actorId === userId) throw new ForbiddenError('You cannot change your own roles');
+}
+
+type UserDb = Pick<Prisma.TransactionClient, 'user'>;
+
+/**
+ * The last active super_admin must stay: refuses when `userId` is one and no other active super_admin exists.
+ * Call before anything that removes the role from, deactivates or deletes that user.
+ */
+export async function requireNotLastSuperAdmin(db: UserDb, userId: string): Promise<void> {
+  const holds = (id: string) => ({
+    id,
+    deletedAt: null,
+    isActive: true,
+    status: { notIn: ['INACTIVE', 'SUSPENDED'] as ('INACTIVE' | 'SUSPENDED')[] },
+    roles: {
+      some: { role: { name: 'super_admin', isSystem: true, isActive: true, deletedAt: null } },
+    },
+  });
+  if ((await db.user.count({ where: holds(userId) })) === 0) return;
+  const others = await db.user.count({
+    where: { ...holds(userId), id: { not: userId } } as Prisma.UserWhereInput,
+  });
+  if (others === 0)
+    throw new ConflictError('The last active super admin cannot be removed or deactivated');
 }

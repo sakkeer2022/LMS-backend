@@ -14,6 +14,7 @@ export const AuditLogQueryDto = PaginationQueryDto.omit({ search: true })
     action: text.optional(),
     entity: text.optional(),
     resourceId: text.optional(),
+    view: z.enum(['activity', 'requests']).default('activity'),
     from: instant.optional(),
     to: instant.optional(),
   })

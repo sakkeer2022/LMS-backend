@@ -81,6 +81,19 @@ export const PORTAL_ROLES: Record<Portal, readonly string[]> = {
   admin: ['admin', 'super_admin'],
 };
 
+/**
+ * Whether a role name lets its holder into a portal. Student and faculty stay exact matches. The admin
+ * portal accepts any role that is not a student or faculty role, so roles created in the admin UI
+ * can be given to staff; what they may do is still decided by their permissions.
+ */
+/** The system roles that belong to the student and faculty portals, never to the admin portal. */
+export const PORTAL_ONLY_ROLES = ['student', 'faculty'] as const;
+
+export function roleInPortal(portal: Portal, roleName: string): boolean {
+  if (portal === 'admin') return !(PORTAL_ONLY_ROLES as readonly string[]).includes(roleName);
+  return PORTAL_ROLES[portal].includes(roleName);
+}
+
 export interface RoleDefinition {
   name: string;
   description: string;
