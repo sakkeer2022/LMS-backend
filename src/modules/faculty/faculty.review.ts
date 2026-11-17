@@ -4,17 +4,38 @@ import { getEmailProvider } from '@infrastructure/email/index';
 import { ConflictError, NotFoundError } from '@core/errors/index';
 import { logger } from '@core/logger/index';
 import { logAction, type AuditContext } from '@modules/audit/audit.service.js';
-import { ONBOARDING_DOCUMENTS, isPreviewableMime } from './faculty.documents.js';
+import { config } from '@config/index';
+import {
+  ADDITIONAL_DOCUMENTS,
+  ONBOARDING_DOCUMENTS,
+  REQUIRED_DOCUMENT_TYPES,
+  isPreviewableMime,
+} from './faculty.documents.js';
+import { buildReuploadUrl, generateInviteToken, inviteExpiry } from './faculty.tokens.js';
+import { teachingModeLabel } from './faculty.teaching-modes.js';
 import { TEACHING_EXPERIENCE_LABELS, type TeachingExperience } from './faculty.onboarding.dto.js';
 import {
   getFacultyAccess,
   onTutorPricesChanged,
   pricingStatusOf,
   type PricingStatus,
+  type SubjectCardState,
 } from './faculty.access.js';
-import { applicationApprovedEmail, applicationRejectedEmail } from './faculty.emails.js';
-import type { DocumentVerificationInput, ReviewFacultyInput } from './faculty.review.dto.js';
-import type { FacultyRowStatus } from './faculty.list.js';
+import {
+  applicationApprovedEmail,
+  applicationRejectedEmail,
+  reuploadRequestedEmail,
+} from './faculty.emails.js';
+import type {
+  DocumentVerificationInput,
+  FacultyActiveInput,
+  ReviewFacultyInput,
+} from './faculty.review.dto.js';
+import {
+  verificationStatus,
+  type FacultyRowStatus,
+  type VerificationStatus,
+} from './faculty.list.js';
 
 /**
  * Admin verification of a tutor (screen 27b, LMS-39): read the application, open the
@@ -26,7 +47,7 @@ const DOCUMENT_LABELS: Record<string, string> = {
   ...Object.fromEntries(ONBOARDING_DOCUMENTS.map((d) => [d.type, d.label])),
   EXPERIENCE_LETTER: 'Experience letter',
   BACKGROUND_CHECK: 'Background check',
-  OTHER: 'Other document',
+  [ADDITIONAL_DOCUMENTS.type]: ADDITIONAL_DOCUMENTS.label,
 };
 
 /** Same rule as the roster query (faculty.list.ts). */
@@ -53,6 +74,7 @@ export interface FacultyDetail {
   appliedAt: Date;
   submittedAt: Date | null;
   status: FacultyRowStatus;
+  verification: VerificationStatus;
   approvalStatus: 'pending' | 'approved' | 'rejected' | 'changes_requested';
   isPublished: boolean;
   isActive: boolean;
@@ -64,7 +86,15 @@ export interface FacultyDetail {
     studiedAt: string | null;
     teachingExperience: { code: string; label: string } | null;
     offersOfflineClasses: boolean;
+    teachingMode: { code: string; label: string } | null;
   };
+  /** The open or latest re-upload request, while the application is sent back */
+  reupload: {
+    reason: string;
+    requestedAt: Date;
+    expiresAt: Date;
+    expired: boolean;
+  } | null;
   documents: {
     id: string;
     type: string;
@@ -77,17 +107,24 @@ export interface FacultyDetail {
     verifiedAt: Date | null;
     scanStatus: string;
     previewable: boolean;
+    /** One of the required documents (false for additional documents) */
+    required: boolean;
   }[];
+  /** Every active subject card: onboarding cards and later requests, with their approval state */
   subjects: {
     assignmentId: string;
     curriculumId: string;
     subject: string;
     pathLabel: string;
+    status: SubjectCardState;
+    source: 'onboarding' | 'profile';
     sessionPricePaise: number | null;
     studentPaysPaise: number | null;
   }[];
   pricing: PricingStatus;
   consentDecidedAt: Date | null;
+  /** The latest acceptance carries a drawn signature the admin can open */
+  consentSigned: boolean;
 }
 
 export async function getFacultyDetail(facultyId: string): Promise<FacultyDetail> {
@@ -105,10 +142,24 @@ export async function getFacultyDetail(facultyId: string): Promise<FacultyDetail
         },
       },
       documents: { orderBy: { createdAt: 'asc' } },
+      reuploadRequests: {
+        where: { status: 'PENDING' },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: { reason: true, createdAt: true, expiresAt: true },
+      },
+      priceConsents: {
+        orderBy: { decidedAt: 'desc' },
+        take: 1,
+        select: { decision: true, signatureStorageKey: true },
+      },
     },
   });
   if (!profile || profile.user.deletedAt) throw new NotFoundError('Faculty profile');
   const access = await getFacultyAccess({ facultyId });
+  const modeLabel = await teachingModeLabel(profile.teachingMode);
+  const reupload = profile.reuploadRequests[0];
+  const latestConsent = profile.priceConsents[0];
   const experience = profile.teachingExperience as TeachingExperience | null;
   return {
     id: profile.id,
@@ -120,6 +171,7 @@ export async function getFacultyDetail(facultyId: string): Promise<FacultyDetail
     appliedAt: profile.createdAt,
     submittedAt: profile.submittedAt,
     status: profileStatus(profile),
+    verification: verificationStatus(profile.approvalStatus),
     approvalStatus: profile.approvalStatus.toLowerCase() as FacultyDetail['approvalStatus'],
     isPublished: profile.isPublished,
     isActive: profile.isActive,
@@ -134,7 +186,18 @@ export async function getFacultyDetail(facultyId: string): Promise<FacultyDetail
           ? { code: experience, label: TEACHING_EXPERIENCE_LABELS[experience] }
           : null,
       offersOfflineClasses: profile.offersOfflineClasses,
+      teachingMode:
+        profile.teachingMode && modeLabel ? { code: profile.teachingMode, label: modeLabel } : null,
     },
+    reupload:
+      reupload && profile.approvalStatus === 'CHANGES_REQUESTED'
+        ? {
+            reason: reupload.reason,
+            requestedAt: reupload.createdAt,
+            expiresAt: reupload.expiresAt,
+            expired: reupload.expiresAt <= new Date(),
+          }
+        : null,
     documents: profile.documents.map((d) => ({
       id: d.id,
       type: d.documentType,
@@ -147,17 +210,23 @@ export async function getFacultyDetail(facultyId: string): Promise<FacultyDetail
       verifiedAt: d.verifiedAt,
       scanStatus: d.scanStatus.toLowerCase(),
       previewable: isPreviewableMime(d.mimeType),
+      required: (REQUIRED_DOCUMENT_TYPES as readonly string[]).includes(d.documentType),
     })),
-    subjects: access.subjects.map((s) => ({
+    subjects: access.cards.map((s) => ({
       assignmentId: s.assignmentId,
       curriculumId: s.curriculumId,
       subject: s.subject,
       pathLabel: s.pathLabel,
+      status: s.status,
+      source: s.source,
       sessionPricePaise: s.price?.sessionPricePaise ?? null,
       studentPaysPaise: s.price?.studentPaysPaise ?? null,
     })),
     pricing: pricingStatusOf(access),
     consentDecidedAt: access.consentDecidedAt,
+    consentSigned: Boolean(
+      latestConsent?.decision === 'ACCEPTED' && latestConsent.signatureStorageKey
+    ),
   };
 }
 
@@ -230,10 +299,14 @@ export async function setDocumentVerified(
 }
 
 /**
- * Approve or reject a pending application. Approving verifies every document the admin has
- * not marked yet, records the approver and sets publication as chosen; rejecting needs a
- * reason and unpublishes. Both use the profile revision against concurrent edits, and email
- * the tutor.
+ * Decide a pending application:
+ *   approve           verifies every document the admin has not marked yet, records the approver and sets
+ *                     publication as chosen
+ *   reject            final; needs a reason and unpublishes
+ *   request_reupload  a temporary rejection: needs a reason, unpublishes, and emails the tutor a single-use
+ *                     link (FACULTY_REUPLOAD_TTL_HOURS) to the pre-filled form. Any earlier open link stops
+ *                     working. The tutor's re-submission puts the application back to PENDING ("New").
+ * All three use the profile revision against concurrent edits, and email the tutor.
  */
 export async function reviewFaculty(
   facultyId: string,
@@ -241,13 +314,28 @@ export async function reviewFaculty(
   audit: AuditContext
 ): Promise<FacultyDetail> {
   const now = new Date();
+  const reupload =
+    input.decision === 'request_reupload'
+      ? {
+          ...generateInviteToken(),
+          ttlHours: config.facultyReupload.ttlHours,
+          expiresAt: inviteExpiry(now, config.facultyReupload.ttlHours),
+        }
+      : null;
+  const nextStatus =
+    input.decision === 'approve'
+      ? 'APPROVED'
+      : input.decision === 'reject'
+        ? 'REJECTED'
+        : 'CHANGES_REQUESTED';
+
   const profile = await prisma.$transaction(async (tx) => {
     const current = await tx.facultyProfile.findUnique({
       where: { id: facultyId },
       select: {
         approvalStatus: true,
         revision: true,
-        user: { select: { email: true, fullName: true, deletedAt: true } },
+        user: { select: { email: true, fullName: true, timezone: true, deletedAt: true } },
       },
     });
     if (!current || current.user.deletedAt) throw new NotFoundError('Faculty profile');
@@ -259,31 +347,53 @@ export async function reviewFaculty(
         }
       );
     }
-    const approve = input.decision === 'approve';
     const changed = await tx.facultyProfile.updateMany({
       where: { id: facultyId, revision: input.expectedRevision },
-      data: approve
-        ? {
-            approvalStatus: 'APPROVED',
-            approvedAt: now,
-            approvedBy: audit.actorId ?? null,
-            isPublished: input.publish,
-            rejectionReason: null,
-            revision: { increment: 1 },
-          }
-        : {
-            approvalStatus: 'REJECTED',
-            isPublished: false,
-            rejectionReason: input.reason ?? null,
-            revision: { increment: 1 },
-          },
+      data:
+        input.decision === 'approve'
+          ? {
+              approvalStatus: 'APPROVED',
+              approvedAt: now,
+              approvedBy: audit.actorId ?? null,
+              isPublished: input.publish,
+              rejectionReason: null,
+              revision: { increment: 1 },
+            }
+          : {
+              approvalStatus: nextStatus,
+              isPublished: false,
+              rejectionReason: input.reason ?? null,
+              revision: { increment: 1 },
+            },
     });
     if (changed.count !== 1) {
       throw new ConflictError('Someone else changed this application; reload and try again', {
         code: 'STALE_REVISION',
       });
     }
-    if (approve) {
+    // Whatever the decision, an earlier re-upload link stops working
+    await tx.facultyReuploadRequest.updateMany({
+      where: { facultyId, status: 'PENDING' },
+      data: { status: 'SUPERSEDED' },
+    });
+    if (reupload) {
+      await tx.facultyReuploadRequest.create({
+        data: {
+          facultyId,
+          tokenHash: reupload.tokenHash,
+          reason: input.reason ?? '',
+          expiresAt: reupload.expiresAt,
+          requestedById: audit.actorId ?? null,
+        },
+      });
+    }
+    if (input.decision === 'approve') {
+      // The cards chosen at onboarding are approved with the application; cards requested later
+      // from the profile are approved one by one (pricing page)
+      await tx.facultyAssignment.updateMany({
+        where: { facultyId, source: 'ONBOARDING', status: 'PENDING' },
+        data: { status: 'APPROVED', decidedAt: now, decidedById: audit.actorId ?? null },
+      });
       await tx.facultyDocument.updateMany({
         where: { facultyId, isVerified: false },
         data: { isVerified: true, verifiedAt: now, verifiedBy: audit.actorId ?? null },
@@ -301,13 +411,19 @@ export async function reviewFaculty(
       ...audit,
       severity: 'SECURITY',
       entity: 'faculty_profile',
-      action: input.decision === 'approve' ? 'faculty.approved' : 'faculty.rejected',
+      action:
+        input.decision === 'approve'
+          ? 'faculty.approved'
+          : input.decision === 'reject'
+            ? 'faculty.rejected'
+            : 'faculty.reupload_requested',
       resourceId: facultyId,
       previousValue: { approvalStatus: profile.approvalStatus, revision: profile.revision },
       newValue: {
-        approvalStatus: input.decision === 'approve' ? 'APPROVED' : 'REJECTED',
+        approvalStatus: nextStatus,
         isPublished: input.decision === 'approve' ? input.publish : false,
         ...(input.reason && { reason: input.reason }),
+        ...(reupload && { linkExpiresAt: reupload.expiresAt.toISOString() }),
       },
     });
   } catch (err) {
@@ -317,11 +433,21 @@ export async function reviewFaculty(
   const email =
     input.decision === 'approve'
       ? applicationApprovedEmail({ to: profile.user.email, fullName: profile.user.fullName })
-      : applicationRejectedEmail({
-          to: profile.user.email,
-          fullName: profile.user.fullName,
-          reason: input.reason ?? '',
-        });
+      : reupload
+        ? reuploadRequestedEmail({
+            to: profile.user.email,
+            fullName: profile.user.fullName,
+            reason: input.reason ?? '',
+            reuploadUrl: buildReuploadUrl(config.facultyAppUrl, reupload.token),
+            expiresAt: reupload.expiresAt,
+            ttlHours: reupload.ttlHours,
+            timeZone: profile.user.timezone,
+          })
+        : applicationRejectedEmail({
+            to: profile.user.email,
+            fullName: profile.user.fullName,
+            reason: input.reason ?? '',
+          });
   void getEmailProvider()
     .send(email)
     .catch((err: unknown) =>
@@ -331,4 +457,70 @@ export async function reviewFaculty(
   // Prices may already exist (re-review after a correction)
   if (input.decision === 'approve') await onTutorPricesChanged(facultyId);
   return getFacultyDetail(facultyId);
+}
+
+/**
+ * Activate or deactivate a tutor: an operational switch, independent of verification. An inactive tutor
+ * cannot sign in and is hidden from discovery (faculty.access.ts treats them as suspended); activating
+ * restores whatever their verification and prices allow.
+ */
+export async function setFacultyActive(
+  facultyId: string,
+  input: FacultyActiveInput,
+  audit: AuditContext
+): Promise<FacultyDetail> {
+  const current = await prisma.facultyProfile.findUnique({
+    where: { id: facultyId },
+    select: { isActive: true, user: { select: { deletedAt: true } } },
+  });
+  if (!current || current.user.deletedAt) throw new NotFoundError('Faculty profile');
+  if (current.isActive !== input.isActive) {
+    await prisma.facultyProfile.update({
+      where: { id: facultyId },
+      data: { isActive: input.isActive, revision: { increment: 1 } },
+    });
+    logger.info(
+      { type: 'faculty', facultyId, isActive: input.isActive },
+      'Faculty active state changed'
+    );
+    try {
+      await logAction({
+        ...audit,
+        severity: 'SECURITY',
+        entity: 'faculty_profile',
+        action: input.isActive ? 'faculty.activated' : 'faculty.deactivated',
+        resourceId: facultyId,
+        previousValue: { isActive: current.isActive },
+        newValue: { isActive: input.isActive },
+      });
+    } catch (err) {
+      logger.error({ err }, 'Failed to audit a faculty activation change');
+    }
+  }
+  return getFacultyDetail(facultyId);
+}
+
+/** The signature the tutor drew when they last accepted their prices (PNG). Every access is audited. */
+export async function getConsentSignature(facultyId: string, audit: AuditContext): Promise<Buffer> {
+  const consent = await prisma.facultyPriceConsent.findFirst({
+    where: { facultyId, decision: 'ACCEPTED', signatureStorageKey: { not: null } },
+    orderBy: { decidedAt: 'desc' },
+    select: { id: true, signatureStorageKey: true },
+  });
+  if (!consent?.signatureStorageKey) throw new NotFoundError('Signature');
+  const body = await getStorage().get(consent.signatureStorageKey);
+  if (!body) throw new NotFoundError('Signature file');
+  try {
+    await logAction({
+      ...audit,
+      severity: 'SECURITY',
+      entity: 'faculty_price_consent',
+      action: 'faculty.consent_signature_viewed',
+      resourceId: consent.id,
+      newValue: { facultyId },
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to audit a signature view');
+  }
+  return body;
 }

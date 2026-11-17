@@ -3,7 +3,7 @@ import {
   CreateRoleDto,
   UpdateRoleDto,
   AssignPermissionsDto,
-  PaginationQueryDto,
+  RoleListQueryDto,
 } from './roles.dto.js';
 import * as RolesService from './roles.service.js';
 import { actorFrom } from './system-role-guard.js';
@@ -11,7 +11,7 @@ import { successResponse } from '@core/response/index';
 
 export async function listRoles(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const query = PaginationQueryDto.parse(req.query);
+    const query = RoleListQueryDto.parse(req.query);
     const result = await RolesService.listRoles(query);
     res.json(successResponse(result.items, 'Roles retrieved', result.meta));
   } catch (err) {
@@ -50,7 +50,7 @@ export async function updateRole(req: Request, res: Response, next: NextFunction
 
 export async function deleteRole(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    await RolesService.deleteRole(req.params['id'] as string);
+    await RolesService.deleteRole(req.params['id'] as string, actorFrom(req));
     res.json(successResponse(null, 'Role deleted'));
   } catch (err) {
     next(err);

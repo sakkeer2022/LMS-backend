@@ -57,6 +57,11 @@ const envSchema = z
     OTP_VERIFY_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
     OTP_VERIFY_RATE_LIMIT_MAX_PER_IP: z.coerce.number().int().positive().default(30),
 
+    // Admin portal only: resolve permissions from the database on every request instead of trusting
+    // the token's claims, so revocations apply at once. Student and faculty tokens are never affected.
+    RBAC_LIVE_ADMIN: z
+      .preprocess((val) => val === 'true' || val === true, z.boolean())
+      .default(false),
     // Password confirmation for sensitive actions (POST /auth/reauthenticate)
     REAUTH_WINDOW_MINUTES: z.coerce.number().int().positive().default(5),
     REAUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
@@ -156,6 +161,13 @@ const envSchema = z
     FACULTY_INVITE_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(72),
     FACULTY_INVITE_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
     FACULTY_INVITE_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
+    // Library uploads and edits by one tutor (per window)
+    LIBRARY_UPLOAD_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+    LIBRARY_UPLOAD_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
+
+    // ── Faculty re-upload requests ──
+    // Lifetime of the "correct and re-upload your documents" link an admin sends (hours)
+    FACULTY_REUPLOAD_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(72),
   })
   .superRefine((env, ctx) => {
     if (env.STORAGE_DRIVER === 's3' && !env.STORAGE_S3_BUCKET) {
@@ -467,6 +479,7 @@ export const config = {
     maxFailedLogins: env.MAX_FAILED_LOGINS,
     lockoutDurationMinutes: env.LOCKOUT_DURATION_MINUTES,
     reauthWindowMinutes: env.REAUTH_WINDOW_MINUTES,
+    rbacLiveAdmin: env.RBAC_LIVE_ADMIN,
     cookieSecret: env.COOKIE_SECRET,
     allowedOrigins: resolveAllowedOrigins(env.ALLOWED_ORIGINS, env.NODE_ENV),
   },
@@ -512,6 +525,15 @@ export const config = {
     ttlHours: env.FACULTY_INVITE_TTL_HOURS,
     rateLimitWindowMs: env.FACULTY_INVITE_RATE_LIMIT_WINDOW_MS,
     rateLimitMax: env.FACULTY_INVITE_RATE_LIMIT_MAX,
+  },
+
+  library: {
+    uploadRateLimitWindowMs: env.LIBRARY_UPLOAD_RATE_LIMIT_WINDOW_MS,
+    uploadRateLimitMax: env.LIBRARY_UPLOAD_RATE_LIMIT_MAX,
+  },
+
+  facultyReupload: {
+    ttlHours: env.FACULTY_REUPLOAD_TTL_HOURS,
   },
 } as const;
 

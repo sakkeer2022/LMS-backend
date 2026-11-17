@@ -13,12 +13,19 @@ import { uploadsRouter } from '@modules/uploads/uploads.routes.js';
 import { settingsRouter } from '@modules/settings/index.js';
 import {
   adminFacultyRouter,
+  adminSubjectCardsRouter,
   facultyOnboardingRouter,
   facultySelfRouter,
+  facultySubjectCardsRouter,
 } from '@modules/faculty/index.js';
+import {
+  adminLibraryRouter,
+  facultyLibraryRouter,
+  studentLibraryRouter,
+} from '@modules/library/index.js';
 import { registrationRouter, studentRegisterRouter } from '@modules/registration/index.js';
 import { adminPoliciesRouter, policiesRouter } from '@modules/policies/index.js';
-import { adminStudentsRouter } from '@modules/students/index.js';
+import { adminStudentsRouter, studentSelfRouter } from '@modules/students/index.js';
 import { adminConsentRouter, consentRouter, studentConsentRouter } from '@modules/consent/index.js';
 import { regionsRouter } from '@modules/regions/index.js';
 import { passwordRouter, recoveryRouter } from '@modules/account-recovery/index.js';
@@ -46,6 +53,7 @@ export const featureRouters: ReadonlyArray<readonly [path: string, router: Route
   ['/policies', policiesRouter],
   ['/consent', consentRouter],
   ['/students/me', studentConsentRouter],
+  ['/students/me', studentSelfRouter],
   ['/admin/students', adminStudentsRouter],
   ['/admin/students', adminConsentRouter],
   ['/admin/policies', adminPoliciesRouter],
@@ -54,6 +62,8 @@ export const featureRouters: ReadonlyArray<readonly [path: string, router: Route
   ['/auth', authRouter],
   // Faculty onboarding from the invitation link (public) and the signed-in tutor's own data
   ['/faculty/onboarding', facultyOnboardingRouter],
+  ['/faculty/me/subject-cards', facultySubjectCardsRouter],
+  ['/faculty/me/library', facultyLibraryRouter],
   ['/faculty/me', facultySelfRouter],
   ['/roles', rolesRouter],
   ['/permissions', permissionsRouter],
@@ -71,7 +81,10 @@ export const featureRouters: ReadonlyArray<readonly [path: string, router: Route
   ['/prices', pricesRouter],
   ['/admin/prices', adminPricesRouter],
   ['/admin/settings', settingsRouter],
+  ['/admin/faculty', adminSubjectCardsRouter],
   ['/admin/faculty', adminFacultyRouter],
+  ['/admin/library', adminLibraryRouter],
+  ['/library', studentLibraryRouter],
   ['/admin/me', adminProfileRouter],
   ['/admin', adminRouter],
   ['/uploads', uploadsRouter],

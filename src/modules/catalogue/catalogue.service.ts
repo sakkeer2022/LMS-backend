@@ -303,9 +303,7 @@ export interface OfferingSummary {
   categoryName: string;
   boardId: string | null;
   boardName: string | null;
-  /** Null for a leaf's category curriculum (the leaf itself is the choice) */
-  subjectId: string | null;
-  /** The subject, or the leaf's name for a category curriculum */
+  subjectId: string;
   subjectName: string;
   levelId: string | null;
   levelName: string | null;
@@ -358,14 +356,14 @@ function toOffering(row: OfferingRow, labels: Map<string, string>): OfferingSumm
     boardId: row.boardId,
     boardName: row.board?.name ?? null,
     subjectId: row.subjectId,
-    subjectName: row.subject?.name ?? row.category.name,
+    subjectName: row.subject.name,
     levelId: row.levelId,
     levelName: row.level?.name ?? null,
     // Bookable only while the curriculum and every master row it uses are active
     isActive:
       row.isActive &&
       row.category.isActive &&
-      (row.subject === null || row.subject.isActive) &&
+      row.subject.isActive &&
       (row.level === null || row.level.isActive) &&
       (row.board === null || row.board.isActive),
   };

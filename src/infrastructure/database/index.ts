@@ -1,4 +1,10 @@
-export { prisma, connectDatabase, disconnectDatabase } from './connection.js';
+export {
+  prisma,
+  connectDatabase,
+  disconnectDatabase,
+  getPoolStats,
+  waitForIdlePool,
+} from './connection.js';
 export {
   assertTestDatabaseUrl,
   type TestDatabaseGuardOptions,

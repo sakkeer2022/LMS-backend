@@ -61,7 +61,7 @@ describe('Faculty onboarding, review, pricing gate and consent (LMS-39, LMS-40)'
       teachingExperience: '5-10',
       studiedAt: 'IIT Delhi',
       curriculumIds: JSON.stringify([catalogue.physics.id, catalogue.chemistry.id]),
-      offersOfflineClasses: 'true',
+      teachingMode: 'hybrid',
       declarationAccepted: 'true',
       ...overrides,
     };
@@ -87,6 +87,16 @@ describe('Faculty onboarding, review, pricing gate and consent (LMS-39, LMS-40)'
     const profile = await prisma.facultyProfile.findFirstOrThrow({ where: { invitationId: invitation.id } });
     return { token, invitation, profile, res };
   }
+
+  const signAndAccept = (snapshotHash: string, token: string) =>
+    request(app)
+      .post(`${API}/faculty/me/price-consent`)
+      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrf.csrfCookie)
+      .set('x-csrf-token', csrf.csrfToken)
+      .field('decision', 'accept')
+      .field('snapshotHash', snapshotHash)
+      .attach('signature', PNG, { filename: 'signature.png', contentType: 'image/png' });
 
   const facultyLogin = (email: string, password = PASSWORD) => post('/auth/faculty/login', { email, password });
 
@@ -153,10 +163,10 @@ describe('Faculty onboarding, review, pricing gate and consent (LMS-39, LMS-40)'
       const offerings = res.body.data.offerings.map((o: { curriculumId: string }) => o.curriculumId);
       expect(offerings.sort()).toEqual([catalogue.physics.id, catalogue.chemistry.id].sort());
       const physics = res.body.data.offerings.find((o: { curriculumId: string }) => o.curriculumId === catalogue.physics.id);
-      // The leaf is the choice: titled by its own name, with no board or level
+      // A subject of the leaf, with no board or level
       expect(physics).toMatchObject({
         categoryId: catalogue.physicsLeaf.id,
-        subject: { id: catalogue.physicsLeaf.id, name: 'Class 11' },
+        subject: { id: expect.any(String), name: 'Leaf test subject' },
         board: null,
         level: null,
       });
@@ -208,6 +218,7 @@ describe('Faculty onboarding, review, pricing gate and consent (LMS-39, LMS-40)'
         highestQualification: 'M.Sc. Physics',
         studiedAt: 'IIT Delhi',
         teachingExperience: '5-10',
+        teachingMode: 'hybrid',
         offersOfflineClasses: true,
         applicationReference: res.body.data.applicationReference,
       });
@@ -346,7 +357,11 @@ describe('Faculty onboarding, review, pricing gate and consent (LMS-39, LMS-40)'
           studiedAt: 'IIT Delhi',
           teachingExperience: { code: '5-10', label: '5–10 years' },
           offersOfflineClasses: true,
+          teachingMode: { code: 'hybrid', label: 'Hybrid (Both Online & Offline)' },
         },
+        verification: 'new',
+        reupload: null,
+        consentSigned: false,
       });
       expect(res.body.data.documents.map((d: { label: string }) => d.label).sort()).toEqual(
         ['Highest degree certificate', 'PAN card', 'Photo ID']
@@ -364,7 +379,9 @@ describe('Faculty onboarding, review, pricing gate and consent (LMS-39, LMS-40)'
       expect(res.body.data[0]).toMatchObject({
         fullName: 'Anil Verma',
         qualification: 'M.Sc. Physics · IIT Delhi',
-        documents: { uploaded: 3, required: 3 },
+        documents: { uploaded: 3, required: 3, additional: 0 },
+        verification: 'new',
+        isActive: true,
         pricing: 'none',
       });
     });
@@ -513,8 +530,21 @@ describe('Faculty onboarding, review, pricing gate and consent (LMS-39, LMS-40)'
       expect(stale.status).toBe(409);
       expect(stale.body.code).toBe('PRICES_CHANGED');
 
-      const accepted = await post('/faculty/me/price-consent', { decision: 'accept', snapshotHash: consent.body.data.snapshotHash }, token);
+      const unsigned = await post('/faculty/me/price-consent', { decision: 'accept', snapshotHash: consent.body.data.snapshotHash }, token);
+      expect(unsigned.status).toBe(422);
+      expect(unsigned.body.code).toBe('SIGNATURE_REQUIRED');
+
+      const accepted = await signAndAccept(consent.body.data.snapshotHash, token);
       expect(accepted.status).toBe(200);
+      const signed = await prisma.facultyPriceConsent.findFirstOrThrow({ where: { facultyId: profile.id, decision: 'ACCEPTED' } });
+      expect(signed.signatureStorageKey).toMatch(/^faculty-consent-signatures\//);
+      expect(sha256(storage.files.get(signed.signatureStorageKey!)!.body)).toBe(sha256(PNG));
+      const drawer = await get(`/admin/faculty/${profile.id}`);
+      expect(drawer.body.data.consentSigned).toBe(true);
+      const signature = await get(`/admin/faculty/${profile.id}/price-consent/signature`);
+      expect(signature.status).toBe(200);
+      expect(signature.headers['content-type']).toBe('image/png');
+      expect(await prisma.auditLog.count({ where: { action: 'faculty.consent_signature_viewed' } })).toBe(1);
       expectContractResponse(accepted, 'post', '/faculty/me/price-consent');
       expect(accepted.body.data.status).toBe('accepted');
       // Signing in again replaces the session on this device
@@ -560,6 +590,173 @@ describe('Faculty onboarding, review, pricing gate and consent (LMS-39, LMS-40)'
       expect((await get('/faculty/me/price-consent', student)).status).toBe(403);
       expect((await request(app).get(`${API}/faculty/me/price-consent`)).status).toBe(401);
       void profile;
+    });
+  });
+
+  // ── Client feedback: re-upload, statuses, additional documents, activation ──
+
+  describe('re-upload request (temporary rejection)', () => {
+    async function requestReupload(facultyId: string, reason = 'PAN card is blurred; upload a clear scan') {
+      const { revision } = await prisma.facultyProfile.findUniqueOrThrow({ where: { id: facultyId } });
+      return put(`/admin/faculty/${facultyId}/review`, { decision: 'request_reupload', reason, expectedRevision: revision });
+    }
+    const linkToken = () => {
+      const email = mail.sent.find((m) => m.category === 'faculty-reupload');
+      const match = /reupload\?token=([A-Za-z0-9_-]{43})/.exec(email?.text ?? '');
+      return match?.[1] as string;
+    };
+    function reupload(token: string, overrides: Record<string, string> = {}, files: Record<string, [Buffer, string][]> = {}) {
+      const req = request(app).post(`${API}/faculty/onboarding/reupload`).set('Cookie', csrf.csrfCookie).set('x-csrf-token', csrf.csrfToken);
+      const fields: Record<string, string> = {
+        token,
+        fullName: 'Anil Kumar Verma',
+        mobileNumber: '+91 98765 43211',
+        city: 'Pune',
+        highestQualification: 'Ph.D. Physics',
+        teachingExperience: '10+',
+        teachingMode: 'online',
+        studiedAt: 'IIT Delhi',
+        curriculumIds: JSON.stringify([catalogue.physics.id]),
+        declarationAccepted: 'true',
+        ...overrides,
+      };
+      for (const [k, v] of Object.entries(fields)) req.field(k, v);
+      for (const [k, list] of Object.entries(files)) for (const [buf, name] of list) req.attach(k, buf, { filename: name });
+      return req;
+    }
+
+    it('needs a reason, emails the reason with an expiring link, and shows "Requested for re-upload"', async () => {
+      const { profile } = await submitted();
+      const noReason = await put(`/admin/faculty/${profile.id}/review`, { decision: 'request_reupload', expectedRevision: 1 });
+      expect(noReason.status).toBe(422);
+      const res = await requestReupload(profile.id);
+      expect(res.status).toBe(200);
+      expectContractResponse(res, 'put', `/admin/faculty/${profile.id}/review`);
+      expect(res.body.data).toMatchObject({ verification: 'reupload_requested', approvalStatus: 'changes_requested', isPublished: false });
+      expect(res.body.data.reupload).toMatchObject({ reason: 'PAN card is blurred; upload a clear scan', expired: false });
+      await new Promise((r) => setTimeout(r, 20));
+      const email = mail.sent.find((m) => m.category === 'faculty-reupload');
+      expect(email?.to).toBe('anil.verma@example.com');
+      expect(email?.text).toContain('PAN card is blurred; upload a clear scan');
+      expect(email?.text).toMatch(/This link expires on \w+day, \d{1,2} \w+ \d{4}, \d{1,2}:\d{2} [AP]M/);
+      expect(linkToken()).toHaveLength(43);
+      const roster = await get('/admin/faculty');
+      expect(roster.body.data.find((r: { id: string }) => r.id === profile.id).verification).toBe('reupload_requested');
+      expect(await prisma.auditLog.count({ where: { action: 'faculty.reupload_requested' } })).toBe(1);
+    });
+
+    it('pre-fills the form from the link', async () => {
+      const { profile } = await submitted();
+      await requestReupload(profile.id);
+      await new Promise((r) => setTimeout(r, 20));
+      const res = await post('/faculty/onboarding/reupload/session', { token: linkToken() });
+      expect(res.status).toBe(200);
+      expectContractResponse(res, 'post', '/faculty/onboarding/reupload/session');
+      expect(res.body.data).toMatchObject({
+        email: 'anil.verma@example.com',
+        reason: 'PAN card is blurred; upload a clear scan',
+        values: { fullName: 'Anil Verma', mobileNumber: '+919876543210', city: 'Bengaluru', teachingMode: 'hybrid', teachingExperience: '5-10' },
+      });
+      expect(res.body.data.curriculumIds.sort()).toEqual([catalogue.physics.id, catalogue.chemistry.id].sort());
+      expect(res.body.data.documents).toHaveLength(3);
+    });
+
+    it('re-submission replaces what changed, keeps the rest, and moves the tutor back to "New"', async () => {
+      const { profile } = await submitted();
+      await requestReupload(profile.id);
+      await new Promise((r) => setTimeout(r, 20));
+      const token = linkToken();
+      const oldPan = await prisma.facultyDocument.findFirstOrThrow({ where: { facultyId: profile.id, documentType: 'PAN_CARD' } });
+
+      const res = await reupload(token, {}, { panCard: [[PNG, 'pan-clear.png']], additionalDocuments: [[PDF, 'experience.pdf']] });
+      expect(res.status).toBe(200);
+      expectContractResponse(res, 'post', '/faculty/onboarding/reupload');
+
+      const row = await prisma.facultyProfile.findUniqueOrThrow({ where: { id: profile.id }, include: { user: true } });
+      expect(row).toMatchObject({ approvalStatus: 'PENDING', city: 'Pune', teachingMode: 'online', offersOfflineClasses: false, rejectionReason: null });
+      expect(row.user).toMatchObject({ fullName: 'Anil Kumar Verma', mobileNumber: '+919876543211' });
+      const docs = await prisma.facultyDocument.findMany({ where: { facultyId: profile.id } });
+      expect(docs.map((d) => d.documentType).sort()).toEqual(['DEGREE_CERTIFICATE', 'GOVERNMENT_ID', 'OTHER', 'PAN_CARD']);
+      expect(docs.find((d) => d.documentType === 'PAN_CARD')?.originalFileName).toBe('pan-clear.png');
+      expect(storage.files.has(oldPan.storageKey)).toBe(false);
+      const active = await prisma.facultyAssignment.findMany({ where: { facultyId: profile.id, isActive: true } });
+      expect(active.map((a) => a.curriculumId)).toEqual([catalogue.physics.id]);
+
+      const detail = await get(`/admin/faculty/${profile.id}`);
+      expect(detail.body.data).toMatchObject({ verification: 'new', reupload: null });
+      const roster = await get('/admin/faculty');
+      expect(roster.body.data.find((r: { id: string }) => r.id === profile.id)).toMatchObject({
+        verification: 'new',
+        documents: { uploaded: 3, required: 3, additional: 1 },
+      });
+
+      // The link works once
+      const again = await post('/faculty/onboarding/reupload/session', { token });
+      expect(again.status).toBe(422);
+      expect(again.body.code).toBe('REUPLOAD_LINK_INVALID');
+    });
+
+    it('refuses an expired or superseded link', async () => {
+      const { profile } = await submitted();
+      await requestReupload(profile.id, 'First');
+      await new Promise((r) => setTimeout(r, 20));
+      const first = linkToken();
+      mail.sent.length = 0;
+      await requestReupload(profile.id, 'Second');
+      await new Promise((r) => setTimeout(r, 20));
+      const second = linkToken();
+      expect((await post('/faculty/onboarding/reupload/session', { token: first })).body.code).toBe('REUPLOAD_LINK_INVALID');
+      await prisma.facultyReuploadRequest.updateMany({ where: { facultyId: profile.id, status: 'PENDING' }, data: { expiresAt: new Date(Date.now() - 1000) } });
+      expect((await post('/faculty/onboarding/reupload/session', { token: second })).body.code).toBe('REUPLOAD_LINK_INVALID');
+    });
+  });
+
+  describe('additional documents and activation', () => {
+    it('stores optional additional documents and lists them for the admin', async () => {
+      const { token } = await createInvitationWithToken('extra@example.com');
+      const req = apply(token);
+      req.attach('additionalDocuments', PDF, { filename: 'award.pdf' });
+      req.attach('additionalDocuments', PNG, { filename: 'certificate.png' });
+      const res = await req;
+      expect(res.status).toBe(201);
+      const profile = await prisma.facultyProfile.findFirstOrThrow({ where: { user: { email: 'extra@example.com' } } });
+      const detail = await get(`/admin/faculty/${profile.id}`);
+      const extras = detail.body.data.documents.filter((d: { required: boolean }) => !d.required);
+      expect(extras.map((d: { label: string; fileName: string }) => [d.label, d.fileName])).toEqual([
+        ['Additional document', 'award.pdf'],
+        ['Additional document', 'certificate.png'],
+      ]);
+    });
+
+    it('refuses more than five additional documents', async () => {
+      const { token } = await createInvitationWithToken('many@example.com');
+      const req = apply(token);
+      for (let i = 0; i < 6; i++) req.attach('additionalDocuments', PDF, { filename: `extra-${i}.pdf` });
+      const res = await req;
+      expect(res.status).toBe(422);
+      expect(res.body.code).toBe('DOCUMENT_INVALID');
+    });
+
+    it('requires a teaching mode from the reference list', async () => {
+      const { token } = await createInvitationWithToken('mode@example.com');
+      const res = await apply(token, { teachingMode: 'telepathy' });
+      expect(res.status).toBe(422);
+      expect(res.body.errors.teachingMode).toBeDefined();
+      const modes = await request(app).get(`${API}/faculty/onboarding/teaching-modes`);
+      expect(modes.body.data.map((m: { code: string }) => m.code)).toEqual(['online', 'offline', 'hybrid']);
+    });
+
+    it('activates and deactivates a tutor separately from verification', async () => {
+      const { profile } = await submitted();
+      const off = await put(`/admin/faculty/${profile.id}/active`, { isActive: false });
+      expect(off.status).toBe(200);
+      expectContractResponse(off, 'put', `/admin/faculty/${profile.id}/active`);
+      expect(off.body.data).toMatchObject({ isActive: false, status: 'suspended', verification: 'new' });
+      const on = await put(`/admin/faculty/${profile.id}/active`, { isActive: true });
+      expect(on.body.data).toMatchObject({ isActive: true, status: 'pending' });
+      expect(await prisma.auditLog.count({ where: { action: { in: ['faculty.activated', 'faculty.deactivated'] } } })).toBe(2);
+      const { token } = await createUserWithPermissions(['faculty.read']);
+      expect((await put(`/admin/faculty/${profile.id}/active`, { isActive: false }, token)).status).toBe(403);
     });
   });
 

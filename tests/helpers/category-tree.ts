@@ -5,7 +5,7 @@ import { prisma } from '@infrastructure/database/index';
  * Category-tree fixtures (ADR-0005) written straight to the database, so suites never
  * depend on the module's HTTP API. Paths and depths are computed here the same way the
  * service does, so the deferred tree trigger accepts them. Whether a node is a leaf
- * (is_bookable) and its category curriculum are kept by the categories_leaf_sync
+ * (is_bookable) is kept by the categories_leaf_sync
  * trigger, so the booking flags passed here are normalised by the database.
  */
 
@@ -99,11 +99,20 @@ export async function setFlag(name: string, isEnabled: boolean): Promise<void> {
   });
 }
 
-/** The category curriculum of a leaf (no subject, board or level): what tutors pick. */
-export async function leafCurriculum(categoryId: string) {
-  return prisma.curriculum.findFirstOrThrow({
-    where: { categoryId, subjectId: null, boardId: null, levelId: null },
-  });
+/** A subject offering of a leaf (no board or level): what tutors pick. Created on first use. */
+export async function leafCurriculum(categoryId: string, subjectId?: string) {
+  const subject = subjectId
+    ? { id: subjectId }
+    : await prisma.subject.upsert({
+        where: { code: 'leaf-test-subject' },
+        create: { code: 'leaf-test-subject', name: 'Leaf test subject' },
+        update: {},
+      });
+  return (
+    (await prisma.curriculum.findFirst({
+      where: { categoryId, subjectId: subject.id, boardId: null, levelId: null },
+    })) ?? prisma.curriculum.create({ data: { categoryId, subjectId: subject.id } })
+  );
 }
 
 /** A default (all tutors) price on a curriculum, which puts its category in use. */

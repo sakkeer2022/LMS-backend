@@ -4,7 +4,7 @@ import { prisma } from '@infrastructure/database/index';
 import { ForbiddenError, UnauthorizedError } from '@core/errors/index';
 import { logger } from '@core/logger/index';
 import { config } from '@config/index';
-import { PORTAL_ROLES, type Portal } from '@core/security/rbac';
+import { roleInPortal, type Portal } from '@core/security/rbac';
 import { logAction } from '../audit/audit.service.js';
 import type { PortalLoginInput } from './auth.dto.js';
 import { assessLoginLocation, type SessionContext } from './auth.service.js';
@@ -108,8 +108,7 @@ export async function loginToPortal(
     return fail('account_inactive');
   }
 
-  const allowed = PORTAL_ROLES[portal];
-  if (!user.roles.some((ur) => allowed.includes(ur.role.name))) return fail('wrong_portal');
+  if (!user.roles.some((ur) => roleInPortal(portal, ur.role.name))) return fail('wrong_portal');
 
   if (!user.emailVerifiedAt) {
     await auditFailure(portal, 'email_unverified', context, user.id);

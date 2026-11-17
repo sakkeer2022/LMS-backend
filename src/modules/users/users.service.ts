@@ -1,16 +1,23 @@
+import { ADMIN_AUDIENCE } from '@core/security/rbac.js';
 import bcrypt from 'bcrypt';
+import { randomInt } from 'node:crypto';
+import { revokeAllSessions } from '@modules/auth/index.js';
 import { prisma } from '@infrastructure/database/index';
 import { NotFoundError, ConflictError, ValidationError } from '@core/errors/index';
 import { buildPaginationMeta, type PaginatedResult } from '@shared/types/pagination';
 import type { CreateUserInput, UpdateUserInput, AssignRolesInput } from './users.dto.js';
 import type { PaginationQueryInput } from '@modules/roles/roles.dto.js';
 import type { Prisma } from '@prisma/client';
+import { getEmailProvider } from '@infrastructure/email/index.js';
+import { accountCreatedEmail } from './users.emails.js';
 import { logAction, type AuditContext } from '@modules/audit/audit.service.js';
 import { logger } from '@core/logger/index';
 import { resolvePermissionsForRoles } from '@modules/roles/roles.service.js';
 import {
   includesAdminRole,
   requireHeld,
+  requireNotLastSuperAdmin,
+  requireNotSelf,
   requireSuperAdmin,
   type Actor,
 } from '@modules/roles/system-role-guard.js';
@@ -26,6 +33,7 @@ export interface UserSummary {
   lastLoginAt: Date | null;
   createdAt: Date;
   roleCount: number;
+  roles: Array<{ id: string; name: string }>;
 }
 
 export interface UserDetail extends Omit<UserSummary, 'roleCount'> {
@@ -35,21 +43,27 @@ export interface UserDetail extends Omit<UserSummary, 'roleCount'> {
 
 // ── List ─────────────────────────────────────────────────────────
 export async function listUsers(
-  query: PaginationQueryInput
+  query: PaginationQueryInput & { audience?: 'admin'; roleId?: string }
 ): Promise<PaginatedResult<UserSummary>> {
-  const { page, limit, search } = query;
+  const { page, limit, search, audience, roleId } = query;
   const offset = (page - 1) * limit;
 
   const where: Prisma.UserWhereInput = {
     deletedAt: null,
   };
 
-  if (search) {
-    where.OR = [
-      { email: { contains: search, mode: 'insensitive' } },
-      { fullName: { contains: search, mode: 'insensitive' } },
-    ];
-  }
+  const and: Prisma.UserWhereInput[] = [];
+  if (search)
+    and.push({
+      OR: [
+        { email: { contains: search, mode: 'insensitive' } },
+        { fullName: { contains: search, mode: 'insensitive' } },
+      ],
+    });
+  // Student and faculty accounts have their own sections; someone with no role yet still shows
+  if (audience === 'admin') and.push(ADMIN_AUDIENCE);
+  if (roleId) and.push({ roles: { some: { roleId } } });
+  if (and.length) where.AND = and;
 
   const [count, rows] = await prisma.$transaction([
     prisma.user.count({ where }),
@@ -62,6 +76,7 @@ export async function listUsers(
         roles: {
           select: {
             roleId: true,
+            role: { select: { name: true } },
           },
         },
       },
@@ -76,6 +91,7 @@ export async function listUsers(
     lastLoginAt: u.lastLoginAt,
     createdAt: u.createdAt,
     roleCount: u.roles.length,
+    roles: u.roles.map((r) => ({ id: r.roleId, name: r.role.name })),
   }));
 
   return { items, meta: buildPaginationMeta(count, page, limit) };
@@ -110,11 +126,27 @@ export async function getUserById(id: string): Promise<UserDetail> {
 }
 
 // ── Create (Admin) ────────────────────────────────────────────────
-export async function createUser(dto: CreateUserInput): Promise<UserDetail> {
-  const existing = await prisma.user.findFirst({
-    where: { email: dto.email, deletedAt: null },
-  });
+export async function createUser(
+  dto: CreateUserInput,
+  actor: Actor
+): Promise<UserDetail & { welcomeEmailSent: boolean }> {
+  // Deleted accounts keep their address (it is unique), so they count too
+  const existing = await prisma.user.findFirst({ where: { email: dto.email } });
   if (existing) throw new ConflictError('Email is already in use');
+
+  // Roles given at creation pass the same checks as assigning them later, before anything is written
+  const roleIds = [...new Set(dto.roleIds ?? [])];
+  if (roleIds.length) {
+    const found = await prisma.role.findMany({
+      where: { id: { in: roleIds }, deletedAt: null },
+      select: { id: true },
+    });
+    if (found.length !== roleIds.length)
+      throw new ValidationError('One or more roles were not found');
+    const attempt = { entity: 'user', action: 'user.create', resourceId: dto.email };
+    if (await includesAdminRole(prisma, roleIds)) await requireSuperAdmin(actor, attempt);
+    await requireHeld(actor, await resolvePermissionsForRoles(roleIds), attempt);
+  }
 
   const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
 
@@ -124,18 +156,58 @@ export async function createUser(dto: CreateUserInput): Promise<UserDetail> {
       passwordHash,
       fullName: dto.fullName,
       isActive: dto.isActive !== undefined ? dto.isActive : true,
+      // The password was chosen by an admin: it works once, to sign in and set their own
+      status: 'PENDING_ACTIVATION',
+      // An admin entered this address and handed over the password, so there is no mailbox check to wait for
+      emailVerifiedAt: new Date(),
+      roles: {
+        create: roleIds.map((roleId) => ({ roleId, assignedBy: actor.audit.actorId ?? null })),
+      },
     },
   });
 
-  return getUserById(user.id);
+  await logAction({
+    ...actor.audit,
+    severity: 'INFO',
+    entity: 'user',
+    action: 'user.create',
+    resourceId: user.id,
+    newValue: { email: user.email, roleIds },
+  });
+
+  const detail = await getUserById(user.id);
+  // The account exists either way; the admin is told if the details could not be mailed
+  let welcomeEmailSent = true;
+  try {
+    await getEmailProvider().send(
+      accountCreatedEmail({
+        to: detail.email,
+        fullName: detail.fullName,
+        password: dto.password,
+        roleNames: detail.roles.map((r) => r.name.replace(/_/g, ' ')),
+      })
+    );
+  } catch (err) {
+    welcomeEmailSent = false;
+    logger.warn(
+      { err: { message: (err as Error).message }, userId: user.id },
+      'Welcome email failed'
+    );
+  }
+  return { ...detail, welcomeEmailSent };
 }
 
 // ── Update (Admin) ────────────────────────────────────────────────
-export async function updateUser(id: string, dto: UpdateUserInput): Promise<UserDetail> {
+export async function updateUser(
+  id: string,
+  dto: UpdateUserInput,
+  audit?: AuditContext
+): Promise<UserDetail> {
   const user = await prisma.user.findFirst({
     where: { id, deletedAt: null },
   });
   if (!user) throw new NotFoundError('User');
+  if (dto.isActive === false) await requireNotLastSuperAdmin(prisma, id);
 
   await prisma.user.update({
     where: { id },
@@ -145,19 +217,40 @@ export async function updateUser(id: string, dto: UpdateUserInput): Promise<User
     },
   });
 
+  if (dto.isActive !== undefined && dto.isActive !== user.isActive)
+    await logAction({
+      ...audit,
+      severity: 'SECURITY',
+      entity: 'user',
+      action: dto.isActive ? 'user.activate' : 'user.deactivate',
+      resourceId: id,
+      previousValue: { email: user.email, isActive: user.isActive },
+      newValue: { email: user.email, isActive: dto.isActive },
+    });
+
   return getUserById(user.id);
 }
 
 // ── Delete (Soft) ─────────────────────────────────────────────────
-export async function deleteUser(id: string): Promise<void> {
+export async function deleteUser(id: string, audit?: AuditContext): Promise<void> {
   const user = await prisma.user.findFirst({
     where: { id, deletedAt: null },
   });
   if (!user) throw new NotFoundError('User');
+  await requireNotLastSuperAdmin(prisma, id);
 
   await prisma.user.update({
     where: { id },
     data: { deletedAt: new Date() },
+  });
+
+  await logAction({
+    ...audit,
+    severity: 'SECURITY',
+    entity: 'user',
+    action: 'user.delete',
+    resourceId: id,
+    previousValue: { email: user.email },
   });
 }
 
@@ -205,6 +298,7 @@ export async function assignRoles(
       where: { id: userId, deletedAt: null },
     });
     if (!user) throw new NotFoundError('User');
+    requireNotSelf(actor, userId);
     previousRoles = await currentRoleNames(tx, userId);
 
     const roles = await tx.role.findMany({
@@ -281,6 +375,7 @@ export async function removeRoles(
       where: { id: userId, deletedAt: null },
     });
     if (!user) throw new NotFoundError('User');
+    requireNotSelf(actor, userId);
     previousRoles = await currentRoleNames(tx, userId);
 
     if (await includesAdminRole(tx, dto.roleIds))
@@ -289,6 +384,8 @@ export async function removeRoles(
         action: 'user.roles_changed',
         resourceId: userId,
       });
+    if (await tx.role.count({ where: { id: { in: dto.roleIds }, name: 'super_admin' } }))
+      await requireNotLastSuperAdmin(tx, userId);
 
     await tx.userRole.deleteMany({
       where: {
@@ -339,6 +436,7 @@ export async function setRoles(
       where: { id: userId, deletedAt: null },
     });
     if (!user) throw new NotFoundError('User');
+    requireNotSelf(actor, userId);
     previousRoles = await currentRoleNames(tx, userId);
 
     const roles = await tx.role.findMany({
@@ -364,6 +462,10 @@ export async function setRoles(
         action: 'user.roles_changed',
         resourceId: userId,
       });
+
+    const dropped = currentIds.filter((id) => !dto.roleIds.includes(id));
+    if (await tx.role.count({ where: { id: { in: dropped }, name: 'super_admin' } }))
+      await requireNotLastSuperAdmin(tx, userId);
 
     await requireHeld(
       actor,
@@ -415,4 +517,75 @@ export async function setRoles(
 
   await recordRoleChange('user.roles_replaced', userId, previousRoles, result, actor.audit);
   return result;
+}
+
+// ── Reset password (Admin) ────────────────────────────────────────
+const randomPassword = (): string => {
+  const pick = (chars: string) => chars[randomInt(chars.length)]!;
+  const all = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
+  const chars = [pick('ABCDEFGHJKLMNPQRSTUVWXYZ'), pick('23456789'), pick('!@#$%&*')];
+  while (chars.length < 14) chars.push(pick(all));
+  return chars.sort(() => randomInt(3) - 1).join('');
+};
+
+/**
+ * Sets a new random password, ends the person's sessions and emails it to them (it is never returned to the
+ * admin). They must replace it at their next sign-in. Also the way to resend details after a lost email.
+ */
+export async function resetPassword(
+  userId: string,
+  actor: Actor
+): Promise<{ welcomeEmailSent: boolean }> {
+  const user = await prisma.user.findFirst({
+    where: { id: userId, deletedAt: null },
+    include: { roles: { include: { role: { select: { id: true, name: true } } } } },
+  });
+  if (!user) throw new NotFoundError('User');
+  requireNotSelf(actor, userId);
+  const attempt = { entity: 'user', action: 'user.password_reset', resourceId: userId };
+  // Resetting an admin's password would be a way into their access
+  if (
+    await includesAdminRole(
+      prisma,
+      user.roles.map((r) => r.roleId)
+    )
+  )
+    await requireSuperAdmin(actor, attempt);
+
+  const password = randomPassword();
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS),
+      status: user.status === 'ACTIVE' ? 'PENDING_ACTIVATION' : user.status,
+      emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+    },
+  });
+  await revokeAllSessions(userId);
+  await logAction({
+    ...actor.audit,
+    severity: 'SECURITY',
+    entity: 'user',
+    action: 'user.password_reset',
+    resourceId: userId,
+    newValue: { email: user.email },
+  });
+
+  try {
+    await getEmailProvider().send(
+      accountCreatedEmail({
+        to: user.email,
+        fullName: user.fullName,
+        password,
+        roleNames: user.roles.map((r) => r.role.name.replace(/_/g, ' ')),
+        reset: true,
+      })
+    );
+    return { welcomeEmailSent: true };
+  } catch (err) {
+    logger.warn({ err: { message: (err as Error).message }, userId }, 'Reset email failed');
+    return { welcomeEmailSent: false };
+  }
 }

@@ -1,5 +1,29 @@
 # Findings & Decisions
 
+## 2026-11-12 — Subject cards after onboarding and the faculty library
+
+| Finding / Decision | Detail |
+|---|---|
+| A subject card is a `faculty_assignments` row | No new table: the status and source columns extend it, so prices, consent and the library keep pointing at the same curriculum |
+| Limit enforced three times | DTO (onboarding, re-upload), service (`FOR NO KEY UPDATE` on the profile row, then count) and the `faculty_assignments_limit` AFTER trigger. NO KEY UPDATE, not FOR UPDATE: the insert's foreign key takes KEY SHARE on the same row, and FOR UPDATE would deadlock two concurrent requests |
+| Gate counts approved cards only | `getFacultyAccess` returns `subjects` (approved, for gate/hash/consent) and `cards` (all active, for the drawer and profile). A pending request never blocks sign-in |
+| Edits never bypass review | Content of a live material changes only in `reviewSubmission` (approve). Faculty writes create `library_material_revisions` rows; before the first approval the material mirrors the latest submission and stays PENDING |
+| One pending submission per material | Partial unique index; a newer edit marks the waiting one SUPERSEDED (reviewing it returns 409) |
+| Library permissions follow the earlier draft | `library.moderate` (draft contract name) for the admin queue and decisions; `library.manage_self` for tutors. Review body uses the draft's `status`/`reason` |
+| `NOTE` enum value | Added with `ADD VALUE IF NOT EXISTS` and compared as `kind::text` in the CHECK, so the migration also runs inside one transaction and after a rollback |
+| Prisma engines in the sandbox | binaries.prisma.sh is blocked there: `PRISMA_SCHEMA_ENGINE_BINARY=/bin/true npx prisma generate` generates the client; migrations were applied with psql and recorded in `_prisma_migrations`. Run `npx prisma migrate deploy` normally on a developer machine |
+
+## 2026-11-11 — Re-upload requests, teaching mode, signed consent
+
+| Finding / Decision | Detail |
+|---|---|
+| Re-upload uses `CHANGES_REQUESTED` | The existing approval state; the roster row status stays `pending`, and the new `verification` field shows `reupload_requested`. A re-submission sets PENDING again and marks every document unverified |
+| One open link per tutor | Partial unique index on `faculty_reupload_requests (faculty_id) WHERE status = 'PENDING'`; any new decision supersedes an open link |
+| Kept documents | A required document left out of the re-upload keeps the one on file; replaced and removed files are deleted from storage after the transaction commits |
+| Expiry wording | `formatExpiry` states the date and time in the recipient's account time zone; an invitee has no account yet, so invitations state UTC (no zone assumed from a country) |
+| Teaching mode as reference data | `teaching_modes` rows (code PK) like `referral_sources`; `offers_offline_classes` is kept in step for discovery |
+| Prisma XOR inputs | Nested `user: { update }` in `facultyProfile.update` needs the relation form `mode: { connect }`, not the scalar `teachingMode` |
+
 ## 2026-11-04 — Faculty onboarding and price consent
 
 | Finding / Decision | Detail |

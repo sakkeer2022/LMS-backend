@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { authenticate, requireRole } from '@middleware/authenticate';
+import { authenticate, requireAdminPortalUser } from '@middleware/authenticate';
 import * as AdminProfileController from './admin-profile.controller.js';
 
 export const adminProfileRouter = Router();
 
 // Self only: every handler acts on the authenticated account, never an ID from the request
-adminProfileRouter.use(authenticate, requireRole('admin', 'super_admin'));
+adminProfileRouter.use(authenticate, requireAdminPortalUser);
 
 /**
  * @openapi
@@ -42,3 +42,21 @@ adminProfileRouter.put('/profile', AdminProfileController.updateProfile);
  *         description: Forbidden - not an admin
  */
 adminProfileRouter.get('/activity', AdminProfileController.listActivity);
+
+/**
+ * @openapi
+ * /admin/me/permissions:
+ *   get:
+ *     summary: The signed-in admin's role names and effective permissions, read from the database
+ *     description: The UI hides or disables controls from this list. The API enforces permissions regardless.
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Roles and permissions retrieved
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - not an admin
+ */
+adminProfileRouter.get('/permissions', AdminProfileController.getPermissions);

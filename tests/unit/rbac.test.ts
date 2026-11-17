@@ -98,6 +98,7 @@ describe('Seeded system roles', () => {
     expect(guards.filter((g) => hasPermission(grantsOf('faculty'), g))).toEqual([
       'faculty.read_self',
       'faculty.update_self',
+      'library.manage_self',
     ]);
   });
 

@@ -2,9 +2,26 @@
 export { adminFacultyRouter } from './faculty.routes.js';
 export { facultyOnboardingRouter, facultySelfRouter } from './faculty.onboarding.routes.js';
 export {
+  adminSubjectCardsRouter,
+  facultySubjectCardsRouter,
+} from './faculty.subject-cards.routes.js';
+export {
+  facultyIdOfUser,
+  requireActiveSubjectCard,
+  listMySubjectCards,
+  type SubjectCardView,
+} from './faculty.subject-cards.js';
+export { MAX_SUBJECT_CARDS } from './faculty.subject-cards.rules.js';
+export {
+  checkDocument,
+  isPreviewableMime,
+  ALLOWED_DOCUMENT_MIME_TYPES,
+} from './faculty.documents.js';
+export {
   REQUIRED_VERIFICATION_DOCUMENTS,
   type FacultyListItem,
   type FacultyRowStatus,
+  type VerificationStatus,
 } from './faculty.list.js';
 export { isValidEmail, EMAIL_PATTERN } from './faculty.dto.js';
 export {

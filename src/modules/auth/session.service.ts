@@ -4,7 +4,7 @@ import { redisClient } from '@infrastructure/redis/connection';
 import { NotFoundError, UnauthorizedError } from '@core/errors/index';
 import { logger } from '@core/logger/index';
 import { verifyRefreshToken, getAccessTokenTtlSeconds } from '@core/security/jwt';
-import { PORTALS, PORTAL_ROLES, type Portal } from '@core/security/rbac';
+import { PORTALS, roleInPortal, type Portal } from '@core/security/rbac';
 import { markSessionRevoked } from '@core/security/session-revocation';
 import { buildPaginationMeta } from '@shared/types/pagination';
 import type { PaginationQuery } from '@shared/validation/index';
@@ -51,7 +51,8 @@ type Rotation =
  */
 export async function refresh(
   rawRefreshToken: string,
-  context: SessionContext
+  context: SessionContext,
+  expectedPortal?: Portal
 ): Promise<RefreshResult> {
   let payload: ReturnType<typeof verifyRefreshToken>;
   try {
@@ -66,6 +67,9 @@ export async function refresh(
   const outcome = await prisma.$transaction(async (tx): Promise<Rotation> => {
     const stored = await tx.refreshToken.findFirst({ where: { userId: payload.sub, tokenHash } });
     if (!stored || stored.revokedAt) throw new UnauthorizedError('Refresh token has been revoked');
+    if (expectedPortal && stored.portal !== expectedPortal) {
+      throw new UnauthorizedError(REAUTH_REQUIRED_MESSAGE);
+    }
 
     if (stored.used) {
       return { kind: 'reused', userId: payload.sub, familyId: stored.familyId, jti: stored.jti };
@@ -91,7 +95,7 @@ export async function refresh(
       user.status === 'INACTIVE' ||
       user.status === 'SUSPENDED' ||
       !isPortal(stored.portal) ||
-      !user.roles.some((ur) => PORTAL_ROLES[stored.portal as Portal].includes(ur.role.name))
+      !user.roles.some((ur) => roleInPortal(stored.portal as Portal, ur.role.name))
     ) {
       throw new UnauthorizedError(REAUTH_REQUIRED_MESSAGE);
     }

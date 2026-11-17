@@ -5,9 +5,10 @@ import { type Db } from './category-tree.reads.js';
 import { checkSelection, type SelectionError } from './category-tree.rules.js';
 
 /**
- * Learner-side checks on leaves (ADR-0005). Admins no longer manage offerings: every
- * category without sub-categories is a leaf with one category curriculum, kept by the
- * categories_leaf_sync trigger (migration 20261105090000_category_simple_leaves).
+ * Learner-side checks on leaves (ADR-0005). A leaf (a category without sub-categories,
+ * kept by the categories_leaf_sync trigger) offers subjects: one curriculum per leaf and
+ * subject, managed by admins in category-tree.subjects.ts (migration
+ * 20261110090000_leaf_subject_offerings).
  */
 
 interface LeafRow {
@@ -39,27 +40,24 @@ export function visibleTo(alias: string): Prisma.Sql {
       AND left(${c}.path, length(inactive_ancestor.path) + 1) = inactive_ancestor.path || '/')`;
 }
 
-/**
- * SQL condition: a visible leaf with an active curriculum (its category curriculum, or a
- * subject offering left from the previous model whose subject is still active).
- */
+/** SQL condition: a visible leaf with an active curriculum whose subject is still active. */
 export function bookableLeaf(alias: string): Prisma.Sql {
   const c = Prisma.raw(alias);
   return Prisma.sql`${c}.is_bookable AND ${visibleTo(alias)} AND EXISTS (
-    SELECT 1 FROM curricula cu LEFT JOIN subjects s ON s.id = cu.subject_id
-    WHERE cu.category_id = ${c}.id AND cu.is_active AND (s.id IS NULL OR s.is_active))`;
+    SELECT 1 FROM curricula cu JOIN subjects s ON s.id = cu.subject_id
+    WHERE cu.category_id = ${c}.id AND cu.is_active AND s.is_active)`;
 }
 
 /**
- * SQL condition: a visible leaf with an active category curriculum, the thing tutors pick
- * on onboarding and admins price.
+ * SQL condition: a visible leaf with an active subject offering (no board or level), the
+ * thing tutors pick on onboarding and admins price.
  */
 export function selectableLeaf(alias: string): Prisma.Sql {
   const c = Prisma.raw(alias);
   return Prisma.sql`${c}.is_bookable AND ${visibleTo(alias)} AND EXISTS (
-    SELECT 1 FROM curricula cu
-    WHERE cu.category_id = ${c}.id AND cu.is_active
-      AND cu.subject_id IS NULL AND cu.board_id IS NULL AND cu.level_id IS NULL)`;
+    SELECT 1 FROM curricula cu JOIN subjects s ON s.id = cu.subject_id
+    WHERE cu.category_id = ${c}.id AND cu.is_active AND s.is_active
+      AND cu.board_id IS NULL AND cu.level_id IS NULL)`;
 }
 
 export interface BookableOffering {

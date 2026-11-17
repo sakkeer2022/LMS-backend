@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
 import { config } from '@config/index';
 import { prisma } from '@infrastructure/database/index';
-import { PORTAL_ROLES } from '@core/security/rbac';
+import { roleInPortal } from '@core/security/rbac';
 import { TooManyRequestsError, ValidationError } from '@core/errors/index';
 import { issueEmailOtp, verifyEmailOtp, type IssuedChallenge } from '@modules/email-otp/index.js';
 import { revokeAllSessions } from '@modules/auth/index.js';
@@ -19,7 +19,7 @@ const BCRYPT_ROUNDS = 12;
 function changeNeedsEmailCode(roleNames: readonly string[]): boolean {
   return (
     config.otp.passwordChangeOtpRoles === 'all' ||
-    roleNames.some((name) => PORTAL_ROLES.admin.includes(name))
+    roleNames.some((name) => roleInPortal('admin', name))
   );
 }
 
@@ -42,8 +42,8 @@ export async function requestRecovery(input: RecoveryRequest): Promise<IssuedCha
     },
     include: { roles: { include: { role: { select: { name: true } } } } },
   });
-  const allowed = PORTAL_ROLES[input.portal];
-  const eligible = user !== null && user.roles.some((ur) => allowed.includes(ur.role.name));
+  const eligible =
+    user !== null && user.roles.some((ur) => roleInPortal(input.portal, ur.role.name));
 
   const challenge = await issueEmailOtp({
     email: input.email,

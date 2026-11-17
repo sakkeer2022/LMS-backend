@@ -52,6 +52,24 @@ export const MoveDto = z
   })
   .strict();
 
+// ── Subjects of a leaf ──────────────────────────────────────────────────────
+export const LeafSubjectParamsDto = z.object({ categoryId: z.uuid(), subjectId: z.uuid() });
+export const SubjectIdParamsDto = uuidParams('subjectId');
+
+/** Attach an existing subject, or create one by name and attach it. */
+export const AttachSubjectDto = z
+  .union([
+    z.object({ subjectId: z.uuid() }).strict(),
+    z.object({ name }).strict(),
+  ]);
+export const SetOfferingActiveDto = z.object({ isActive: z.boolean() }).strict();
+export const UpdateSubjectDto = z
+  .object({ name: name.optional(), isActive: z.boolean().optional() })
+  .strict()
+  .refine((v) => v.name !== undefined || v.isActive !== undefined, {
+    message: 'Provide name or isActive',
+  });
+
 export const DeleteQueryDto = z.object({ version: z.coerce.number().int().min(1) }).strict();
 
 // ── Learner ─────────────────────────────────────────────────────────────────
@@ -74,6 +92,8 @@ export const ResolveOfferingQueryDto = z
 
 export type CreateNodeInput = z.infer<typeof CreateRootDto>;
 export type UpdateCategoryInput = z.infer<typeof UpdateCategoryDto>;
+export type AttachSubjectInput = z.infer<typeof AttachSubjectDto>;
+export type UpdateSubjectInput = z.infer<typeof UpdateSubjectDto>;
 export type ReorderInput = z.infer<typeof ReorderDto>;
 export type MoveInput = z.infer<typeof MoveDto>;
 export type LearnerLeavesQuery = z.infer<typeof LearnerLeavesQueryDto>;

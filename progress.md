@@ -1,5 +1,26 @@
 # Progress Log
 
+## 2026-11-12 — Subject card limit, cards after onboarding, faculty library and its review (not committed)
+
+- Migration `20261112090000_subject_card_status_library_revisions` (rollback in `prisma/rollbacks`): `faculty_assignments.status/source/requested_at/decided_*` (backfill: approved tutors' cards APPROVED) and the `faculty_assignments_limit` trigger (at most 5 pending or approved active cards); `library_materials.faculty_id/body/original_file_name`, kind `NOTE`; `library_material_revisions` (one PENDING per material); `library_reviews.revision_id`.
+- Onboarding and re-upload accept at most 5 subjects (was 30).
+- Subject cards: `GET/POST /faculty/me/subject-cards`, `DELETE /faculty/me/subject-cards/:cardId`, `PUT /admin/faculty/:facultyId/subject-cards/:cardId/review`. Approving an application approves its onboarding cards. Sign-in gate, consent and roster pricing use approved cards only. `GET /admin/prices/awaiting` and `GET /admin/prices` carry `cardId`/`cardStatus`. The admin drawer's subjects carry `status`/`source`.
+- Library module (`src/modules/library`): faculty `GET /faculty/me/library`, `GET/POST /faculty/me/library/resources`, `PUT/DELETE /faculty/me/library/resources/:id`, `GET …/:id/file`; admin `GET /admin/library`, `/admin/library/counts`, `/admin/library/:submissionId`, `PUT …/review`, `GET …/content`. Permissions `library.moderate` (admin) and `library.manage_self` (faculty role): run `npx prisma db seed` after pulling.
+- `LIBRARY_UPLOAD_RATE_LIMIT_WINDOW_MS` / `LIBRARY_UPLOAD_RATE_LIMIT_MAX` (optional, defaults 15 min / 60).
+- Contract regenerated (134 paths, 155 operations); the old decision-required admin library moderation drafts are replaced by the implemented routes.
+
+## 2026-11-11 — Client feedback on faculty onboarding (branch feature/LMS-0-faculty-client-feedback, all four repos)
+
+- Migration `20261111090000_faculty_reupload_mode_signature` (rollback in `prisma/rollbacks`): `teaching_modes` (online, offline, hybrid, seeded) with `faculty_profiles.teaching_mode`; `faculty_reupload_requests` (hashed single-use token, one PENDING per tutor); `faculty_price_consents.signature_storage_key`.
+- Request re-upload ("temporary rejection"): `PUT /admin/faculty/:id/review` accepts `decision: request_reupload` with a reason; the tutor is emailed the reason and a link to `${FACULTY_APP_URL}/onboarding/reupload?token=` that expires after `FACULTY_REUPLOAD_TTL_HOURS` (the email states the date and time). `POST /faculty/onboarding/reupload/session` pre-fills the form; `POST /faculty/onboarding/reupload` saves it and moves the tutor back to PENDING ("New").
+- Verification status (`new`, `approved`, `rejected`, `reupload_requested`) on list rows and the detail; `PUT /admin/faculty/:id/active` activates or deactivates a tutor separately.
+- Invitation email states the exact expiry date and time (`FACULTY_INVITE_TTL_HOURS`).
+- Up to 5 optional additional documents (`additionalDocuments`, stored as OTHER) on the application and the re-upload; the roster counts them apart.
+- Accepting prices needs a drawn signature (multipart `signature`, PNG); `GET /admin/faculty/:id/price-consent/signature` (audited).
+- Phone numbers: onboarding DTOs strip spaces, so "+91 98765 43210" from the new phone field is accepted and stored as E.164.
+- `GET /faculty/onboarding/teaching-modes`; `teachingMode` replaces `offersOfflineClasses` (still accepted, derived from the mode).
+- Contract regenerated (122 paths, 138 operations). Unit: ✅ 38 files, 503 passed (`vitest.unit.config.ts`). Integration against PostgreSQL 16: ✅ 470 passed (41 files; the afterAll disconnect hook timed out in the sandbox, not a test failure).
+
 ## 2026-11-06 — Merge development (LMS-99 policies, consent, students) into the faculty pricing branch
 
 - Conflicts resolved: routes (faculty onboarding and self routers next to policies, consent, students and regions), `tests/env-setup.ts`, `.gitignore`, contract generator tags, decision log, progress and findings.

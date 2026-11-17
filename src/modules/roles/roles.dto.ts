@@ -34,7 +34,13 @@ export const PaginationQueryDto = z.object({
   search: z.string().trim().optional(),
 });
 
+/** `audience=admin` leaves out the student and faculty portal roles, for the admin Roles screen and role picker. */
+export const RoleListQueryDto = PaginationQueryDto.extend({
+  audience: z.enum(['admin']).optional(),
+});
+
 export type CreateRoleInput = z.infer<typeof CreateRoleDto>;
 export type UpdateRoleInput = z.infer<typeof UpdateRoleDto>;
 export type AssignPermissionsInput = z.infer<typeof AssignPermissionsDto>;
 export type PaginationQueryInput = z.infer<typeof PaginationQueryDto>;
+export type RoleListQueryInput = z.infer<typeof RoleListQueryDto>;
