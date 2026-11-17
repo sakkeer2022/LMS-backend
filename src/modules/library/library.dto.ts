@@ -104,3 +104,12 @@ export type CreateResourceInput = z.output<typeof CreateResourceDto>;
 export type UpdateResourceInput = z.output<typeof UpdateResourceDto>;
 export type ListSubmissionsQuery = z.output<typeof ListSubmissionsQueryDto>;
 export type ReviewSubmissionInput = z.output<typeof ReviewSubmissionDto>;
+
+/** Student Library list: a subject tab, a search and a sort, paged. */
+export const StudentLibraryQueryDto = z.strictObject({
+  ...paginationQuerySchema.shape,
+  subjectId: z.uuid().optional(),
+  q: z.string().trim().max(100).optional(),
+  sort: z.enum(['recent', 'updated', 'title']).default('recent'),
+});
+export type StudentLibraryQuery = z.infer<typeof StudentLibraryQueryDto>;

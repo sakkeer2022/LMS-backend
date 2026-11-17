@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { config } from '@config/index';
-import { authenticate, requirePermission } from '@middleware/authenticate';
+import { authenticate, requirePermission, requireRole } from '@middleware/authenticate';
 import { validateRequest } from '@middleware/validate';
 import { createRouteRateLimiter } from '@middleware/rate-limit';
 import * as Controller from './library.controller.js';
@@ -280,3 +280,75 @@ adminLibraryRouter.put(
   validateRequest({ params: SubmissionParamsDto, body: ReviewSubmissionDto }),
   Controller.reviewSubmission
 );
+
+// ── Student library (mounted at /library) ──
+
+export const studentLibraryRouter = Router();
+studentLibraryRouter.use(authenticate, requireRole('student'));
+
+/**
+ * @openapi
+ * /library:
+ *   get:
+ *     summary: Browse the free library
+ *     description: Approved resources of active, published faculty, one page at a time. Filter by subject, search title, description or faculty name, sort by recent (default), updated or title. Students only.
+ *     tags: [Library]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Resources }
+ *       401: { description: Not signed in }
+ *       403: { description: Not a student }
+ *       422: { description: Invalid query }
+ */
+studentLibraryRouter.get('/', Controller.studentList);
+
+/**
+ * @openapi
+ * /library/subjects:
+ *   get:
+ *     summary: Subjects that have library resources
+ *     description: The filter tabs, each with its resource count. Students only.
+ *     tags: [Library]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Subjects }
+ *       401: { description: Not signed in }
+ *       403: { description: Not a student }
+ */
+studentLibraryRouter.get('/subjects', Controller.studentSubjects);
+
+/**
+ * @openapi
+ * /library/{resourceId}:
+ *   get:
+ *     summary: Read one library resource
+ *     description: The live version, the note text for a note, and up to three related resources of the same subject. 404 when the resource is not approved or its faculty is no longer active.
+ *     tags: [Library]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: resourceId, required: true, schema: { type: string, format: uuid } }
+ *     responses:
+ *       200: { description: The resource }
+ *       401: { description: Not signed in }
+ *       403: { description: Not a student }
+ *       404: { description: Not available }
+ */
+studentLibraryRouter.get('/:resourceId', Controller.studentShow);
+
+/**
+ * @openapi
+ * /library/{resourceId}/file:
+ *   get:
+ *     summary: Download a library file
+ *     description: File bytes (not JSON) as an attachment, private and no-store, with a sandbox CSP. X-Document-Previewable is true for PDF and images. Never a pending edit.
+ *     tags: [Library]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: resourceId, required: true, schema: { type: string, format: uuid } }
+ *     responses:
+ *       200: { description: The file }
+ *       401: { description: Not signed in }
+ *       403: { description: Not a student }
+ *       404: { description: Not available, or the resource is a note }
+ */
+studentLibraryRouter.get('/:resourceId/file', Controller.studentFile);

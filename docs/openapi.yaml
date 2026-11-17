@@ -13070,8 +13070,8 @@
         "tags": [
           "Library"
         ],
-        "summary": "List approved library resources visible to caller",
-        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. Live permission, active curriculum, approval and clean-scan checks. No pending/rejected records or inaccessible URLs in data/meta. DECISION REQUIRED: Deliberately narrower than SOW A1.7.5, which lists uploads by Amentorz, admin and authorized faculty, DOC/DOCX/PPT/PPTX files and video or resource links, and open student access. Kept as designed (decided 2026-10-29) pending client confirmation in docs/PENDING_DECISIONS.md: admin-only upload/moderation and an authenticated-student audience; no faculty upload endpoint. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
+        "summary": "Browse the free library",
+        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. Approved resources of active, published faculty; the approved version only. No pending, rejected or withdrawn resources. Scan status is not filtered yet (F4: library files are not scanned). DECISION REQUIRED: Deliberately narrower than SOW A1.7.5, which lists uploads by Amentorz, admin and authorized faculty, DOC/DOCX/PPT/PPTX files and video or resource links, and open student access. Kept as designed (decided 2026-10-29) pending client confirmation in docs/PENDING_DECISIONS.md: admin-only upload/moderation and an authenticated-student audience; no faculty upload endpoint. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
         "x-required-role": "student",
         "x-review-status": "decision-required",
         "security": [
@@ -13081,7 +13081,7 @@
         ],
         "responses": {
           "200": {
-            "description": "List approved library resources visible to caller.",
+            "description": "Browse the free library.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13125,30 +13125,40 @@
         },
         "parameters": [
           {
-            "name": "kind",
+            "name": "subjectId",
             "in": "query",
             "required": false,
-            "description": "kind",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "notes",
-                "papers",
-                "worksheets",
-                "syllabus",
-                "other"
-              ]
-            }
-          },
-          {
-            "name": "curriculumId",
-            "in": "query",
-            "required": false,
-            "description": "curriculumId",
+            "description": "subjectId",
             "schema": {
               "type": "string",
               "format": "uuid",
               "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Title, description or faculty name contains.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "sort",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "recent",
+                "updated",
+                "title"
+              ],
+              "default": "recent"
             }
           },
           {
@@ -13178,16 +13188,16 @@
         ]
       }
     },
-    "/library/{materialId}": {
+    "/library/subjects": {
       "get": {
-        "operationId": "getApprovedLibraryResource",
+        "operationId": "listLibrarySubjects",
         "tags": [
           "Library"
         ],
-        "summary": "Read permitted library resource metadata",
-        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. 404 for pending/rejected/inaccessible resource. No URL or storage key returned. DECISION REQUIRED: Deliberately narrower than SOW A1.7.5, which lists uploads by Amentorz, admin and authorized faculty, DOC/DOCX/PPT/PPTX files and video or resource links, and open student access. Kept as designed (decided 2026-10-29) pending client confirmation in docs/PENDING_DECISIONS.md: admin-only upload/moderation and an authenticated-student audience; no faculty upload endpoint. Student onboarding step 1 says \"You can browse the free library without an account\", which conflicts with the authenticated-student audience below.",
+        "summary": "Subjects that have library resources",
+        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. The filter tabs with resource counts.",
         "x-required-role": "student",
-        "x-review-status": "decision-required",
+        "x-review-status": "ready-for-review",
         "security": [
           {
             "cookieAuth": []
@@ -13195,7 +13205,62 @@
         ],
         "responses": {
           "200": {
-            "description": "Read permitted library resource metadata.",
+            "description": "Subjects that have library resources.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listLibrarySubjectsResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
+    "/library/{resourceId}": {
+      "get": {
+        "operationId": "getApprovedLibraryResource",
+        "tags": [
+          "Library"
+        ],
+        "summary": "Read one library resource",
+        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. The live version, the note text for a note, and up to three related resources. 404 for a resource that is not approved or whose faculty is no longer active. No storage key returned.",
+        "x-required-role": "student",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Read one library resource.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13207,9 +13272,27 @@
                   "data": {
                     "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
                     "title": "Algebra practice",
-                    "kind": "notes",
-                    "curriculumId": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
-                    "source": "file"
+                    "description": "Reviewed configuration definition.",
+                    "type": "pdf",
+                    "sizeBytes": 0,
+                    "readMinutes": 1,
+                    "facultyName": "Example value",
+                    "subject": {
+                      "id": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730",
+                      "name": "Mathematics"
+                    },
+                    "board": "Example value",
+                    "level": "Example value",
+                    "createdAt": "2026-10-21T09:00:00Z",
+                    "updatedAt": "2026-10-21T09:00:00Z",
+                    "body": "Example value",
+                    "file": {
+                      "name": "Mathematics",
+                      "size": 0,
+                      "mimeType": "Example value",
+                      "previewable": true
+                    },
+                    "related": []
                   }
                 }
               }
@@ -13242,7 +13325,77 @@
         },
         "parameters": [
           {
-            "name": "materialId",
+            "name": "resourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            }
+          }
+        ]
+      }
+    },
+    "/library/{resourceId}/file": {
+      "get": {
+        "operationId": "downloadLibraryResourceFile",
+        "tags": [
+          "Library"
+        ],
+        "summary": "Download a library file",
+        "description": "Current active, email-verified student identity; server checks role, permission and resource ownership on every request. File bytes (not JSON) as an attachment: private, no-store, nosniff, sandbox CSP; X-Document-Previewable for PDF and images. 404 for a note or an unavailable resource.",
+        "x-required-role": "student",
+        "x-review-status": "ready-for-review",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Download a library file.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/downloadLibraryResourceFileResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Success",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "resourceId",
             "in": "path",
             "required": true,
             "schema": {
@@ -20033,37 +20186,285 @@
           "title": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 150
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "image",
+              "document",
+              "slides",
+              "note"
+            ],
+            "description": "From the file type; note has no file."
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "nullable": true,
+            "description": "File size in bytes; null for a note."
+          },
+          "readMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "nullable": true,
+            "description": "Estimated reading time of a note; null for a file."
+          },
+          "facultyName": {
+            "type": "string",
+            "minLength": 1,
             "maxLength": 200
           },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "notes",
-              "papers",
-              "worksheets",
-              "syllabus",
-              "other"
+          "subject": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              }
+            },
+            "required": [
+              "id",
+              "name"
             ]
           },
-          "curriculumId": {
+          "board": {
             "type": "string",
-            "format": "uuid",
-            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+            "minLength": 1,
+            "maxLength": 100,
+            "nullable": true
           },
-          "source": {
+          "level": {
             "type": "string",
-            "enum": [
-              "file",
-              "link"
-            ]
+            "minLength": 1,
+            "maxLength": 100,
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
           }
         },
         "required": [
           "id",
           "title",
-          "kind",
-          "curriculumId",
-          "source"
+          "description",
+          "type",
+          "sizeBytes",
+          "readMinutes",
+          "facultyName",
+          "subject",
+          "board",
+          "level",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "LibraryResourceDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "image",
+              "document",
+              "slides",
+              "note"
+            ],
+            "description": "From the file type; note has no file."
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "nullable": true,
+            "description": "File size in bytes; null for a note."
+          },
+          "readMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "nullable": true,
+            "description": "Estimated reading time of a note; null for a file."
+          },
+          "facultyName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "subject": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ]
+          },
+          "board": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "nullable": true
+          },
+          "level": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T09:00:00Z"
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000,
+            "nullable": true,
+            "description": "Note text."
+          },
+          "file": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
+              },
+              "mimeType": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "previewable": {
+                "type": "boolean",
+                "description": "PDF and images can be shown inline."
+              }
+            },
+            "required": [
+              "name",
+              "size",
+              "mimeType",
+              "previewable"
+            ],
+            "nullable": true,
+            "description": "For kind file."
+          },
+          "related": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryResource"
+            },
+            "maxItems": 3,
+            "description": "Other resources of the same subject."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "type",
+          "sizeBytes",
+          "readMinutes",
+          "facultyName",
+          "subject",
+          "board",
+          "level",
+          "createdAt",
+          "updatedAt",
+          "body",
+          "file",
+          "related"
+        ]
+      },
+      "LibrarySubject": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8c121988-8afa-4fb7-b6eb-9b0dcb94f730"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "count"
         ]
       },
       "LibraryReview": {
@@ -26422,6 +26823,35 @@
           "meta"
         ]
       },
+      "listLibrarySubjectsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibrarySubject"
+            },
+            "maxItems": 200
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
       "getApprovedLibraryResourceResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -26438,7 +26868,36 @@
             "maxLength": 500
           },
           "data": {
-            "$ref": "#/components/schemas/LibraryResource"
+            "$ref": "#/components/schemas/LibraryResourceDetail"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data"
+        ]
+      },
+      "downloadLibraryResourceFileResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "data": {
+            "type": "object",
+            "nullable": true,
+            "enum": [
+              null
+            ]
           }
         },
         "required": [
